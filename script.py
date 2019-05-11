@@ -12,4 +12,10 @@ def handle_file_contents(file_contents):
     eel.update_output_area(line_count)
 
 
+@eel.expose
+def trigger_download():
+    file_contents = 'hello\nworld\n'
+    eel.cause_download(file_contents, 'file.txt')
+
+
 eel.start('main.html', size=(500, 200))    # Start

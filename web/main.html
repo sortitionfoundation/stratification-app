@@ -16,6 +16,9 @@
     <div id="output-area">
       <p id="output-area-target-p"></p>
     </div>
+    <div id="download-area">
+      <input type='button' id='download-btn' class='btn btn-primary' value='Download'>
+    </div>
     <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
     <script type="text/javascript" src="/eel.js"></script>
     <script type="text/javascript">
@@ -33,6 +36,8 @@
         function init_page() {
           const file_input = document.getElementById("main-form-file");
           file_input.addEventListener("change", handle_main_file, false);
+          const download_btn = document.getElementById('download-btn');
+          download_btn.addEventListener('click', handle_download_button, false);
         }
 
         function handle_main_file() {
@@ -53,8 +58,22 @@
           output_area.textContent = output_text;
         }
 
+        function handle_download_button() {
+          eel.trigger_download();
+        }
+
+        eel.expose(cause_download);
+        function cause_download(file_contents, filename) {
+          let download_link = document.createElement('a');
+          download_link.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(file_contents));
+          download_link.setAttribute('download', filename);
+          download_link.textContent = 'download me!';
+          let download_area = document.getElementById('download-area');
+          download_area.appendChild(download_link);
+        }
+
         init_page();
-        }());
+      }());
     </script>
   </body>
 </html>
