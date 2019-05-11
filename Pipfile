@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 Eel = "*"
+greenlet = "*"
 
 [dev-packages]
 
