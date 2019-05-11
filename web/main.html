@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+  </head>
+
+  <body>
+    <div id="input-elements">
+    <h1>Upload a CSV file</h1>
+      <div>
+        <input type='file' id='main-form-file'>
+        <!--input type='button' id='main-form-btn' class='btn btn-primary' value='Submit'-->
+      </div>
+    </div>
+    <div id="output-area">
+      <p id="output-area-target-p"></p>
+    </div>
+    <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
+    <script type="text/javascript" src="/eel.js"></script>
+    <script type="text/javascript">
+      $(function(){
+
+        /*
+        eel.expose(say_hello_js);               // Expose this function to Python
+        function say_hello_js(x) {
+          console.log("Hello from " + x);
+        }
+        say_hello_js("Javascript World!");
+        eel.handleinput("connected!");  // Call a Python function
+        */
+
+        function init_page() {
+          const file_input = document.getElementById("main-form-file");
+          file_input.addEventListener("change", handle_main_file, false);
+        }
+
+        function handle_main_file() {
+          const file_handle = this.files[0];
+          const reader = new FileReader();
+          reader.onload = main_file_loaded;
+          reader.readAsText(file_handle);
+        }
+
+        function main_file_loaded(e) {
+          const file_contents = e.target.result;
+          eel.handle_file_contents(file_contents);
+        }
+
+        eel.expose(update_output_area);               // Expose this function to Python
+        function update_output_area(output_text) {
+          const output_area = document.getElementById("output-area-target-p");
+          output_area.textContent = output_text;
+        }
+
+        init_page();
+        }());
+    </script>
+  </body>
+</html>
