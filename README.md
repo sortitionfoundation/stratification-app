@@ -11,6 +11,8 @@ blah
 Development
 -----------
 
+The app is built using [eel](https://github.com/ChrisKnott/Eel) - a framework that allows the GUI to be defined in HTML and CSS, but then some basic JavaScript can call Python and I can do the heavy lifting in Python.
+
 ### Install for development
 
 First you need to have the following installed:
