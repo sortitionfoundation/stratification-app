@@ -6,15 +6,27 @@
   </head>
 
   <body>
+    <h1>Stratification App</h1>
     <div id="input-elements">
-    <h1>Upload a CSV file</h1>
       <div>
-        <input type='file' id='main-form-file'>
-        <!--input type='button' id='main-form-btn' class='btn btn-primary' value='Submit'-->
+        <h2>Upload CSV files</h2>
+        <div class="form-group">
+          <label for="categories-file">A CSV file with category info</label>
+          <input type="file" class="form-control" id="categories-file">
+        </div>
+        <div class="form-group">
+          <label for="selection-file">A CSV file with people to select from</label>
+          <input type="file" class="form-control" id="selection-file">
+        </div>
       </div>
-    </div>
-    <div id="output-area">
-      <p id="output-area-target-p"></p>
+      <div>
+        <div id="output-area-categories">
+          <p id="output-area-categories-target-p"></p>
+        </div>
+        <div id="output-area-selection">
+          <p id="output-area-selection-target-p"></p>
+        </div>
+      </div>
     </div>
     <div id="download-area">
       <input type='button' id='download-btn' class='btn btn-primary' value='Download'>
@@ -24,37 +36,48 @@
     <script type="text/javascript">
       $(function(){
 
-        /*
-        eel.expose(say_hello_js);               // Expose this function to Python
-        function say_hello_js(x) {
-          console.log("Hello from " + x);
-        }
-        say_hello_js("Javascript World!");
-        eel.handleinput("connected!");  // Call a Python function
-        */
-
         function init_page() {
-          const file_input = document.getElementById("main-form-file");
-          file_input.addEventListener("change", handle_main_file, false);
+          const categories_file_input = document.getElementById("categories-file");
+          categories_file_input.addEventListener("change", handle_categories_file, false);
+          const selection_file_input = document.getElementById("selection-file");
+          selection_file_input.addEventListener("change", handle_selection_file, false);
           const download_btn = document.getElementById('download-btn');
           download_btn.addEventListener('click', handle_download_button, false);
         }
 
-        function handle_main_file() {
+        function handle_categories_file() {
           const file_handle = this.files[0];
           const reader = new FileReader();
-          reader.onload = main_file_loaded;
+          reader.onload = categories_file_loaded;
           reader.readAsText(file_handle);
         }
 
-        function main_file_loaded(e) {
-          const file_contents = e.target.result;
-          eel.handle_file_contents(file_contents);
+        function handle_selection_file() {
+          const file_handle = this.files[0];
+          const reader = new FileReader();
+          reader.onload = selection_file_loaded;
+          reader.readAsText(file_handle);
         }
 
-        eel.expose(update_output_area);               // Expose this function to Python
-        function update_output_area(output_text) {
-          const output_area = document.getElementById("output-area-target-p");
+        function categories_file_loaded(e) {
+          const file_contents = e.target.result;
+          eel.handle_category_contents(file_contents);
+        }
+
+        function selection_file_loaded(e) {
+          const file_contents = e.target.result;
+          eel.handle_selection_contents(file_contents);
+        }
+
+        eel.expose(update_categories_output_area);
+        function update_categories_output_area(output_text) {
+          const output_area = document.getElementById("output-area-categories-target-p");
+          output_area.textContent = output_text;
+        }
+
+        eel.expose(update_selection_output_area);
+        function update_selection_output_area(output_text) {
+          const output_area = document.getElementById("output-area-selection-target-p");
           output_area.textContent = output_text;
         }
 

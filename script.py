@@ -2,14 +2,19 @@ from io import StringIO
 
 import eel
 
-eel.init('web')                     # Give folder containing web files
+
+@eel.expose
+def handle_category_contents(file_contents):
+    the_file = StringIO(file_contents)
+    line_count = len(the_file.readlines())
+    eel.update_categories_output_area(line_count)
 
 
 @eel.expose
-def handle_file_contents(file_contents):
+def handle_selection_contents(file_contents):
     the_file = StringIO(file_contents)
     line_count = len(the_file.readlines())
-    eel.update_output_area(line_count)
+    eel.update_selection_output_area(line_count)
 
 
 @eel.expose
@@ -18,4 +23,10 @@ def trigger_download():
     eel.cause_download(file_contents, 'file.txt')
 
 
-eel.start('main.html', size=(500, 200))    # Start
+def main():
+    eel.init('web')  # Give folder containing web files
+    eel.start('main.html', size=(500, 500))    # Start
+
+
+if __name__ == '__main__':
+    main()
