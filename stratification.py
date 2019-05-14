@@ -10,7 +10,9 @@
         - could make is find multiple solutions and pick the best?
 
 """
+import copy
 import csv
+import os
 import random
 
 #######
@@ -26,7 +28,7 @@ root_io_dir = (
 
 # first row MUST be fields named: category, name, min, max
 # to randomly select one person, modify this file (and change total below to 1 !)
-category_file = root_io_dir + "categories.csv"
+category_file_path = os.path.join(root_io_dir, "categories.csv")
 
 # this file MUST have at least columns = id_column (below) AND those described in category file (other columns are ignored)
 people_file_readable = root_io_dir + "example_people_readable.csv"
@@ -156,9 +158,9 @@ def delete_person(categories, people, pkey, columns_data):
 
 
 # read in categories - a dict of dicts of dicts...
-def read_in_cats():
+def read_in_cats(category_file):
     categories = {}
-    cat_file = csv.DictReader(open(category_file))
+    cat_file = csv.DictReader(category_file)
     for row in cat_file:  # must convert min/max to ints
         if row["category"] in categories:  # must convert min/max to ints
             categories[row["category"]].update(
@@ -188,11 +190,12 @@ def read_in_cats():
 
 
 # read in people and calculate how many people in each category in database
-def init_categories_people(categories, columns_data):
+def init_categories_people(people_file, categories):
     people = {}
-    people_file = csv.DictReader(open(people_file_readable, "r"))
+    columns_data = {}
+    people_data = csv.DictReader(people_file)
     cat_keys = categories.keys()
-    for row in people_file:
+    for row in people_data:
         key = row[id_column]
         value = {}
         for cat in cat_keys:
@@ -213,7 +216,7 @@ def init_categories_people(categories, columns_data):
     #         cat_item = categories[pcat][pval]
     #         if cat_item['max'] == 0:
     #             delete_all_in_cat(categories, people, pcat, pval)
-    return people
+    return people, columns_data
 
 
 # returns dict of category key, category item name, random person number
@@ -311,23 +314,17 @@ def find_random_sample(categories, people, columns_data):
 ###################################
 
 
-def main():
+def run_stratification(categories, people, columns_data):
     success = False
     tries = 0
-    if create_sample_file:
-        categories = read_in_cats()
-        create_readable_sample_file(categories)
-
     while not success and tries < max_attempts:
-        categories = read_in_cats()
-        columns_data = {}
         people_selected = {}
-        people = init_categories_people(categories, columns_data)
+        people_working = copy.deepcopy(people)
         if tries == 0:
             print("Initial: (selected/remaining)\n" + print_category_selected(categories))
         print("Trial number: ", tries)
         try:
-            people_selected = find_random_sample(categories, people, columns_data)
+            people_selected = find_random_sample(categories, people_working, columns_data)
             # check we have reached minimum needed in all cats
             if check_min_cats(categories):
                 print("SUCCESS!!")
@@ -337,26 +334,42 @@ def main():
         except SelectionError as serr:
             print("Failed: Selection Error thrown: ", serr.msg)
         tries += 1
+    return success, tries, people_selected
+
+
+def write_selected_people_to_file(people_selected, categories, columns_data, selected_file):
+    people_selected_writer = csv.writer(
+        selected_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
+    )
+    people_selected_writer.writerow(
+        [id_column] + columns_to_keep + list(categories.keys())
+    )
+    for pkey, person in people_selected.items():
+        row = [pkey]
+        for col in columns_to_keep:
+            row.append(columns_data[pkey][col])
+        row += person.values()
+        people_selected_writer.writerow(row)
+
+
+def main():
+    with open(category_file_path) as category_file:
+        categories = read_in_cats(category_file)
+    if create_sample_file:
+        create_readable_sample_file(categories)
+
+    with open(people_file_readable, "r") as people_file:
+        people, columns_data = init_categories_people(people_file, categories)
+
+    success, tries, people_selected = run_stratification(categories, people, columns_data)
 
     print("Final:\n" + print_category_selected(categories))
     if success:
         print("We tried ", tries, " time(s).")
         print("Count = ", len(people_selected), " people selected")  # , people_selected
         # write selected people to a file
-        with open(people_selected_file_name, mode="w") as example_people_selected:
-            example_people_selected_writer = csv.writer(
-                example_people_selected, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
-            )
-            example_people_selected_writer.writerow(
-                [id_column] + columns_to_keep + list(categories.keys())
-            )
-            for pkey, person in people_selected.items():
-                row = [pkey]
-                for col in columns_to_keep:
-                    row.append(columns_data[pkey][col])
-                row += person.values()
-                example_people_selected_writer.writerow(row)
-        example_people_selected.close()
+        with open(people_selected_file_name, mode="w") as selected_file:
+            write_selected_people_to_file(people_selected, categories, columns_data, selected_file)
     else:
         print("Failed ", tries, " times... gave up.")
 

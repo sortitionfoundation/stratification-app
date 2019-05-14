@@ -2,25 +2,40 @@ from io import StringIO
 
 import eel
 
+from stratification import (
+    init_categories_people, read_in_cats, run_stratification, write_selected_people_to_file
+)
+
 
 class FileContents():
 
     def __init__(self):
         self.category_raw_content = ''
         self.selection_raw_content = ''
+        self.categories = None
+        self.columns_data = None
+        self.people = None
 
     def add_category_content(self, file_contents):
         csv_files.category_raw_content = file_contents
-        the_file = StringIO(file_contents)
-        line_count = len(the_file.readlines())
-        eel.update_categories_output_area(line_count)
+        category_file = StringIO(file_contents)
+        try:
+            self.categories = read_in_cats(category_file)
+        except Exception as error:
+            # TODO: put error in the GUI box
+            print("Error reading in categories: {}".format(error))
+        eel.update_categories_output_area(len(self.categories.keys()))
         self.update_run_button()
 
     def add_selection_content(self, file_contents):
         csv_files.selection_raw_content = file_contents
-        the_file = StringIO(file_contents)
-        line_count = len(the_file.readlines())
-        eel.update_selection_output_area(line_count)
+        people_file = StringIO(file_contents)
+        try:
+            self.people, self.columns_data = init_categories_people(people_file, self.categories)
+        except Exception as error:
+            # TODO: put error in the GUI box
+            print("Error reading in people: {}".format(error))
+        eel.update_selection_output_area(len(self.people.keys()))
         self.update_run_button()
 
     def update_run_button(self):
@@ -28,8 +43,10 @@ class FileContents():
             eel.enable_run_button()
 
     def run_selection(self):
-        file_contents = self.category_raw_content + self.selection_raw_content
-        eel.enable_download(file_contents, 'file.txt')
+        success, tries, people_selected = run_stratification(self.categories, self.people, self.columns_data)
+        outfile = StringIO()
+        write_selected_people_to_file(people_selected, self.categories, self.columns_data, outfile)
+        eel.enable_download(outfile.getvalue(), 'file.txt')
 
 
 # global to hold contents uploaded from JS
