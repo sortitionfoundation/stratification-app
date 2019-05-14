@@ -6,97 +6,32 @@
   </head>
 
   <body>
-    <h1>Stratification App</h1>
-    <div id="input-elements">
+    <div id="input-elements" class="container">
+      <h1>Stratification App</h1>
       <div>
         <h2>Upload CSV files</h2>
         <div class="form-group">
           <label for="categories-file">A CSV file with category info</label>
           <input type="file" class="form-control" id="categories-file">
         </div>
+        <div id="output-area-categories">
+          <p id="output-area-categories-target-p"></p>
+        </div>
         <div class="form-group">
           <label for="selection-file">A CSV file with people to select from</label>
           <input type="file" class="form-control" id="selection-file">
-        </div>
-      </div>
-      <div>
-        <div id="output-area-categories">
-          <p id="output-area-categories-target-p"></p>
         </div>
         <div id="output-area-selection">
           <p id="output-area-selection-target-p"></p>
         </div>
       </div>
     </div>
-    <div id="download-area">
-      <input type='button' id='download-btn' class='btn btn-primary' value='Download'>
+    <div class="container">
+      <input type='button' id='run-btn' class='btn btn-primary' value='Run Selection' disabled>
+      <a href="#" role='button' id='download-btn' class='btn btn-primary btn-lg disabled'>Download</a>
     </div>
     <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
     <script type="text/javascript" src="/eel.js"></script>
-    <script type="text/javascript">
-      $(function(){
-
-        function init_page() {
-          const categories_file_input = document.getElementById("categories-file");
-          categories_file_input.addEventListener("change", handle_categories_file, false);
-          const selection_file_input = document.getElementById("selection-file");
-          selection_file_input.addEventListener("change", handle_selection_file, false);
-          const download_btn = document.getElementById('download-btn');
-          download_btn.addEventListener('click', handle_download_button, false);
-        }
-
-        function handle_categories_file() {
-          const file_handle = this.files[0];
-          const reader = new FileReader();
-          reader.onload = categories_file_loaded;
-          reader.readAsText(file_handle);
-        }
-
-        function handle_selection_file() {
-          const file_handle = this.files[0];
-          const reader = new FileReader();
-          reader.onload = selection_file_loaded;
-          reader.readAsText(file_handle);
-        }
-
-        function categories_file_loaded(e) {
-          const file_contents = e.target.result;
-          eel.handle_category_contents(file_contents);
-        }
-
-        function selection_file_loaded(e) {
-          const file_contents = e.target.result;
-          eel.handle_selection_contents(file_contents);
-        }
-
-        eel.expose(update_categories_output_area);
-        function update_categories_output_area(output_text) {
-          const output_area = document.getElementById("output-area-categories-target-p");
-          output_area.textContent = output_text;
-        }
-
-        eel.expose(update_selection_output_area);
-        function update_selection_output_area(output_text) {
-          const output_area = document.getElementById("output-area-selection-target-p");
-          output_area.textContent = output_text;
-        }
-
-        function handle_download_button() {
-          eel.trigger_download();
-        }
-
-        eel.expose(cause_download);
-        function cause_download(file_contents, filename) {
-          let download_link = document.createElement('a');
-          download_link.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(file_contents));
-          download_link.setAttribute('download', filename);
-          download_link.textContent = 'download me!';
-          let download_area = document.getElementById('download-area');
-          download_area.appendChild(download_link);
-        }
-
-        init_page();
-      }());
-    </script>
+    <script type="text/javascript" src="/js/main.js"></script>
   </body>
 </html>
