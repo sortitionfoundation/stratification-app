@@ -3,7 +3,10 @@ from io import StringIO
 import eel
 
 from stratification import (
-    init_categories_people, read_in_cats, run_stratification, write_selected_people_to_file
+    init_categories_people,
+    read_in_cats,
+    run_stratification,
+    write_selected_people_to_file
 )
 
 
