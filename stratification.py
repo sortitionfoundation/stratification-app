@@ -13,6 +13,7 @@
 import copy
 import csv
 import random
+import typing
 
 #######
 
@@ -59,21 +60,20 @@ class SelectionError(Exception):
 
 
 # create READABLE example file of people
-def create_readable_sample_file(categories, people_file_readable):
-    with open(people_file_readable, mode="w") as example_people:
-        example_people_writer = csv.writer(
-            example_people, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
-        )
-        cat_keys = categories.keys()
-        example_people_writer.writerow([id_column] + columns_to_keep + list(cat_keys))
-        for x in range(number_people_example_file):
-            row = ["p{}".format(x)]
-            for col in columns_to_keep:
-                row.append(col + str(x))
-            for cat_key, cats in categories.items():
-                random_cat_value = random.choice(list(cats.keys()))
-                row.append(random_cat_value)
-            example_people_writer.writerow(row)
+def create_readable_sample_file(categories, people_file: typing.TextIO):
+    example_people_writer = csv.writer(
+        people_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
+    )
+    cat_keys = categories.keys()
+    example_people_writer.writerow([id_column] + columns_to_keep + list(cat_keys))
+    for x in range(number_people_example_file):
+        row = ["p{}".format(x)]
+        for col in columns_to_keep:
+            row.append(col + str(x))
+        for cat_key, cats in categories.items():
+            random_cat_value = random.choice(list(cats.keys()))
+            row.append(random_cat_value)
+        example_people_writer.writerow(row)
 
 
 # when a category is full we want to delete everyone in it
@@ -140,7 +140,7 @@ def delete_person(categories, people, pkey, columns_data):
 
 
 # read in categories - a dict of dicts of dicts...
-def read_in_cats(category_file):
+def read_in_cats(category_file: typing.TextIO):
     categories = {}
     cat_file = csv.DictReader(category_file)
     for row in cat_file:  # must convert min/max to ints
@@ -172,7 +172,7 @@ def read_in_cats(category_file):
 
 
 # read in people and calculate how many people in each category in database
-def init_categories_people(people_file, categories):
+def init_categories_people(people_file: typing.TextIO, categories):
     people = {}
     columns_data = {}
     people_data = csv.DictReader(people_file)
@@ -319,7 +319,7 @@ def run_stratification(categories, people, columns_data):
     return success, tries, people_selected
 
 
-def write_selected_people_to_file(people_selected, categories, columns_data, selected_file):
+def write_selected_people_to_file(people_selected, categories, columns_data, selected_file: typing.TextIO):
     people_selected_writer = csv.writer(
         selected_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
