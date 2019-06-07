@@ -48,7 +48,8 @@ class FileContents():
     def run_selection(self):
         success, tries, people_selected = run_stratification(self.categories, self.people, self.columns_data)
         outfile = StringIO()
-        write_selected_people_to_file(people_selected, self.categories, self.columns_data, outfile)
+        remainfile = StringIO() # Brett - But not sure what to do from here!
+        write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, outfile, remainfile)
         eel.enable_download(outfile.getvalue(), 'file.txt')
 
 

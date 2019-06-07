@@ -11,8 +11,8 @@ from stratification import (
 
 # INPUT FILES etc:
 root_io_dir = Path(
-    # "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/python/"
-    "/home/hamish/dev/sortition/brett-20190513/"
+    "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/python/"
+    #"/home/hamish/dev/sortition/brett-20190513/"
 )
 
 # first row MUST be fields named: category, name, min, max
@@ -23,8 +23,9 @@ category_file_path = root_io_dir / "categories.csv"
 # in category file (other columns are ignored)
 people_file_path = root_io_dir / "example_people_readable.csv"
 
-# OUTPUT FILE:
-people_selected_file_path = root_io_dir / "example_people_readable-selected-final-22.csv"
+# OUTPUT FILES:
+people_selected_file_path = root_io_dir / "example_people_readable-selected-final-new-22.csv"
+people_remaining_file_path = root_io_dir / "example_people_readable-selected-final-new-22-remaining.csv"
 
 # for testing - WARNING: will overwrite people_file_path  file!
 create_sample_file = False
@@ -47,8 +48,8 @@ def main():
         print(f"We tried {tries} time(s).")
         print("Count = ", len(people_selected), " people selected")  # , people_selected
         # write selected people to a file
-        with open(people_selected_file_path, mode="w") as selected_file:
-            write_selected_people_to_file(people_selected, categories, columns_data, selected_file)
+        with open(people_selected_file_path, mode="w") as selected_file, open(people_remaining_file_path, mode="w") as remaining_file:
+            write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file, remaining_file)
     else:
         print(f"Failed {tries} times... gave up.")
 

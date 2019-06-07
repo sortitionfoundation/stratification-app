@@ -319,8 +319,8 @@ def run_stratification(categories, people, columns_data):
         tries += 1
     return success, tries, people_selected
 
-
-def write_selected_people_to_file(people_selected, categories, columns_data, selected_file: typing.TextIO):
+# Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
+def write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file: typing.TextIO, remaining_file):
     people_selected_writer = csv.writer(
         selected_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
@@ -333,3 +333,17 @@ def write_selected_people_to_file(people_selected, categories, columns_data, sel
             row.append(columns_data[pkey][col])
         row += person.values()
         people_selected_writer.writerow(row)
+        del people[pkey]
+        
+    people_remaining_writer = csv.writer(
+        remaining_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
+    )
+    people_remaining_writer.writerow(
+        [id_column] + columns_to_keep + list(categories.keys())
+    )
+    for pkey, person in people.items():
+        row = [pkey]
+        for col in columns_to_keep:
+            row.append(columns_data[pkey][col])
+        row += person.values()
+        people_remaining_writer.writerow(row)
