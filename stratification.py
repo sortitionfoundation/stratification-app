@@ -302,13 +302,14 @@ def run_stratification(categories, people, columns_data):
     while not success and tries < max_attempts:
         people_selected = {}
         people_working = copy.deepcopy(people)
+        categories_working = copy.deepcopy(categories)
         if tries == 0:
-            print("Initial: (selected/remaining)\n" + print_category_selected(categories))
+            print("Initial: (selected/remaining)\n" + print_category_selected(categories_working))
         print("Trial number: ", tries)
         try:
-            people_selected = find_random_sample(categories, people_working, columns_data)
+            people_selected = find_random_sample(categories_working, people_working, columns_data)
             # check we have reached minimum needed in all cats
-            if check_min_cats(categories):
+            if check_min_cats(categories_working):
                 print("SUCCESS!!")
                 success = True
             else:
