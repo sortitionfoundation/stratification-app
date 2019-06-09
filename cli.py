@@ -32,6 +32,7 @@ create_sample_file = False
 
 
 def main():
+    output_lines = []
     with open(category_file_path) as category_file:
         categories = read_in_cats(category_file)
     if create_sample_file:
@@ -41,17 +42,19 @@ def main():
     with open(people_file_path, "r") as people_file:
         people, columns_data = init_categories_people(people_file, categories)
 
-    success, tries, people_selected = run_stratification(categories, people, columns_data)
+    success, tries, people_selected, output_lines = run_stratification(categories, people, columns_data)
 
-    print("Final:\n" + print_category_selected(categories))
+    output_lines.append( "Final:" )
+    output_lines += print_category_selected(categories)
     if success:
-        print(f"We tried {tries} time(s).")
-        print("Count = ", len(people_selected), " people selected")  # , people_selected
+        output_lines.append( "We tried {} time(s).".format(tries) )
+        output_lines.append( "Count = {} people selected".format(len(people_selected)) )  # , people_selected
         # write selected people to a file
         with open(people_selected_file_path, mode="w") as selected_file, open(people_remaining_file_path, mode="w") as remaining_file:
             write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file, remaining_file)
     else:
-        print(f"Failed {tries} times... gave up.")
+        output_lines.append( "Failed {} times... gave up.".format(tries) )
+    print("\n".join(output_lines) + "\n")
 
 
 if __name__ == "__main__":

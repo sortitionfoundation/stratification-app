@@ -91,11 +91,11 @@ def delete_all_in_cat(categories, people, cat, cat_value):
                     )
     for p in people_to_delete:
         del people[p]
-    print(
+    return [
         "Category {} full - deleted {}, {} left.".format(
             cat_value, len(people_to_delete), len(people)
         )
-    )
+    ]
 
 
 # selected = True means we are deleting because they have bene chosen,
@@ -113,6 +113,7 @@ def really_delete_person(categories, people, pkey, selected):
 
 # lucky person has been selected - delete person from DB
 def delete_person(categories, people, pkey, columns_data):
+    output_lines = []
     # recalculate all category values that this person was in
     person = people[pkey]
     really_delete_person(categories, people, pkey, True)
@@ -126,17 +127,18 @@ def delete_person(categories, people, pkey, columns_data):
                 and primary_zip == columns_data[compare_key]["primary_zip"]
             ):
                 # found same address
-                print(
+                output_lines += [
                     "Found someone with the same address as a selected person,"
                     " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
-                )
+                ]
                 # so delete this person
                 really_delete_person(categories, people, compare_key, False)
     # then check if any cats of selected person is (was) in are full
     for (pcat, pval) in person.items():
         cat_item = categories[pcat][pval]
         if cat_item["selected"] == cat_item["max"]:
-            delete_all_in_cat(categories, people, pcat, pval)
+            output_lines += delete_all_in_cat(categories, people, pcat, pval)
+    return output_lines
 
 
 # read in categories - a dict of dicts of dicts...
@@ -255,21 +257,23 @@ def print_category_selected(categories):
                     cat_item["remaining"],
                 )
             )
-    return "\n".join(report_lines) + "\n"
+    return report_lines
 
 
 def check_min_cats(categories):
+    output_msg = []
     got_min = True
     for cat_key, cats in categories.items():
         for cat, cat_item in cats.items():
             if cat_item["selected"] < cat_item["min"]:
                 got_min = False
-                print("Failed to get minimum ", cat)
-    return got_min
+                output_msg = [ "Failed to get minimum in category: {}".format( cat ) ]
+    return got_min, output_msg
 
 
 # main algorithm to try to find a random sample
 def find_random_sample(categories, people, columns_data):
+    output_lines = []
     people_selected = {}
     for count in range(total_number_people_wanted):
         ratio = find_max_ratio_cat(categories)
@@ -282,11 +286,11 @@ def find_random_sample(categories, people, columns_data):
                     if debug > 0:
                         print("Found random person in this cat... adding them")
                     people_selected.update({pkey: pvalue})
-                    delete_person(categories, people, pkey, columns_data)
+                    output_lines += delete_person(categories, people, pkey, columns_data)
                     break
         if count < (total_number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
-    return people_selected
+    return people_selected, output_lines
 
 
 ###################################
@@ -299,25 +303,29 @@ def find_random_sample(categories, people, columns_data):
 def run_stratification(categories, people, columns_data):
     success = False
     tries = 0
+    output_lines = [ "Initial: (selected/remaining)" ]
     while not success and tries < max_attempts:
         people_selected = {}
+        new_output_lines = []
         people_working = copy.deepcopy(people)
         categories_working = copy.deepcopy(categories)
         if tries == 0:
-            print("Initial: (selected/remaining)\n" + print_category_selected(categories_working))
-        print("Trial number: ", tries)
+            output_lines += print_category_selected(categories_working)
+        output_lines.append( "Trial number: " + str(tries) )
         try:
-            people_selected = find_random_sample(categories_working, people_working, columns_data)
+            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data)
+            output_lines += new_output_lines
             # check we have reached minimum needed in all cats
-            if check_min_cats(categories_working):
-                print("SUCCESS!!")
+            check_min_cat, new_output_lines = check_min_cats(categories_working)
+            if check_min_cat:
+                output_lines.append( "SUCCESS!!" )
                 success = True
             else:
-                print("Failed: to get min in cats...")
+                output_lines += new_output_lines
         except SelectionError as serr:
-            print("Failed: Selection Error thrown: ", serr.msg)
+            output_lines.append( "Failed: Selection Error thrown: " + serr.msg )
         tries += 1
-    return success, tries, people_selected
+    return success, tries, people_selected, output_lines
 
 # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
 def write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file: typing.TextIO, remaining_file):

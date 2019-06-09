@@ -45,6 +45,12 @@ $(function(){
         output_area.textContent = output_text;
     }
 
+    eel.expose(update_selection_output_messages_area);
+    function update_selection_output_messages_area(output_text) {
+        const output_area = document.getElementById("output-area-selection-messages-target-p");
+        output_area.textContent = output_text;
+    }
+
     function handle_run_button() {
         eel.run_selection();
     }
