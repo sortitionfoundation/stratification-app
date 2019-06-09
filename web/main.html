@@ -2,7 +2,6 @@
 <html>
   <head>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
   </head>
 
   <body>
@@ -27,21 +26,36 @@
         <h2>Set number of people, run selection, and download output</h2>
         <div class="form-group">
            <label for="selection-number">Step 3: Specify the number of people to select</label>
-           <input type="text" id="selection-number" size="10" maxlength=10>
+           <input type="text" id="selection-number" name="selection-number" min="0" size="10" maxlength=10>
         </div>
       </div>
     </div>
-    <div class="container">
+    <div class="container mb-2">
       <input type='button' id='run-btn' class='btn btn-primary' value='Run Selection' disabled>
-      <a href="#" role='button' id='download-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
+    </div>
+    <div class="container mb-2">
+      <a href="#" role='button' id='download-selected-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
       <a href="#" role='button' id='download-remaining-btn' class='btn btn-primary btn-lg disabled'>Download Remaining</a>
     </div>
     <div class="container">
-      <div id="output-area-selection-messages">
-        <p id="output-area-selection-messages-target-p"></p>
+      <a class="btn" data-toggle="collapse" href="#collapse-detailed-log" role="button" aria-expanded="false" aria-controls="collapseExample">
+        Show/hide detailed log
+      </a>
+      <div class="collapse" id="collapse-detailed-log">
+        <div class="card">
+          <div class="card-block">
+            <h3 class="card-title">Detailed Log</h3>
+            <div id="output-area-selection-messages">
+              <p id="output-area-selection-messages-target-p" class="card-text"></p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
     <script type="text/javascript" src="/eel.js"></script>
     <script type="text/javascript" src="/js/main.js"></script>
   </body>

@@ -41,6 +41,16 @@ $(function(){
         output_area.textContent = output_text;
     }
 
+    eel.expose(update_selection_range);
+    function update_selection_range(min_selection, max_selection) {
+        const selection_label = document.querySelector("label[for=selection-number]");
+        selection_label.textContent = "Number of people to select (" +
+             min_selection + "-" + max_selection + ")";
+        const selection_input = document.getElementById("selection-number");
+        selection_input.setAttribute("min", min_selection);
+        selection_input.setAttribute("max", max_selection);
+    }
+
     eel.expose(update_selection_output_area);
     function update_selection_output_area(output_text) {
         const output_area = document.getElementById("output-area-selection-target-p");
@@ -52,9 +62,9 @@ $(function(){
     }
 
     eel.expose(update_selection_output_messages_area);
-    function update_selection_output_messages_area(output_text) {
+    function update_selection_output_messages_area(output_html) {
         const output_area = document.getElementById("output-area-selection-messages-target-p");
-        output_area.innerHTML = output_text;
+        output_area.innerHTML = output_html;
     }
 
     function handle_run_button() {
@@ -73,24 +83,23 @@ $(function(){
         run_button.disabled = false;
     }
 
-    eel.expose(enable_download);
-    function enable_download(file_contents, filename) {
-        console.log("in enable_download");
-        console.log(file_contents);
-        let download_link = document.getElementById("download-btn");
+    function enable_download(download_link_id, file_contents, filename) {
+        let download_link = document.getElementById(download_link_id);
         download_link.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(file_contents));
         download_link.setAttribute('download', filename);
         download_link.classList.remove("disabled");
     }
 
-    eel.expose(enable_download_remaining);
-    function enable_download_remaining(file_contents, filename) {
-        console.log("in enable_download_remaining");
-        console.log(file_contents);
-        let download_link = document.getElementById("download-remaining-btn");
-        download_link.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(file_contents));
-        download_link.setAttribute('download', filename);
-        download_link.classList.remove("disabled");
+    eel.expose(enable_selected_download);
+    function enable_selected_download(file_contents, filename) {
+        console.log("in enable_selected_download");
+        enable_download("download-selected-btn", file_contents, filename);
+    }
+
+    eel.expose(enable_remaining_download);
+    function enable_remaining_download(file_contents, filename) {
+        console.log("in enable_remaining_download");
+        enable_download("download-remaining-btn", file_contents, filename);
     }
 
     init_page();

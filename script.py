@@ -3,6 +3,7 @@ from io import StringIO
 import eel
 
 from stratification import (
+    get_selection_number_range,
     init_categories_people,
     read_in_cats,
     run_stratification,
@@ -32,6 +33,9 @@ class FileContents():
             print("Error reading in categories: {}".format(error))
         eel.update_categories_output_area("Number of categories: {}".format(len(self.categories.keys())))
         self.update_selection_content()
+        min_selection, max_selection = get_selection_number_range(self.min_max_people)
+        eel.update_selection_range(min_selection, max_selection)
+        self.update_run_button()
 
     def add_selection_content(self, file_contents):
         csv_files.selection_raw_content = file_contents
@@ -51,7 +55,7 @@ class FileContents():
     def update_run_button(self):
         if self.category_raw_content and self.selection_raw_content and self.number_people_to_select > 0:
             eel.enable_run_button()
-            
+
     def update_number_people(self, number_people):
         if number_people == '':
             self.number_people_to_select = 0
@@ -62,13 +66,13 @@ class FileContents():
     def run_selection(self):
         success, tries, people_selected, output_lines = run_stratification(self.categories, self.people, self.columns_data, self.number_people_to_select, self.min_max_people)
         if success:
-            outfile = StringIO()
-            remainfile = StringIO() # Brett - But not sure what to do from here!
-            write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, outfile, remainfile)
-            eel.enable_download(outfile.getvalue(), 'selected-file.csv')
-            eel.enable_download_remaining(remainfile.getvalue(), 'remaining-file.csv')
-        # Print output_lines to the App:
-        eel.update_selection_output_messages_area('</br>'.join(output_lines))
+            selectfile = StringIO()
+            remainfile = StringIO()  # Brett - But not sure what to do from here!
+            write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, selectfile, remainfile)
+            eel.enable_selected_download(selectfile.getvalue(), 'selected.csv')
+            eel.enable_remaining_download(remainfile.getvalue(), 'remaining.csv')
+        # Brett - print output_lines to the App:
+        eel.update_selection_output_messages_area("<br />".join(output_lines))
 
 
 # global to hold contents uploaded from JS
@@ -84,10 +88,12 @@ def handle_category_contents(file_contents):
 def handle_selection_contents(file_contents):
     csv_files.add_selection_content(file_contents)
 
+
 @eel.expose
 def update_number_people(number_people):
     csv_files.update_number_people(number_people)
-    
+
+
 @eel.expose
 def run_selection():
     csv_files.run_selection()

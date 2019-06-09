@@ -3,7 +3,6 @@ from pathlib import Path
 from stratification import (
     create_readable_sample_file,
     init_categories_people,
-    print_category_selected,
     read_in_cats,
     run_stratification,
     write_selected_people_to_file,
@@ -12,7 +11,7 @@ from stratification import (
 # INPUT FILES etc:
 root_io_dir = Path(
     "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/python/"
-    #"/home/hamish/dev/sortition/brett-20190513/"
+    # "/home/hamish/dev/sortition/brett-20190513/"
 )
 
 # first row MUST be fields named: category, name, min, max
@@ -36,6 +35,7 @@ number_people_wanted = 22
 
 # for testing - WARNING: will overwrite people_file_path  file!
 create_sample_file = False
+
 
 def main():
     output_lines = []
