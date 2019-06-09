@@ -39,8 +39,9 @@ create_sample_file = False
 
 def main():
     output_lines = []
+    min_max_people = {}
     with open(category_file_path) as category_file:
-        categories = read_in_cats(category_file)
+        categories, min_max_people = read_in_cats(category_file)
     if create_sample_file:
         with open(people_file_path, "w") as people_file:
             create_readable_sample_file(categories, people_file)
@@ -48,7 +49,7 @@ def main():
     with open(people_file_path, "r") as people_file:
         people, columns_data = init_categories_people(people_file, categories)
 
-    success, tries, people_selected, output_lines = run_stratification(categories, people, columns_data, number_people_wanted)
+    success, tries, people_selected, output_lines = run_stratification(categories, people, columns_data, number_people_wanted, min_max_people)
 
     if success:
         # write selected people to a file

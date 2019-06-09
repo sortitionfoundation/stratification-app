@@ -137,9 +137,13 @@ def delete_person(categories, people, pkey, columns_data):
 # read in categories - a dict of dicts of dicts...
 def read_in_cats(category_file: typing.TextIO):
     categories = {}
+    # to keep track of number in cats - number people selected MUST be between these limits in every cat...
+    min_max_people_cats = {}
     cat_file = csv.DictReader(category_file)
     for row in cat_file:  # must convert min/max to ints
         if row["category"] in categories:  # must convert min/max to ints
+            min_max_people_cats[row["category"]]["min"] += int(row["min"])
+            min_max_people_cats[row["category"]]["max"] += int(row["max"])
             categories[row["category"]].update(
                 {
                     row["name"]: {
@@ -151,6 +155,14 @@ def read_in_cats(category_file: typing.TextIO):
                 }
             )
         else:
+            min_max_people_cats.update(
+                {
+                    row["category"]: {
+                        "min": int(row["min"]),
+                        "max": int(row["max"])
+                    }
+                }
+            )
             categories.update(
                 {
                     row["category"]: {
@@ -163,7 +175,7 @@ def read_in_cats(category_file: typing.TextIO):
                     }
                 }
             )
-    return categories
+    return categories, min_max_people_cats
 
 
 # read in people and calculate how many people in each category in database
@@ -293,7 +305,11 @@ def find_random_sample(categories, people, columns_data, number_people_wanted):
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted):
+def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people_cats):
+    #First check if numbers in cat file and to select make sense
+    for mkey, mvalue in min_max_people_cats.items():
+        if number_people_wanted < mvalue["min"] or number_people_wanted > mvalue["max"]:
+    	    return False, 0, {}, [ "The number of people to select ({}) is out of the range of the numbers of people in one of the {} categories. It should be within [{}, {}].".format( number_people_wanted, mkey, mvalue["min"], mvalue["max"] ) ]
     success = False
     tries = 0
     output_lines = [ "Initial: (selected/remaining)" ]

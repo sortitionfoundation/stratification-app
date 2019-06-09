@@ -19,12 +19,14 @@ class FileContents():
         self.columns_data = None
         self.people = None
         self.number_people_to_select = 0
+        # mins and maxs (from category data) for number of people one can select
+        self.min_max_people = {}
 
     def add_category_content(self, file_contents):
         csv_files.category_raw_content = file_contents
         category_file = StringIO(file_contents)
         try:
-            self.categories = read_in_cats(category_file)
+            self.categories, self.min_max_people = read_in_cats(category_file)
         except Exception as error:
             # TODO: put error in the GUI box
             print("Error reading in categories: {}".format(error))
@@ -54,13 +56,14 @@ class FileContents():
         self.update_run_button()
 
     def run_selection(self):
-        success, tries, people_selected, output_lines = run_stratification(self.categories, self.people, self.columns_data, self.number_people_to_select)
-        outfile = StringIO()
-        remainfile = StringIO() # Brett - But not sure what to do from here!
-        write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, outfile, remainfile)
+        success, tries, people_selected, output_lines = run_stratification(self.categories, self.people, self.columns_data, self.number_people_to_select, self.min_max_people)
+        if success:
+            outfile = StringIO()
+            remainfile = StringIO() # Brett - But not sure what to do from here!
+            write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, outfile, remainfile)
+            eel.enable_download(outfile.getvalue(), 'file.csv')
         # Brett - print output_lines to the App:
         eel.update_selection_output_messages_area("\n".join(output_lines) + "\n")
-        eel.enable_download(outfile.getvalue(), 'file.csv')
 
 
 # global to hold contents uploaded from JS
