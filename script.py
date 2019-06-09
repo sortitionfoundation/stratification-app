@@ -31,7 +31,7 @@ class FileContents():
             # TODO: put error in the GUI box
             print("Error reading in categories: {}".format(error))
         eel.update_categories_output_area("Number of categories: {}".format(len(self.categories.keys())))
-        self.update_run_button()
+        self.update_selection_content()
 
     def add_selection_content(self, file_contents):
         csv_files.selection_raw_content = file_contents
@@ -44,6 +44,10 @@ class FileContents():
         eel.update_selection_output_area("Number of people: {}".format(len(self.people.keys())))
         self.update_run_button()
 
+    def update_selection_content(self):
+    	if self.category_raw_content:
+    	    eel.enable_selection_content()
+    	    
     def update_run_button(self):
         if self.category_raw_content and self.selection_raw_content and self.number_people_to_select > 0:
             eel.enable_run_button()
@@ -61,9 +65,10 @@ class FileContents():
             outfile = StringIO()
             remainfile = StringIO() # Brett - But not sure what to do from here!
             write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, outfile, remainfile)
-            eel.enable_download(outfile.getvalue(), 'file.csv')
-        # Brett - print output_lines to the App:
-        eel.update_selection_output_messages_area("\n".join(output_lines) + "\n")
+            eel.enable_download(outfile.getvalue(), 'selected-file.csv')
+            eel.enable_download_remaining(remainfile.getvalue(), 'remaining-file.csv')
+        # Print output_lines to the App:
+        eel.update_selection_output_messages_area('</br>'.join(output_lines))
 
 
 # global to hold contents uploaded from JS
@@ -90,7 +95,7 @@ def run_selection():
 
 def main():
     eel.init('web')  # Give folder containing web files
-    eel.start('main.html', size=(500, 800))    # Start
+    eel.start('main.html', size=(800, 800))    # Start
 
 
 if __name__ == '__main__':

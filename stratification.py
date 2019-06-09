@@ -247,22 +247,26 @@ def find_max_ratio_cat(categories):
 
 def print_category_selected(categories, number_people_wanted):
     report_lines = []
+    report_msg = "<table border='1' cellpadding='5'>"
+    report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th><th>Remaining</th></tr>"
     for cat_key, cats in categories.items():  # print out how many in each
         for cat, cat_item in cats.items():
             percent_selected = round(
                 cat_item["selected"] * 100 / float(number_people_wanted), 2
             )
-            report_lines.append(
-                "{}: {} ({}%)  (Want [{}, {}] Remaining = {})".format(
-                    cat,
-                    cat_item["selected"],
-                    percent_selected,
-                    cat_item["min"],
-                    cat_item["max"],
-                    cat_item["remaining"],
-                )
-            )
-    return report_lines
+            #report_lines.append(
+            report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td><td>{}</td></tr>".format(
+                cat_key,
+				cat,
+				cat_item["selected"],
+				percent_selected,
+				cat_item["min"],
+				cat_item["max"],
+				cat_item["remaining"],
+			)
+            #)
+    report_msg += "</table>"
+    return [ report_msg ]
 
 
 def check_min_cats(categories):
@@ -312,7 +316,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
     	    return False, 0, {}, [ "The number of people to select ({}) is out of the range of the numbers of people in one of the {} categories. It should be within [{}, {}].".format( number_people_wanted, mkey, mvalue["min"], mvalue["max"] ) ]
     success = False
     tries = 0
-    output_lines = [ "Initial: (selected/remaining)" ]
+    output_lines = [ "<b>Initial: (selected/remaining)</b>" ]
     while not success and tries < max_attempts:
         people_selected = {}
         new_output_lines = []
@@ -320,14 +324,14 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
         categories_working = copy.deepcopy(categories)
         if tries == 0:
             output_lines += print_category_selected(categories_working, number_people_wanted)
-        output_lines.append( "Trial number: " + str(tries) )
+        output_lines.append( "<b>Trial number: {}</b>".format(tries) )
         try:
             people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
             if check_min_cat:
-                output_lines.append( "SUCCESS!!" )
+                output_lines.append( "<b>SUCCESS!!</b>" )
                 success = True
             else:
                 output_lines += new_output_lines
@@ -345,6 +349,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
 
 # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
 def write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file: typing.TextIO, remaining_file):
+    people_working = copy.deepcopy(people)
     people_selected_writer = csv.writer(
         selected_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
@@ -357,7 +362,7 @@ def write_selected_people_to_file(people, people_selected, categories, columns_d
             row.append(columns_data[pkey][col])
         row += person.values()
         people_selected_writer.writerow(row)
-        del people[pkey]
+        del people_working[pkey]
         
     people_remaining_writer = csv.writer(
         remaining_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
@@ -365,7 +370,7 @@ def write_selected_people_to_file(people, people_selected, categories, columns_d
     people_remaining_writer.writerow(
         [id_column] + columns_to_keep + list(categories.keys())
     )
-    for pkey, person in people.items():
+    for pkey, person in people_working.items():
         row = [pkey]
         for col in columns_to_keep:
             row.append(columns_data[pkey][col])

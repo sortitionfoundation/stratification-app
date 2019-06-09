@@ -7,32 +7,34 @@
 
   <body>
     <div id="input-elements" class="container">
-      <h1>Sortition Foundation - Stratification App</h1>
+      <h1>Sortition Foundation - Stratification & Selection</h1>
       <div>
-        <h2>Upload CSV files</h2>
+        <h2>Select CSV files</h2>
         <div class="form-group">
-          <label for="categories-file">A CSV file with category information</label>
+          <label for="categories-file">Step 1: Select a CSV file with category information</label>
           <input type="file" class="form-control" id="categories-file">
         </div>
         <div id="output-area-categories">
-          <p id="output-area-categories-target-p"></p>
+          <p id="output-area-categories-target-p">Number of categories: No file selected</p>
         </div>
         <div class="form-group">
-          <label for="selection-file">A CSV file with people to select from</label>
-          <input type="file" class="form-control" id="selection-file">
+          <label for="selection-file">Step 2: Select a CSV file with people to select from</label>
+          <input type="file" class="form-control" id="selection-file" disabled>
         </div>
         <div id="output-area-selection">
-          <p id="output-area-selection-target-p"></p>
+          <p id="output-area-selection-target-p">Number of people: No file selected</p>
         </div>
+        <h2>Set number of people, run selection, and download output</h2>
         <div class="form-group">
-           <label for="selection-number">Number of people to select:</label>
+           <label for="selection-number">Step 3: Specify the number of people to select</label>
            <input type="text" id="selection-number" size="10" maxlength=10>
         </div>
       </div>
     </div>
     <div class="container">
       <input type='button' id='run-btn' class='btn btn-primary' value='Run Selection' disabled>
-      <a href="#" role='button' id='download-btn' class='btn btn-primary btn-lg disabled'>Download</a>
+      <a href="#" role='button' id='download-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
+      <a href="#" role='button' id='download-remaining-btn' class='btn btn-primary btn-lg disabled'>Download Remaining</a>
     </div>
     <div class="container">
       <div id="output-area-selection-messages">
