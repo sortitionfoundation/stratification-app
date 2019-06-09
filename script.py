@@ -64,7 +64,7 @@ class FileContents():
             eel.enable_selected_download(selectfile.getvalue(), 'selected.csv')
             eel.enable_remaining_download(remainfile.getvalue(), 'remaining.csv')
         # Brett - print output_lines to the App:
-        eel.update_selection_output_messages_area("\n".join(output_lines) + "\n")
+        eel.update_selection_output_messages_area("<br />".join(output_lines))
 
 
 # global to hold contents uploaded from JS
