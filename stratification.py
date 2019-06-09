@@ -15,13 +15,6 @@ import csv
 import random
 import typing
 
-#######
-
-# the number of people in each category must be (more or less) the total number of people to be selected
-total_number_people_wanted = 22
-
-######
-
 # data columns in spreadsheet to keep and print in output file (as well as stratification columns of course):
 # WARNING: primary_address1 and primary_zip are used in the code to check same addresses!
 columns_to_keep = [
@@ -240,12 +233,12 @@ def find_max_ratio_cat(categories):
     }
 
 
-def print_category_selected(categories):
+def print_category_selected(categories, number_people_wanted):
     report_lines = []
     for cat_key, cats in categories.items():  # print out how many in each
         for cat, cat_item in cats.items():
             percent_selected = round(
-                cat_item["selected"] * 100 / float(total_number_people_wanted), 2
+                cat_item["selected"] * 100 / float(number_people_wanted), 2
             )
             report_lines.append(
                 "{}: {} ({}%)  (Want [{}, {}] Remaining = {})".format(
@@ -272,10 +265,10 @@ def check_min_cats(categories):
 
 
 # main algorithm to try to find a random sample
-def find_random_sample(categories, people, columns_data):
+def find_random_sample(categories, people, columns_data, number_people_wanted):
     output_lines = []
     people_selected = {}
-    for count in range(total_number_people_wanted):
+    for count in range(number_people_wanted):
         ratio = find_max_ratio_cat(categories)
         # find randomly selected person with the category value
         for pkey, pvalue in people.items():
@@ -288,7 +281,7 @@ def find_random_sample(categories, people, columns_data):
                     people_selected.update({pkey: pvalue})
                     output_lines += delete_person(categories, people, pkey, columns_data)
                     break
-        if count < (total_number_people_wanted - 1) and len(people) == 0:
+        if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
     return people_selected, output_lines
 
@@ -300,7 +293,7 @@ def find_random_sample(categories, people, columns_data):
 ###################################
 
 
-def run_stratification(categories, people, columns_data):
+def run_stratification(categories, people, columns_data, number_people_wanted):
     success = False
     tries = 0
     output_lines = [ "Initial: (selected/remaining)" ]
@@ -310,10 +303,10 @@ def run_stratification(categories, people, columns_data):
         people_working = copy.deepcopy(people)
         categories_working = copy.deepcopy(categories)
         if tries == 0:
-            output_lines += print_category_selected(categories_working)
+            output_lines += print_category_selected(categories_working, number_people_wanted)
         output_lines.append( "Trial number: " + str(tries) )
         try:
-            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data)
+            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
@@ -325,6 +318,13 @@ def run_stratification(categories, people, columns_data):
         except SelectionError as serr:
             output_lines.append( "Failed: Selection Error thrown: " + serr.msg )
         tries += 1
+    output_lines.append( "Final:" )
+    output_lines += print_category_selected(categories_working, number_people_wanted)
+    if success:
+        output_lines.append( "We tried {} time(s).".format(tries) )
+        output_lines.append( "Count = {} people selected".format(len(people_selected)) )  # , people_selected
+    else:
+        output_lines.append( "Failed {} times... gave up.".format(tries) )
     return success, tries, people_selected, output_lines
 
 # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc

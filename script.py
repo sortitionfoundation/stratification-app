@@ -18,6 +18,7 @@ class FileContents():
         self.categories = None
         self.columns_data = None
         self.people = None
+        self.number_people_to_select = 0
 
     def add_category_content(self, file_contents):
         csv_files.category_raw_content = file_contents
@@ -42,18 +43,23 @@ class FileContents():
         self.update_run_button()
 
     def update_run_button(self):
-        if self.category_raw_content and self.selection_raw_content:
+        if self.category_raw_content and self.selection_raw_content and self.number_people_to_select > 0:
             eel.enable_run_button()
+            
+    def update_number_people(self, number_people):
+        if number_people == '':
+            self.number_people_to_select = 0
+        else:
+            self.number_people_to_select = int(number_people)
+        self.update_run_button()
 
     def run_selection(self):
-        success, tries, people_selected, output_lines = run_stratification(self.categories, self.people, self.columns_data)
+        success, tries, people_selected, output_lines = run_stratification(self.categories, self.people, self.columns_data, self.number_people_to_select)
         outfile = StringIO()
         remainfile = StringIO() # Brett - But not sure what to do from here!
         write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, outfile, remainfile)
         # Brett - print output_lines to the App:
-        eel.update_selection_output_area("\n".join(output_lines) + "\n")
-        # Brett - not sure why the below doesn't work... but the above does...
-        #eel.update_selection_output_messages_area("\n".join(output_lines) + "\n")
+        eel.update_selection_output_messages_area("\n".join(output_lines) + "\n")
         eel.enable_download(outfile.getvalue(), 'file.csv')
 
 
@@ -70,7 +76,10 @@ def handle_category_contents(file_contents):
 def handle_selection_contents(file_contents):
     csv_files.add_selection_content(file_contents)
 
-
+@eel.expose
+def update_number_people(number_people):
+    csv_files.update_number_people(number_people)
+    
 @eel.expose
 def run_selection():
     csv_files.run_selection()
@@ -78,7 +87,7 @@ def run_selection():
 
 def main():
     eel.init('web')  # Give folder containing web files
-    eel.start('main.html', size=(500, 500))    # Start
+    eel.start('main.html', size=(500, 800))    # Start
 
 
 if __name__ == '__main__':

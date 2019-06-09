@@ -5,6 +5,8 @@ $(function(){
         categories_file_input.addEventListener("change", handle_categories_file, false);
         const selection_file_input = document.getElementById("selection-file");
         selection_file_input.addEventListener("change", handle_selection_file, false);
+        const select_number_people_input = document.getElementById("selection-number");
+        select_number_people_input.addEventListener("input", handle_number_people, false);
         const run_btn = document.getElementById('run-btn');
         run_btn.addEventListener('click', handle_run_button, false);
     }
@@ -43,6 +45,10 @@ $(function(){
     function update_selection_output_area(output_text) {
         const output_area = document.getElementById("output-area-selection-target-p");
         output_area.textContent = output_text;
+    }
+    
+    function handle_number_people() {
+        eel.update_number_people(this.value);
     }
 
     eel.expose(update_selection_output_messages_area);

@@ -24,14 +24,20 @@
         <div id="output-area-selection">
           <p id="output-area-selection-target-p"></p>
         </div>
-        <div id="output-area-selection-messages">
-          <p id="output-area-selection-messages-target-p"></p>
+        <div class="form-group">
+           <label for="selection-number">Number of people to select:</label>
+           <input type="text" id="selection-number" size="10" maxlength=10>
         </div>
       </div>
     </div>
     <div class="container">
       <input type='button' id='run-btn' class='btn btn-primary' value='Run Selection' disabled>
       <a href="#" role='button' id='download-btn' class='btn btn-primary btn-lg disabled'>Download</a>
+    </div>
+    <div class="container">
+      <div id="output-area-selection-messages">
+        <p id="output-area-selection-messages-target-p"></p>
+      </div>
     </div>
     <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
     <script type="text/javascript" src="/eel.js"></script>
