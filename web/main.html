@@ -25,12 +25,14 @@
         </div>
         <div class="form-group">
            <label for="selection-number">Number of people to select:</label>
-           <input type="text" id="selection-number" size="10" maxlength=10>
+           <input type="number" id="selection-number" name="selection-number" min="0">
         </div>
       </div>
     </div>
-    <div class="container">
+    <div class="container mb-2">
       <input type='button' id='run-btn' class='btn btn-primary' value='Run Selection' disabled>
+    </div>
+    <div class="container mb-2">
       <a href="#" role='button' id='download-selected-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
       <a href="#" role='button' id='download-remaining-btn' class='btn btn-primary btn-lg disabled'>Download Remaining</a>
     </div>
@@ -38,13 +40,13 @@
       <a class="btn" data-toggle="collapse" href="#collapse-detailed-log" role="button" aria-expanded="false" aria-controls="collapseExample">
         Show/hide detailed log
       </a>
-    </div>
-    <div class="collapse" id="collapse-detailed-log">
-      <div class="card">
-        <div class="card-block">
-          <h3 class="card-title">Detailed Log</h3>
-          <div id="output-area-selection-messages">
-            <p id="output-area-selection-messages-target-p" class="card-text"></p>
+      <div class="collapse" id="collapse-detailed-log">
+        <div class="card">
+          <div class="card-block">
+            <h3 class="card-title">Detailed Log</h3>
+            <div id="output-area-selection-messages">
+              <p id="output-area-selection-messages-target-p" class="card-text"></p>
+            </div>
           </div>
         </div>
       </div>

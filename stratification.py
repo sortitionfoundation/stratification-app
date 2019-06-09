@@ -298,6 +298,14 @@ def find_random_sample(categories, people, columns_data, number_people_wanted):
     return people_selected, output_lines
 
 
+def get_selection_number_range(min_max_people_cats):
+    max_values = [v['max'] for v in min_max_people_cats.values()]
+    maximum = min(max_values)
+    min_values = [v['min'] for v in min_max_people_cats.values()]
+    minimum = max(min_values)
+    return minimum, maximum
+
+
 ###################################
 #
 # main program start
@@ -309,7 +317,13 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
     # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people_cats.items():
         if number_people_wanted < mvalue["min"] or number_people_wanted > mvalue["max"]:
-            return False, 0, {}, ["The number of people to select ({}) is out of the range of the numbers of people in one of the {} categories. It should be within [{}, {}].".format(number_people_wanted, mkey, mvalue["min"], mvalue["max"])]
+            error_msg = (
+                "The number of people to select ({}) is out of the range of the numbers of people "
+                "in one of the {} categories. It should be within [{}, {}].".format(
+                    number_people_wanted, mkey, mvalue["min"], mvalue["max"]
+                )
+            )
+            return False, 0, {}, [error_msg]
     success = False
     tries = 0
     output_lines = ["Initial: (selected/remaining)"]

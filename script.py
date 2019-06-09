@@ -3,6 +3,7 @@ from io import StringIO
 import eel
 
 from stratification import (
+    get_selection_number_range,
     init_categories_people,
     read_in_cats,
     run_stratification,
@@ -31,6 +32,8 @@ class FileContents():
             # TODO: put error in the GUI box
             print("Error reading in categories: {}".format(error))
         eel.update_categories_output_area("Number of categories: {}".format(len(self.categories.keys())))
+        min_selection, max_selection = get_selection_number_range(self.min_max_people)
+        eel.update_selection_range(min_selection, max_selection)
         self.update_run_button()
 
     def add_selection_content(self, file_contents):
