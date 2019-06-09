@@ -44,7 +44,7 @@ $(function(){
     eel.expose(update_selection_range);
     function update_selection_range(min_selection, max_selection) {
         const selection_label = document.querySelector("label[for=selection-number]");
-        selection_label.textContent = "Number of people to select (" +
+        selection_label.textContent = "Step 3: Specify the number of people to select (" +
              min_selection + "-" + max_selection + ")";
         const selection_input = document.getElementById("selection-number");
         selection_input.setAttribute("min", min_selection);
