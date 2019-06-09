@@ -47,7 +47,7 @@ class FileContents():
     def update_run_button(self):
         if self.category_raw_content and self.selection_raw_content and self.number_people_to_select > 0:
             eel.enable_run_button()
-            
+
     def update_number_people(self, number_people):
         if number_people == '':
             self.number_people_to_select = 0
@@ -58,10 +58,11 @@ class FileContents():
     def run_selection(self):
         success, tries, people_selected, output_lines = run_stratification(self.categories, self.people, self.columns_data, self.number_people_to_select, self.min_max_people)
         if success:
-            outfile = StringIO()
-            remainfile = StringIO() # Brett - But not sure what to do from here!
-            write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, outfile, remainfile)
-            eel.enable_download(outfile.getvalue(), 'file.csv')
+            selectfile = StringIO()
+            remainfile = StringIO()  # Brett - But not sure what to do from here!
+            write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, selectfile, remainfile)
+            eel.enable_selected_download(selectfile.getvalue(), 'selected.csv')
+            eel.enable_remaining_download(remainfile.getvalue(), 'remaining.csv')
         # Brett - print output_lines to the App:
         eel.update_selection_output_messages_area("\n".join(output_lines) + "\n")
 
@@ -79,10 +80,12 @@ def handle_category_contents(file_contents):
 def handle_selection_contents(file_contents):
     csv_files.add_selection_content(file_contents)
 
+
 @eel.expose
 def update_number_people(number_people):
     csv_files.update_number_people(number_people)
-    
+
+
 @eel.expose
 def run_selection():
     csv_files.run_selection()

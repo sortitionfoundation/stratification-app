@@ -67,14 +67,23 @@ $(function(){
         run_button.disabled = false;
     }
 
-    eel.expose(enable_download);
-    function enable_download(file_contents, filename) {
-        console.log("in enable_download");
-        console.log(file_contents);
-        let download_link = document.getElementById("download-btn");
+    function enable_download(download_link_id, file_contents, filename) {
+        let download_link = document.getElementById(download_link_id);
         download_link.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(file_contents));
         download_link.setAttribute('download', filename);
         download_link.classList.remove("disabled");
+    }
+
+    eel.expose(enable_selected_download);
+    function enable_selected_download(file_contents, filename) {
+        console.log("in enable_selected_download");
+        enable_download("download-selected-btn", file_contents, filename);
+    }
+
+    eel.expose(enable_remaining_download);
+    function enable_remaining_download(file_contents, filename) {
+        console.log("in enable_remaining_download");
+        enable_download("download-remaining-btn", file_contents, filename);
     }
 
     init_page();
