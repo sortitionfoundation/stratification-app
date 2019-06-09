@@ -272,7 +272,7 @@ def check_min_cats(categories):
         for cat, cat_item in cats.items():
             if cat_item["selected"] < cat_item["min"]:
                 got_min = False
-                output_msg = [ "Failed to get minimum in category: {}".format( cat ) ]
+                output_msg = ["Failed to get minimum in category: {}".format(cat)]
     return got_min, output_msg
 
 
@@ -306,13 +306,13 @@ def find_random_sample(categories, people, columns_data, number_people_wanted):
 
 
 def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people_cats):
-    #First check if numbers in cat file and to select make sense
+    # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people_cats.items():
         if number_people_wanted < mvalue["min"] or number_people_wanted > mvalue["max"]:
-    	    return False, 0, {}, [ "The number of people to select ({}) is out of the range of the numbers of people in one of the {} categories. It should be within [{}, {}].".format( number_people_wanted, mkey, mvalue["min"], mvalue["max"] ) ]
+            return False, 0, {}, ["The number of people to select ({}) is out of the range of the numbers of people in one of the {} categories. It should be within [{}, {}].".format(number_people_wanted, mkey, mvalue["min"], mvalue["max"])]
     success = False
     tries = 0
-    output_lines = [ "Initial: (selected/remaining)" ]
+    output_lines = ["Initial: (selected/remaining)"]
     while not success and tries < max_attempts:
         people_selected = {}
         new_output_lines = []
@@ -320,28 +320,29 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
         categories_working = copy.deepcopy(categories)
         if tries == 0:
             output_lines += print_category_selected(categories_working, number_people_wanted)
-        output_lines.append( "Trial number: " + str(tries) )
+        output_lines.append("Trial number: " + str(tries))
         try:
             people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
             if check_min_cat:
-                output_lines.append( "SUCCESS!!" )
+                output_lines.append("SUCCESS!!")
                 success = True
             else:
                 output_lines += new_output_lines
         except SelectionError as serr:
-            output_lines.append( "Failed: Selection Error thrown: " + serr.msg )
+            output_lines.append("Failed: Selection Error thrown: " + serr.msg)
         tries += 1
-    output_lines.append( "Final:" )
+    output_lines.append("Final:")
     output_lines += print_category_selected(categories_working, number_people_wanted)
     if success:
-        output_lines.append( "We tried {} time(s).".format(tries) )
-        output_lines.append( "Count = {} people selected".format(len(people_selected)) )  # , people_selected
+        output_lines.append("We tried {} time(s).".format(tries))
+        output_lines.append("Count = {} people selected".format(len(people_selected)))  # , people_selected
     else:
-        output_lines.append( "Failed {} times... gave up.".format(tries) )
+        output_lines.append("Failed {} times... gave up.".format(tries))
     return success, tries, people_selected, output_lines
+
 
 # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
 def write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file: typing.TextIO, remaining_file):
@@ -358,7 +359,7 @@ def write_selected_people_to_file(people, people_selected, categories, columns_d
         row += person.values()
         people_selected_writer.writerow(row)
         del people[pkey]
-        
+
     people_remaining_writer = csv.writer(
         remaining_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
