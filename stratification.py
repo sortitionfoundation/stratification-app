@@ -1,13 +1,7 @@
 """
-    Python script to do a stratified, random selection from respondents to random mail out
+    Python (3) script to do a stratified, random selection from respondents to random mail out
 
-    Version 0.7  (13 May 2019) - Now compatible with python3 ...
-
-    written by Brett Hennig bsh@sortitionfoundation.org
-
-    TO DO/limitations:
-        - could make various things as command line args
-        - could make is find multiple solutions and pick the best?
+    written by Brett Hennig bsh [AT] sortitionfoundation.org
 
 """
 import copy
@@ -185,19 +179,22 @@ def init_categories_people(people_file: typing.TextIO, categories):
     people_data = csv.DictReader(people_file)
     cat_keys = categories.keys()
     for row in people_data:
-        key = row[id_column]
+        pkey = row[id_column]
         value = {}
-        for cat in cat_keys:
-            # print(cat, row[cat])
-            # COULD check for input errors here - if it's not in the list of category values...
-            value.update({cat: row[cat]})
-            categories[cat][row[cat]]["remaining"] += 1
-        people.update({key: value})
+        for cat_key, cats in categories.items():
+            # check for input errors here - if it's not in the list of category values...
+            if row[cat_key] not in cats:
+            	raise Exception(
+                    "ERROR reading in people (init_categories_people): Person (id = {}) has value {} not in category {}".format(pkey, row[cat_key], cat_key)
+                )
+            value.update({cat_key: row[cat_key]})
+            categories[cat_key][row[cat_key]]["remaining"] += 1
+        people.update({pkey: value})
         # this is address, name etc that we need to keep for output file
         data_value = {}
         for col in columns_to_keep:
             data_value[col] = row[col]
-        columns_data.update({key: data_value})
+        columns_data.update({pkey: data_value})
     # check if any cat[max] is set to zero... if so delete everyone with that cat...
     # could then check if anyone left...
     # for person in people.items():

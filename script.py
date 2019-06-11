@@ -42,10 +42,11 @@ class FileContents():
         people_file = StringIO(file_contents)
         try:
             self.people, self.columns_data = init_categories_people(people_file, self.categories)
+            msg = "Number of people: {}".format(len(self.people.keys()))
         except Exception as error:
             # TODO: put error in the GUI box
-            print("Error reading in people: {}".format(error))
-        eel.update_selection_output_area("Number of people: {}".format(len(self.people.keys())))
+            msg = "Number of people: {}".format(error)
+        eel.update_selection_output_area(msg)
         self.update_run_button()
 
     def update_selection_content(self):
