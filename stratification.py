@@ -20,6 +20,7 @@ columns_to_keep = [
     "primary_address2",
     "primary_city",
     "primary_zip",
+    "Age"
 ]
 # do we check if people are from the same address and, if so, make sure only one is selected?
 check_same_address = True
