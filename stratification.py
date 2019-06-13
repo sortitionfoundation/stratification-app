@@ -13,8 +13,7 @@ import typing
 debug = 0
 
 def initialise_settings():
-    # this (unique) column must be in the people CSV file
-    
+    # this (unique) column must be in the people CSV file   
     id_column = "nationbuilder_id"
     # data columns in people spreadsheet to keep and print in output file (as well as stratification/category columns of course):
     # WARNING: primary_address1 and primary_zip are used in the code to check same addresses (see below)!
@@ -27,7 +26,7 @@ def initialise_settings():
         "primary_address2",
         "primary_city",
         "primary_zip",
-        #"Age"
+        "Age"
     ]
     # do we check if people are from the same address and, if so, make sure only one is selected?
     check_same_address = True
