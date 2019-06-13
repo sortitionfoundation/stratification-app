@@ -27,8 +27,6 @@ check_same_address = True
 # this (unique) column must be in the people CSV file
 id_column = "nationbuilder_id"
 
-number_people_example_file = 150
-
 max_attempts = 100
 # 0 means no debug message, higher number (could) mean more messages
 debug = 0
@@ -48,7 +46,7 @@ class SelectionError(Exception):
 
 
 # create READABLE example file of people
-def create_readable_sample_file(categories, people_file: typing.TextIO):
+def create_readable_sample_file(categories, people_file: typing.TextIO, number_people_example_file):
     example_people_writer = csv.writer(
         people_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
@@ -58,8 +56,13 @@ def create_readable_sample_file(categories, people_file: typing.TextIO):
         row = ["p{}".format(x)]
         for col in columns_to_keep:
             row.append(col + str(x))
-        for cat_key, cats in categories.items():
-            random_cat_value = random.choice(list(cats.keys()))
+        for cat_key, cats in categories.items(): #e.g. gender
+            cat_items_list_weighted = []
+            for cats_key, cats_item in cats.items(): # e.g. male
+                for y in range( cats_item["max"]):
+                    cat_items_list_weighted.append( cats_key )
+            #random_cat_value = random.choice(list(cats.keys()))
+            random_cat_value = random.choice(cat_items_list_weighted)
             row.append(random_cat_value)
         example_people_writer.writerow(row)
 
