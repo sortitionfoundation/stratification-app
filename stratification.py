@@ -9,27 +9,31 @@ import csv
 import random
 import typing
 
-# data columns in spreadsheet to keep and print in output file (as well as stratification columns of course):
-# WARNING: primary_address1 and primary_zip are used in the code to check same addresses!
-columns_to_keep = [
-    "first_name",
-    "last_name",
-    "email",
-    "mobile_number",
-    "primary_address1",
-    "primary_address2",
-    "primary_city",
-    "primary_zip",
-    "Age"
-]
-# do we check if people are from the same address and, if so, make sure only one is selected?
-check_same_address = True
-# this (unique) column must be in the people CSV file
-id_column = "nationbuilder_id"
-
-max_attempts = 100
 # 0 means no debug message, higher number (could) mean more messages
 debug = 0
+
+def initialise_settings():
+    # this (unique) column must be in the people CSV file
+    
+    id_column = "nationbuilder_id"
+    # data columns in people spreadsheet to keep and print in output file (as well as stratification/category columns of course):
+    # WARNING: primary_address1 and primary_zip are used in the code to check same addresses (see below)!
+    columns_to_keep = [
+        "first_name",
+        "last_name",
+        "email",
+        "mobile_number",
+        "primary_address1",
+        "primary_address2",
+        "primary_city",
+        "primary_zip",
+        #"Age"
+    ]
+    # do we check if people are from the same address and, if so, make sure only one is selected?
+    check_same_address = True
+    # How many times do we try to find a solution before giving up?
+    max_attempts = 100
+    return id_column, columns_to_keep, check_same_address, max_attempts
 
 
 # categories is a dict of dicts of dicts... like:
@@ -46,7 +50,7 @@ class SelectionError(Exception):
 
 
 # create READABLE example file of people
-def create_readable_sample_file(categories, people_file: typing.TextIO, number_people_example_file):
+def create_readable_sample_file(id_column, categories, columns_to_keep, people_file: typing.TextIO, number_people_example_file):
     example_people_writer = csv.writer(
         people_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
@@ -103,7 +107,7 @@ def really_delete_person(categories, people, pkey, selected):
 
 
 # lucky person has been selected - delete person from DB
-def delete_person(categories, people, pkey, columns_data):
+def delete_person(categories, people, pkey, columns_data, check_same_address):
     output_lines = []
     # recalculate all category values that this person was in
     person = people[pkey]
@@ -181,7 +185,7 @@ def read_in_cats(category_file: typing.TextIO):
 
 
 # read in people and calculate how many people in each category in database
-def init_categories_people(people_file: typing.TextIO, categories):
+def init_categories_people(people_file: typing.TextIO, id_column, categories, columns_to_keep):
     people = {}
     columns_data = {}
     people_data = csv.DictReader(people_file)
@@ -259,7 +263,6 @@ def print_category_selected(categories, number_people_wanted):
             percent_selected = round(
                 cat_item["selected"] * 100 / float(number_people_wanted), 2
             )
-            #report_lines.append(
             report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td><td>{}</td></tr>".format(
                 cat_key,
 				cat,
@@ -286,7 +289,7 @@ def check_min_cats(categories):
 
 
 # main algorithm to try to find a random sample
-def find_random_sample(categories, people, columns_data, number_people_wanted):
+def find_random_sample(categories, people, columns_data, number_people_wanted, check_same_address):
     output_lines = []
     people_selected = {}
     for count in range(number_people_wanted):
@@ -300,7 +303,7 @@ def find_random_sample(categories, people, columns_data, number_people_wanted):
                     if debug > 0:
                         print("Found random person in this cat... adding them")
                     people_selected.update({pkey: pvalue})
-                    output_lines += delete_person(categories, people, pkey, columns_data)
+                    output_lines += delete_person(categories, people, pkey, columns_data, check_same_address)
                     break
         if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
@@ -322,7 +325,7 @@ def get_selection_number_range(min_max_people_cats):
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people_cats):
+def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people_cats, max_attempts, check_same_address):
     # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people_cats.items():
         if number_people_wanted < mvalue["min"] or number_people_wanted > mvalue["max"]:
@@ -345,7 +348,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             output_lines += print_category_selected(categories_working, number_people_wanted)
         output_lines.append( "<b>Trial number: {}</b>".format(tries) )
         try:
-            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted)
+            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted, check_same_address)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
@@ -368,7 +371,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
 
 
 # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
-def write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file: typing.TextIO, remaining_file):
+def write_selected_people_to_file(people, people_selected, id_column, categories, columns_to_keep, columns_data, selected_file: typing.TextIO, remaining_file):
     people_working = copy.deepcopy(people)
     people_selected_writer = csv.writer(
         selected_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
