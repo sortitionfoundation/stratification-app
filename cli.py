@@ -40,7 +40,7 @@ create_sample_file = False
 def main():
     output_lines = []
     min_max_people = {}
-    with open(category_file_path) as category_file:
+    with open(category_file_path, "r") as category_file:
         categories, min_max_people = read_in_cats(category_file)
     if create_sample_file:
         with open(people_file_path, "w") as people_file:

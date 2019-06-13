@@ -108,6 +108,8 @@ def delete_person(categories, people, pkey, columns_data):
     if check_same_address:
         primary_address1 = columns_data[pkey]["primary_address1"]
         primary_zip = columns_data[pkey]["primary_zip"]
+        # there may be multiple people to delete, and deleting them as we go gives an error
+        people_to_delete = []
         for compare_key in people.keys():
             if (
                 primary_address1 == columns_data[compare_key]["primary_address1"]
@@ -118,8 +120,10 @@ def delete_person(categories, people, pkey, columns_data):
                     "Found someone with the same address as a selected person,"
                     " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
                 ]
-                # so delete this person
-                really_delete_person(categories, people, compare_key, False)
+                people_to_delete.append( compare_key )
+        # then delete this/these people at the same address
+        for del_person_key in people_to_delete:
+            really_delete_person(categories, people, del_person_key, False)
     # then check if any cats of selected person is (was) in are full
     for (pcat, pval) in person.items():
         cat_item = categories[pcat][pval]
