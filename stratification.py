@@ -13,6 +13,28 @@ import typing
 debug = 0
 
 def initialise_settings():
+    with open("sf_stratification_settings.txt", "r") as settings_file:
+        id_column = settings_file.readline().strip()
+        id_column = id_column[id_column.find(":")+1:].strip()
+        check_same_address_str = settings_file.readline().strip()
+        check_same_address_str = check_same_address_str[check_same_address_str.find(":")+1:].strip()
+        if check_same_address_str == "True" or check_same_address_str == "true" or check_same_address_str == "T":
+            check_same_address = True
+        else:
+            check_same_address = False
+        max_attempts_str = settings_file.readline().strip()
+        max_attempts_str = max_attempts_str[max_attempts_str.find(":")+1:].strip()
+        max_attempts = int(max_attempts_str)
+        columns_to_keep = []
+        # read column heading line
+        col_header = settings_file.readline().strip()
+        if col_header != "columns_to_keep:":
+            print("Error in reading settings file - no columns_to_keep line found where it should be")
+        for next_line in settings_file:
+            next_line = next_line.strip()
+            if next_line != "":
+                columns_to_keep.append(next_line)
+    '''
     # this (unique) column must be in the people CSV file   
     id_column = "nationbuilder_id"
     # data columns in people spreadsheet to keep and print in output file (as well as stratification/category columns of course):
@@ -32,6 +54,7 @@ def initialise_settings():
     check_same_address = True
     # How many times do we try to find a solution before giving up?
     max_attempts = 100
+    '''
     return id_column, columns_to_keep, check_same_address, max_attempts
 
 
@@ -92,7 +115,7 @@ def delete_all_in_cat(categories, people, cat, cat_value):
     ]
 
 
-# selected = True means we are deleting because they have bene chosen,
+# selected = True means we are deleting because they have been chosen,
 # otherwise they are being deleted because they live at same address as someone selected
 def really_delete_person(categories, people, pkey, selected):
     for pcat, pval in people[pkey].items():
@@ -337,7 +360,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             return False, 0, {}, [error_msg]
     success = False
     tries = 0
-    output_lines = [ "<b>Initial: (selected/remaining)</b>" ]
+    output_lines = [ "<b>Initial: (selected = 0/remaining = total people in category)</b>" ]
     while not success and tries < max_attempts:
         people_selected = {}
         new_output_lines = []
