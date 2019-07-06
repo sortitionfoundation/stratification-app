@@ -27,7 +27,7 @@ First you need to have the following installed:
 After cloning this repo, open a terminal in the root of the repo and run:
 
 ```
-pipenv install
+pipenv install --dev
 pipenv shell
 python script.py
 ```

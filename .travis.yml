@@ -1,0 +1,11 @@
+language: python
+python:
+  - "3.6"
+install:
+  - pip install --upgrade pip
+  - pip install pipenv
+  - pipenv install --dev
+script:
+  - pipenv run python -m eel script.py web --onefile --noconsole
+
+
