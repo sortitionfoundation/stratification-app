@@ -10,7 +10,7 @@ greenlet = "*"
 [dev-packages]
 # black = "19.3b0"
 pyinstaller = "*"
-pypiwin32 = { version = "*", markers = "platform_system == 'win32'" }
+# pypiwin32 = { version = "*", markers = "platform_system == 'win32'" }
 
 [requires]
 python_version = "3.6"
