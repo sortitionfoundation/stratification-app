@@ -6,6 +6,7 @@ install:
   - pip install pipenv
   - pipenv install --dev
 script:
-  - pipenv run python -m eel script.py web --onefile --noconsole
+  # note don't need to do 'pipenv run' as it installs inside the virtualenv anyway
+  - python -m eel script.py web --onefile --noconsole
 
 
