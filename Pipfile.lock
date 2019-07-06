@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "8bb11f72e070a20c3110c788e2314c0361bf02a6bbbda4510e5dfe0fe40e3052"
+            "sha256": "ee79a785df37e3ebd47e3294ecb21692ab6544645301bfc21012f6065a459b42"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,12 +16,19 @@
         ]
     },
     "default": {
+        "altgraph": {
+            "hashes": [
+                "sha256:d6814989f242b2b43025cba7161fc1b8fb487a62cd49c49245d6fd01c18ac997",
+                "sha256:ddf5320017147ba7b810198e0b6619bd7b5563aa034da388cea8546b877f9b0c"
+            ],
+            "version": "==0.16.1"
+        },
         "bottle": {
             "hashes": [
-                "sha256:9c310da61e7df2b6ac257d8a90811899ccb3a9743e77e947101072a2e3186726",
-                "sha256:ca43beafbdccabbe31b758a4f34d1e44985a9b9539516775208b2b0f903eafa0"
+                "sha256:1896a33b2c7c5be07491e6789e341f2e9593a0ff024cc0374615118587c81647",
+                "sha256:e9eaa412a60cc3d42ceb42f58d15864d9ed1b92e9d630b8130c871c5bb16107c"
             ],
-            "version": "==0.12.16"
+            "version": "==0.12.17"
         },
         "bottle-websocket": {
             "hashes": [
@@ -101,6 +108,26 @@
             ],
             "index": "pypi",
             "version": "==0.4.15"
+        },
+        "macholib": {
+            "hashes": [
+                "sha256:ac02d29898cf66f27510d8f39e9112ae00590adb4a48ec57b25028d6962b1ae1",
+                "sha256:c4180ffc6f909bf8db6cd81cff4b6f601d575568f4d5dee148c830e9851eb9db"
+            ],
+            "version": "==1.11"
+        },
+        "pefile": {
+            "hashes": [
+                "sha256:a5d6e8305c6b210849b47a6174ddf9c452b2888340b8177874b862ba6c207645"
+            ],
+            "version": "==2019.4.18"
+        },
+        "pyinstaller": {
+            "hashes": [
+                "sha256:a5a6e04a66abfcf8761e89a2ebad937919c6be33a7b8963e1a961b55cb35986b"
+            ],
+            "index": "pypi",
+            "version": "==3.4"
         },
         "whichcraft": {
             "hashes": [

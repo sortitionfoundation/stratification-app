@@ -37,4 +37,12 @@ At which point you should have a window pop up and be able to interact with it.
 Releasing
 ---------
 
-PyInstaller - once I've confirmed it actually works.
+To make a single file executable, we use [PyInstaller](https://pyinstaller.readthedocs.io/en/stable/).  The following command, run in the root of the repo, creates a single file executable at `dist/script` - you can rename it to whatever you want. You can then give it to someone running on the same **platform** as you, and they can run it immediately
+
+The command is:
+
+```
+python -m eel script.py web --onefile --noconsole
+```
+
+**Platform** means Windows, Mac OS X or Linux.  So if you run the above command on Linux, you can give the file to someone else running Linux.  So if the person who wants the app is running Windows, you need to run the above command on Windows.
