@@ -1,6 +1,8 @@
 Strat App
 =========
 
+[![Build Status](https://travis-ci.com/sortitionfoundation/stratification-app.svg?branch=master)](https://travis-ci.com/sortitionfoundation/stratification-app)
+
 A simple GUI for stratification for sortition/citizen's assemblies.
 
 About
