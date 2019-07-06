@@ -1,12 +1,18 @@
 language: python
 python:
-  - "3.6"
+- '3.6'
 install:
-  - pip install --upgrade pip setuptools
-  - pip install pipenv
-  - pipenv install --dev
+- pip install --upgrade pip setuptools
+- pip install pipenv
+- pipenv install --dev
 script:
-  # note don't need to do 'pipenv run' as it installs inside the virtualenv anyway
-  - python -m eel script.py web --onefile --noconsole
-
-
+- python -m eel script.py web --onefile --noconsole
+deploy:
+  provider: releases
+  api_key:
+    secure: nFxvXtKrl+m6V10buqW/v2Dvg1V/2S5Gs6imZ3IaAB1aCU8okLzNWli7rCusC+jI2gwQYGd04ckvmK8nHtAXe/0L9PZ1Wy++/SrOcVXCZyffAaZ3Vqb9zNWrKBq6TINgfqSTKxWzlccant+SZuD8XKwuNOweKEzZlZJL0ct8hGpgjpCvznDGAQxOAxsxpamZ9pK11A9RdnuT0eOi8lJm47E36XCeBVttgRVTDouztXUggB7uiqv7c9wZE7D7rX/xCuvH46o2e1bbl6LUAP6MXzQIov2IeKvDkS3/WLxM6RJJNWtWIFLCkKbi6wpawspOHQIcpj7vSGmW5aJ/GodeT+LrREp8hY/o2j9/PX34U2CkmqrQ1mgDfWClWO0rB9KenoY0A+mRGXbIzh/AY3zvTuQ2czT/d2313EcFLTCdVUyLIwdBoqeo7zKGmWIHVjv4RTScFj/A4TBE9XcLmM7gE+3IqhxH+rtg00JITdhSWPIkpJkK630wYcfXdfSX3vQlA1seJvbL7gISMQHzHr2w/qC91LJhH9Gpd0hOkDZ7By23LAQvvfCsL/deoGmwt37+Rx5tSsjIxDKmnQj70S1/dbXnLcTx6Qr4iN9EL3fDn806MEds54zyNhnlLCLGnluIP6/ig9eBmZicsQhbBHBmn172QXnYnoLz91NpLAXT+fw=
+  file: dist/script
+  skip_cleanup: true
+  draft: true
+  on:
+    repo: sortitionfoundation/stratification-app
