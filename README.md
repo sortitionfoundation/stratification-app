@@ -46,3 +46,11 @@ python -m eel script.py web --onefile --noconsole
 ```
 
 **Platform** means Windows, Mac OS X or Linux.  So if you run the above command on Linux, you can give the file to someone else running Linux.  So if the person who wants the app is running Windows, you need to run the above command on Windows.
+
+Note that on Windows you need to install an extra package:
+
+```
+pip install pypiwin32
+```
+
+This should be done by `pipenv install` but I may have got the syntax wrong.
