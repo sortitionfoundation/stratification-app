@@ -52,9 +52,9 @@ class FileContents():
         self.update_run_button()
 
     def update_selection_content(self):
-    	if self.category_raw_content:
-    	    eel.enable_selection_content()
-    	    
+        if self.category_raw_content:
+            eel.enable_selection_content()
+
     def update_run_button(self):
         if self.category_raw_content and self.selection_raw_content and self.number_people_to_select > 0:
             eel.enable_run_button()
