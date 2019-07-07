@@ -1,3 +1,4 @@
+dist: xenial
 language: python
 python:
 - '3.6'
@@ -10,6 +11,7 @@ install:
 script:
 # version with onefile
 # - python -m eel script.py web --onefile --noconsole --name stratapp
+# multifile version in a zip file
 - python -m eel script.py web --name stratapp
 - zip -r dist/stratapp dist/stratapp
 
