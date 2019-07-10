@@ -13,4 +13,4 @@ pyinstaller = "*"
 # pypiwin32 = { version = "*", markers = "platform_system == 'win32'" }
 
 [requires]
-python_version = "3.6"
+python_version = "3.7"
