@@ -10,7 +10,12 @@ greenlet = "*"
 [dev-packages]
 # black = "19.3b0"
 pyinstaller = "*"
-# pypiwin32 = { version = "*", markers = "platform_system == 'win32'" }
+# and platform-specific libraries used by pyinstaller
+# for some reason this causes failures on linux trying to install pywin32 - not sure why
+# pypiwin32 = { version = "*", sys_platform = "== 'win32'" }
+pywin32-ctypes = { version = "*", sys_platform = "== 'win32'" }
+pefile = { version = "*", sys_platform = "== 'win32'" }
+macholib = { version = "*", sys_platform = "== 'darwin'" }
 
 [requires]
 python_version = "3.7"
