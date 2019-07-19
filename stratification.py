@@ -12,6 +12,7 @@ import typing
 # 0 means no debug message, higher number (could) mean more messages
 debug = 0
 
+
 def initialise_settings():
     with open("sf_stratification_settings.txt", "r") as settings_file:
         id_column = settings_file.readline().strip()
@@ -35,7 +36,7 @@ def initialise_settings():
             if next_line != "":
                 columns_to_keep.append(next_line)
     '''
-    # this (unique) column must be in the people CSV file   
+    # this (unique) column must be in the people CSV file
     id_column = "nationbuilder_id"
     # data columns in people spreadsheet to keep and print in output file (as well as stratification/category columns of course):
     # WARNING: primary_address1 and primary_zip are used in the code to check same addresses (see below)!
@@ -65,6 +66,7 @@ def initialise_settings():
 #                'Gender: Female' : { 'min' : 21, 'max' : 25, 'selected' : 0, 'remaining' : 0 }
 # etc         }
 
+
 # class for throwing error/fail exceptions
 class SelectionError(Exception):
     def __init__(self, message):
@@ -82,12 +84,12 @@ def create_readable_sample_file(id_column, categories, columns_to_keep, people_f
         row = ["p{}".format(x)]
         for col in columns_to_keep:
             row.append(col + str(x))
-        for cat_key, cats in categories.items(): #e.g. gender
+        for cat_key, cats in categories.items():  # e.g. gender
             cat_items_list_weighted = []
-            for cats_key, cats_item in cats.items(): # e.g. male
-                for y in range( cats_item["max"]):
-                    cat_items_list_weighted.append( cats_key )
-            #random_cat_value = random.choice(list(cats.keys()))
+            for cats_key, cats_item in cats.items():  # e.g. male
+                for y in range(cats_item["max"]):
+                    cat_items_list_weighted.append(cats_key)
+            # random_cat_value = random.choice(list(cats.keys()))
             random_cat_value = random.choice(cat_items_list_weighted)
             row.append(random_cat_value)
         example_people_writer.writerow(row)
@@ -150,7 +152,7 @@ def delete_person(categories, people, pkey, columns_data, check_same_address):
                     "Found someone with the same address as a selected person,"
                     " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
                 ]
-                people_to_delete.append( compare_key )
+                people_to_delete.append(compare_key)
         # then delete this/these people at the same address
         for del_person_key in people_to_delete:
             really_delete_person(categories, people, del_person_key, False)
@@ -211,14 +213,13 @@ def init_categories_people(people_file: typing.TextIO, id_column, categories, co
     people = {}
     columns_data = {}
     people_data = csv.DictReader(people_file)
-    cat_keys = categories.keys()
     for row in people_data:
         pkey = row[id_column]
         value = {}
         for cat_key, cats in categories.items():
             # check for input errors here - if it's not in the list of category values...
             if row[cat_key] not in cats:
-            	raise Exception(
+                raise Exception(
                     "ERROR reading in people (init_categories_people): Person (id = {}) has value {} not in category {}".format(pkey, row[cat_key], cat_key)
                 )
             value.update({cat_key: row[cat_key]})
@@ -277,7 +278,6 @@ def find_max_ratio_cat(categories):
 
 
 def print_category_selected(categories, number_people_wanted):
-    report_lines = []
     report_msg = "<table border='1' cellpadding='5'>"
     report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th><th>Remaining</th></tr>"
     for cat_key, cats in categories.items():  # print out how many in each
@@ -287,16 +287,15 @@ def print_category_selected(categories, number_people_wanted):
             )
             report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td><td>{}</td></tr>".format(
                 cat_key,
-				cat,
-				cat_item["selected"],
-				percent_selected,
-				cat_item["min"],
-				cat_item["max"],
-				cat_item["remaining"],
-			)
-            #)
+                cat,
+                cat_item["selected"],
+                percent_selected,
+                cat_item["min"],
+                cat_item["max"],
+                cat_item["remaining"],
+            )
     report_msg += "</table>"
-    return [ report_msg ]
+    return [report_msg]
 
 
 def check_min_cats(categories):
@@ -360,7 +359,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             return False, 0, {}, [error_msg]
     success = False
     tries = 0
-    output_lines = [ "<b>Initial: (selected = 0/remaining = total people in category)</b>" ]
+    output_lines = ["<b>Initial: (selected = 0/remaining = total people in category)</b>"]
     while not success and tries < max_attempts:
         people_selected = {}
         new_output_lines = []
@@ -368,14 +367,14 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
         categories_working = copy.deepcopy(categories)
         if tries == 0:
             output_lines += print_category_selected(categories_working, number_people_wanted)
-        output_lines.append( "<b>Trial number: {}</b>".format(tries) )
+        output_lines.append("<b>Trial number: {}</b>".format(tries))
         try:
             people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted, check_same_address)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
             if check_min_cat:
-                output_lines.append( "<b>SUCCESS!!</b>" )
+                output_lines.append("<b>SUCCESS!!</b>")
                 success = True
             else:
                 output_lines += new_output_lines
