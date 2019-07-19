@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 Eel = "*"
 greenlet = "*"
+toml = "*"
 
 [dev-packages]
 # black = "19.3b0"

@@ -9,54 +9,30 @@ import csv
 import random
 import typing
 
+import toml
+
 # 0 means no debug message, higher number (could) mean more messages
 debug = 0
 
 
 def initialise_settings():
-    with open("sf_stratification_settings.txt", "r") as settings_file:
-        id_column = settings_file.readline().strip()
-        id_column = id_column[id_column.find(":")+1:].strip()
-        check_same_address_str = settings_file.readline().strip()
-        check_same_address_str = check_same_address_str[check_same_address_str.find(":")+1:].strip()
-        if check_same_address_str == "True" or check_same_address_str == "true" or check_same_address_str == "T":
-            check_same_address = True
-        else:
-            check_same_address = False
-        max_attempts_str = settings_file.readline().strip()
-        max_attempts_str = max_attempts_str[max_attempts_str.find(":")+1:].strip()
-        max_attempts = int(max_attempts_str)
-        columns_to_keep = []
-        # read column heading line
-        col_header = settings_file.readline().strip()
-        if col_header != "columns_to_keep:":
-            print("Error in reading settings file - no columns_to_keep line found where it should be")
-        for next_line in settings_file:
-            next_line = next_line.strip()
-            if next_line != "":
-                columns_to_keep.append(next_line)
-    '''
-    # this (unique) column must be in the people CSV file
-    id_column = "nationbuilder_id"
-    # data columns in people spreadsheet to keep and print in output file (as well as stratification/category columns of course):
-    # WARNING: primary_address1 and primary_zip are used in the code to check same addresses (see below)!
-    columns_to_keep = [
-        "first_name",
-        "last_name",
-        "email",
-        "mobile_number",
-        "primary_address1",
-        "primary_address2",
-        "primary_city",
-        "primary_zip",
-        "Age"
-    ]
-    # do we check if people are from the same address and, if so, make sure only one is selected?
-    check_same_address = True
-    # How many times do we try to find a solution before giving up?
-    max_attempts = 100
-    '''
-    return id_column, columns_to_keep, check_same_address, max_attempts
+    with open("sf_stratification_settings.toml", "r") as settings_file:
+        settings = toml.load(settings_file)
+
+    assert(isinstance(settings['id_column'], str))
+    assert(isinstance(settings['columns_to_keep'], list))
+    assert(len(settings['columns_to_keep']) > 0)
+    for column in settings['columns_to_keep']:
+        assert(isinstance(column, str))
+    assert(isinstance(settings['check_same_address'], bool))
+    assert(isinstance(settings['max_attempts'], int))
+
+    return (
+        settings['id_column'],
+        settings['columns_to_keep'],
+        settings['check_same_address'],
+        settings['max_attempts'],
+    )
 
 
 # categories is a dict of dicts of dicts... like:
