@@ -1,3 +1,5 @@
+import platform
+import sys
 from io import StringIO
 
 import eel
@@ -52,9 +54,9 @@ class FileContents():
         self.update_run_button()
 
     def update_selection_content(self):
-    	if self.category_raw_content:
-    	    eel.enable_selection_content()
-    	    
+        if self.category_raw_content:
+            eel.enable_selection_content()
+
     def update_run_button(self):
         if self.category_raw_content and self.selection_raw_content and self.number_people_to_select > 0:
             eel.enable_run_button()
@@ -106,8 +108,16 @@ def run_selection():
 
 
 def main():
+    default_size = (800, 800)
     eel.init('web')  # Give folder containing web files
-    eel.start('main.html', size=(800, 800))    # Start
+    try:
+        eel.start('main.html', size=default_size)
+    except EnvironmentError:
+        # on Windows 10 try Edge if Chrome not available
+        if sys.platform in ('win32', 'win64') and int(platform.release()) >= 10:
+            eel.start('main.html', mode='edge', size=default_size)
+        else:
+            raise
 
 
 if __name__ == '__main__':
