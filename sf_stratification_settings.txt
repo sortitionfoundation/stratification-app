@@ -11,3 +11,4 @@ primary_address2
 primary_city
 primary_zip
 Age
+travel_regularity

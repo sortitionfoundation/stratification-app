@@ -29,7 +29,7 @@ def initialise_settings():
         # read column heading line
         col_header = settings_file.readline().strip()
         if col_header != "columns_to_keep:":
-            print("Error in reading settings file - no columns_to_keep line found where it should be")
+            print("Error in reading settings file - columns_to_keep line not found where it should be")
         for next_line in settings_file:
             next_line = next_line.strip()
             if next_line != "":
