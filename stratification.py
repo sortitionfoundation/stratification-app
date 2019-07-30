@@ -18,7 +18,6 @@ debug = 0
 
 def initialise_settings():
     settings_file_path = os.environ['HOME'] + "/sf_stratification_settings.toml"
-    print(settings_file_path)
     with open(settings_file_path, "r") as settings_file:
         settings = toml.load(settings_file)
 
