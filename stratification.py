@@ -23,7 +23,8 @@ def initialise_settings():
 
     assert(isinstance(settings['id_column'], str))
     assert(isinstance(settings['columns_to_keep'], list))
-    assert(len(settings['columns_to_keep']) > 0)
+    # if they have no personal data this could actually be empty
+    #assert(len(settings['columns_to_keep']) > 0)
     for column in settings['columns_to_keep']:
         assert(isinstance(column, str))
     assert(isinstance(settings['check_same_address'], bool))
