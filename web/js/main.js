@@ -2,13 +2,21 @@ $(function(){
 
     function init_page() {
         const categories_file_input = document.getElementById("categories-file");
+        categories_file_input.addEventListener("click", clear_file_value, false);
         categories_file_input.addEventListener("change", handle_categories_file, false);
         const selection_file_input = document.getElementById("selection-file");
+        selection_file_input.addEventListener("click", clear_file_value, false);
         selection_file_input.addEventListener("change", handle_selection_file, false);
         const select_number_people_input = document.getElementById("selection-number");
         select_number_people_input.addEventListener("input", handle_number_people, false);
         const run_btn = document.getElementById('run-btn');
         run_btn.addEventListener('click', handle_run_button, false);
+    }
+
+    // this allows repeat upload of a file
+    // from: https://stackoverflow.com/a/12102992/3189
+    function clear_file_value() {
+        this.value = null;
     }
 
     function handle_categories_file() {
