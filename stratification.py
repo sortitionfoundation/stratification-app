@@ -14,6 +14,8 @@ import toml
 
 # 0 means no debug message, higher number (could) mean more messages
 debug = 0
+# Wanring: "name" value is hardcoded somewhere below :-)
+category_file_field_names = [ "category", "name", "min", "max"]
 
 
 def initialise_settings():
@@ -28,12 +30,17 @@ def initialise_settings():
     for column in settings['columns_to_keep']:
         assert(isinstance(column, str))
     assert(isinstance(settings['check_same_address'], bool))
+    assert(isinstance(settings['check_same_address_columns'], list))
+    assert(len(settings['check_same_address_columns']) == 2)
+    for column in settings['check_same_address_columns']:
+        assert(isinstance(column, str))
     assert(isinstance(settings['max_attempts'], int))
 
     return (
         settings['id_column'],
         settings['columns_to_keep'],
         settings['check_same_address'],
+        settings['check_same_address_columns'],
         settings['max_attempts'],
     )
 
@@ -108,31 +115,39 @@ def really_delete_person(categories, people, pkey, selected):
             raise SelectionError("FAIL in delete_person: no one left in " + pval)
     del people[pkey]
 
+def get_people_at_same_address(people, pkey, columns_data, check_same_address_columns):
+    #primary_address1 = columns_data[pkey]["primary_address1"]
+    #primary_zip = columns_data[pkey]["primary_zip"]
+    primary_address1 = columns_data[pkey][check_same_address_columns[0]]
+    primary_zip = columns_data[pkey][check_same_address_columns[1]]
+    # there may be multiple people to delete, and deleting them as we go gives an error
+    people_to_delete = []
+    output_lines = []
+    for compare_key in people.keys():
+        if (
+            #primary_address1 == columns_data[compare_key]["primary_address1"]
+            #and primary_zip == columns_data[compare_key]["primary_zip"]
+            primary_address1 == columns_data[compare_key][check_same_address_columns[0]]
+            and primary_zip == columns_data[compare_key][check_same_address_columns[1]]
+        ):
+            # found same address
+            output_lines += [
+                "Found someone with the same address as a selected person,"
+                " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
+            ]
+            people_to_delete.append(compare_key)
+    return people_to_delete, output_lines
 
 # lucky person has been selected - delete person from DB
-def delete_person(categories, people, pkey, columns_data, check_same_address):
+def delete_person(categories, people, pkey, columns_data, check_same_address, check_same_address_columns):
     output_lines = []
     # recalculate all category values that this person was in
     person = people[pkey]
     really_delete_person(categories, people, pkey, True)
     # check if there are other people at the same address - if so, remove them!
     if check_same_address:
-        primary_address1 = columns_data[pkey]["primary_address1"]
-        primary_zip = columns_data[pkey]["primary_zip"]
-        # there may be multiple people to delete, and deleting them as we go gives an error
-        people_to_delete = []
-        for compare_key in people.keys():
-            if (
-                primary_address1 == columns_data[compare_key]["primary_address1"]
-                and primary_zip == columns_data[compare_key]["primary_zip"]
-            ):
-                # found same address
-                output_lines += [
-                    "Found someone with the same address as a selected person,"
-                    " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
-                ]
-                people_to_delete.append(compare_key)
-        # then delete this/these people at the same address
+        people_to_delete, output_lines = get_people_at_same_address(people, pkey, columns_data, check_same_address_columns)
+	    # then delete this/these people at the same address
         for del_person_key in people_to_delete:
             really_delete_person(categories, people, del_person_key, False)
     # then check if any cats of selected person is (was) in are full
@@ -149,6 +164,11 @@ def read_in_cats(category_file: typing.TextIO):
     # to keep track of number in cats - number people selected MUST be between these limits in every cat...
     min_max_people_cats = {}
     cat_file = csv.DictReader(category_file)
+    # check that the fieldnames are what we expect
+    if cat_file.fieldnames != category_file_field_names:
+        raise Exception(
+            "ERROR reading in category file: expected first line to be {} ".format(category_file_field_names)
+        )
     for row in cat_file:  # must convert min/max to ints
         if row["category"] in categories:  # must convert min/max to ints
             min_max_people_cats[row["category"]]["min"] += int(row["min"])
@@ -192,6 +212,21 @@ def init_categories_people(people_file: typing.TextIO, id_column, categories, co
     people = {}
     columns_data = {}
     people_data = csv.DictReader(people_file)
+    # check that id_column and all the categories and columns_to_keep are in the people data fields
+    if id_column not in people_data.fieldnames:
+        raise Exception(
+            "ERROR reading in people: no {} (unique id) column found in people data!".format(id_column)
+        )
+    for cat_key in categories.keys():
+        if cat_key not in people_data.fieldnames:
+            raise Exception(
+                "ERROR reading in people: no {} (category) column found in people data!".format(cat_key)
+            )
+    for column in columns_to_keep:
+        if column not in people_data.fieldnames:
+            raise Exception(
+                "ERROR reading in people: no {} column (to keep) found in people data!".format(column)
+            )
     for row in people_data:
         pkey = row[id_column]
         value = {}
@@ -210,14 +245,13 @@ def init_categories_people(people_file: typing.TextIO, id_column, categories, co
             data_value[col] = row[col]
         columns_data.update({pkey: data_value})
     # check if any cat[max] is set to zero... if so delete everyone with that cat...
-    # could then check if anyone left...
-    # for person in people.items():
-    #     for pcat, pval in person.items(): #then check if any cats of selected person is (was) in are full
-    #         cat_item = categories[pcat][pval]
-    #         if cat_item['max'] == 0:
-    #             delete_all_in_cat(categories, people, pcat, pval)
-    return people, columns_data
-
+    # NOT DONE: could then check if anyone is left...
+    msg = [ "Number of people: {}.".format(len(people.keys())) ]
+    for cat_key, cats in categories.items():
+        for cat, cat_item in cats.items():
+            if cat_item["max"] == 0: # we don't want any of these people
+                msg += delete_all_in_cat(categories, people, cat_key, cat)
+    return people, columns_data, msg
 
 # returns dict of category key, category item name, random person number
 def find_max_ratio_cat(categories):
@@ -289,7 +323,7 @@ def check_min_cats(categories):
 
 
 # main algorithm to try to find a random sample
-def find_random_sample(categories, people, columns_data, number_people_wanted, check_same_address):
+def find_random_sample(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns):
     output_lines = []
     people_selected = {}
     for count in range(number_people_wanted):
@@ -303,7 +337,7 @@ def find_random_sample(categories, people, columns_data, number_people_wanted, c
                     if debug > 0:
                         print("Found random person in this cat... adding them")
                     people_selected.update({pkey: pvalue})
-                    output_lines += delete_person(categories, people, pkey, columns_data, check_same_address)
+                    output_lines += delete_person(categories, people, pkey, columns_data, check_same_address, check_same_address_columns)
                     break
         if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
@@ -325,7 +359,7 @@ def get_selection_number_range(min_max_people_cats):
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people_cats, max_attempts, check_same_address):
+def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people_cats, max_attempts, check_same_address, check_same_address_columns):
     # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people_cats.items():
         if number_people_wanted < mvalue["min"] or number_people_wanted > mvalue["max"]:
@@ -338,7 +372,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             return False, 0, {}, [error_msg]
     success = False
     tries = 0
-    output_lines = ["<b>Initial: (selected = 0/remaining = total people in category)</b>"]
+    output_lines = ["<b>Initial: (selected = 0, remaining = total people in category)</b>"]
     while not success and tries < max_attempts:
         people_selected = {}
         new_output_lines = []
@@ -348,7 +382,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             output_lines += print_category_selected(categories_working, number_people_wanted)
         output_lines.append("<b>Trial number: {}</b>".format(tries))
         try:
-            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted, check_same_address)
+            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted, check_same_address, check_same_address_columns)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
@@ -371,7 +405,8 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
 
 
 # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
-def write_selected_people_to_file(people, people_selected, id_column, categories, columns_to_keep, columns_data, selected_file: typing.TextIO, remaining_file):
+# BUT, we should not include in this people from the same address as someone who has been selected!
+def write_selected_people_to_file(people, people_selected, id_column, categories, columns_to_keep, columns_data, check_same_address, check_same_address_columns, selected_file: typing.TextIO, remaining_file):
     people_working = copy.deepcopy(people)
     people_selected_writer = csv.writer(
         selected_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
@@ -379,13 +414,24 @@ def write_selected_people_to_file(people, people_selected, id_column, categories
     people_selected_writer.writerow(
         [id_column] + columns_to_keep + list(categories.keys())
     )
+    output_lines = [] # do we want to output same address info?
+    num_same_address_deleted = 0
     for pkey, person in people_selected.items():
         row = [pkey]
         for col in columns_to_keep:
             row.append(columns_data[pkey][col])
         row += person.values()
-        people_selected_writer.writerow(row)
-        del people_working[pkey]
+        people_selected_writer.writerow(row)   
+        # if check address then delete all those at this address (will delete the one we want as well)
+        if check_same_address:
+            people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, check_same_address_columns)
+            output_lines += new_output_lines
+            num_same_address_deleted += len(new_output_lines) - 1 #don't include original
+            # then delete this/these people at the same address from the reserve/remaining pool
+            for del_person_key in people_to_delete:
+                del people_working[del_person_key]
+        else:
+            del people_working[pkey]
 
     people_remaining_writer = csv.writer(
         remaining_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
@@ -399,3 +445,5 @@ def write_selected_people_to_file(people, people_selected, id_column, categories
             row.append(columns_data[pkey][col])
         row += person.values()
         people_remaining_writer.writerow(row)
+    output_lines = [ "Deleted {} people from remaining file who had the same address as selected people.".format( num_same_address_deleted ) ]
+    return output_lines

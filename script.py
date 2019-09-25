@@ -25,7 +25,7 @@ class FileContents():
         self.number_people_to_select = 0
         # mins and maxs (from category data) for number of people one can select
         self.min_max_people = {}
-        self.id_column, self.columns_to_keep, self.check_same_address, self.max_attempts = initialise_settings()
+        self.id_column, self.columns_to_keep, self.check_same_address, self.check_same_address_columns, self.max_attempts = initialise_settings()
 
     def add_category_content(self, file_contents):
         csv_files.category_raw_content = file_contents
@@ -45,10 +45,9 @@ class FileContents():
         csv_files.selection_raw_content = file_contents
         people_file = StringIO(file_contents)
         try:
-            self.people, self.columns_data = init_categories_people(people_file, self.id_column, self.categories, self.columns_to_keep)
-            msg = "Number of people: {}".format(len(self.people.keys()))
+            self.people, self.columns_data, msg_list = init_categories_people(people_file, self.id_column, self.categories, self.columns_to_keep)
+            msg = " ".join(msg_list)
         except Exception as error:
-            # TODO: put error in the GUI box
             msg = "Number of people: {}".format(error)
         eel.update_selection_output_area(msg)
         self.update_run_button()
@@ -71,15 +70,16 @@ class FileContents():
     def run_selection(self):
         success, tries, people_selected, output_lines = run_stratification(
             self.categories, self.people, self.columns_data, self.number_people_to_select,
-            self.min_max_people, self.max_attempts, self.check_same_address
+            self.min_max_people, self.max_attempts, self.check_same_address,
+            self.check_same_address_columns
         )
         if success:
             selectfile = StringIO()
-            remainfile = StringIO()  # Brett - But not sure what to do from here!
-            write_selected_people_to_file(self.people, people_selected, self.id_column, self.categories, self.columns_to_keep, 	self.columns_data, selectfile, remainfile)
+            remainfile = StringIO()
+            output_lines += write_selected_people_to_file(self.people, people_selected, self.id_column, self.categories, self.columns_to_keep, self.columns_data, self.check_same_address, self.check_same_address_columns, selectfile, remainfile)
             eel.enable_selected_download(selectfile.getvalue(), 'selected.csv')
             eel.enable_remaining_download(remainfile.getvalue(), 'remaining.csv')
-        # Brett - print output_lines to the App:
+        # print output_lines to the App:
         eel.update_selection_output_messages_area("<br />".join(output_lines))
 
 
