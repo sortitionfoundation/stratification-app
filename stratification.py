@@ -9,6 +9,7 @@ import csv
 import random
 import typing
 import os
+from pathlib import Path
 
 import toml
 
@@ -19,7 +20,7 @@ category_file_field_names = [ "category", "name", "min", "max"]
 
 
 def initialise_settings():
-    settings_file_path = os.environ['HOME'] + "/sf_stratification_settings.toml"
+    settings_file_path = Path.home() / "sf_stratification_settings.toml"
     with open(settings_file_path, "r") as settings_file:
         settings = toml.load(settings_file)
 
