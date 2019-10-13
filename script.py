@@ -26,9 +26,25 @@ class FileContents():
         self.number_people_to_select = 0
         # mins and maxs (from category data) for number of people one can select
         self.min_max_people = {}
-        self.settings = Settings.load_from_file()
+        self._settings = None
+
+    @property
+    def settings(self):
+        self._init_settings()
+        return self._settings
+
+    def _init_settings(self):
+        """
+        Call from lots of places to report the error early
+        """
+        if self._settings is None:
+            try:
+                self._settings = Settings.load_from_file()
+            except NoSettingsFile as error:
+                eel.report_fatal_error(str(error))
 
     def add_category_content(self, file_contents):
+        self._init_settings()
         csv_files.category_raw_content = file_contents
         category_file = StringIO(file_contents)
         try:
@@ -43,6 +59,7 @@ class FileContents():
         self.update_run_button()
 
     def add_selection_content(self, file_contents):
+        self._init_settings()
         csv_files.selection_raw_content = file_contents
         people_file = StringIO(file_contents)
         try:
@@ -70,8 +87,9 @@ class FileContents():
         self.update_run_button()
 
     def run_selection(self):
+        self._init_settings()
         success, tries, people_selected, output_lines = run_stratification(
-            self.categories, self.people, self.columns_data, self.number_people_wanted, self.min_max_people, self.settings
+            self.categories, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, self.settings
         )
         if success:
             selectfile = StringIO()

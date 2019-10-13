@@ -13,6 +13,14 @@ $(function(){
         run_btn.addEventListener('click', handle_run_button, false);
     }
 
+    eel.expose(report_fatal_error);
+    function report_fatal_error(error_text) {
+        const error_div = document.getElementById("fatal-errors");
+        error_div.classList.add("alert");
+        error_div.classList.add("alert-danger");
+        error_div.textContent = error_text;
+    }
+
     // this allows repeat upload of a file
     // from: https://stackoverflow.com/a/12102992/3189
     function clear_file_value() {
