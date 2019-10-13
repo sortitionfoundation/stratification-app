@@ -60,33 +60,6 @@ class Settings():
         )
 
 
-def initialise_settings():
-    settings_file_path = Path.home() / "sf_stratification_settings.toml"
-    with open(settings_file_path, "r") as settings_file:
-        settings = toml.load(settings_file)
-
-    assert(isinstance(settings['id_column'], str))
-    assert(isinstance(settings['columns_to_keep'], list))
-    # if they have no personal data this could actually be empty
-    # assert(len(settings['columns_to_keep']) > 0)
-    for column in settings['columns_to_keep']:
-        assert(isinstance(column, str))
-    assert(isinstance(settings['check_same_address'], bool))
-    assert(isinstance(settings['check_same_address_columns'], list))
-    assert(len(settings['check_same_address_columns']) == 2)
-    for column in settings['check_same_address_columns']:
-        assert(isinstance(column, str))
-    assert(isinstance(settings['max_attempts'], int))
-
-    return (
-        settings['id_column'],
-        settings['columns_to_keep'],
-        settings['check_same_address'],
-        settings['check_same_address_columns'],
-        settings['max_attempts'],
-    )
-
-
 # categories is a dict of dicts of dicts... like:
 #   categories = { 'gender' : gender, 'age' : age, 'geo' : geo, 'socio' : socio }
 # with each category a dict of possible values with set data, like:
