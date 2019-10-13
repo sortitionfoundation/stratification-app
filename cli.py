@@ -6,7 +6,7 @@ from stratification import (
     read_in_cats,
     run_stratification,
     write_selected_people_to_file,
-    initialise_settings
+    Settings,
 )
 
 # INPUT FILES etc:
@@ -43,24 +43,25 @@ number_people_example_file = 300
 def main():
     output_lines = []
     min_max_people = {}
-    id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts = initialise_settings()
+    settings = Settings.load_from_file()
 
     with open(category_file_path, "r") as category_file:
         categories, min_max_people = read_in_cats(category_file)
     if create_sample_file:
         with open(people_file_path, "w") as people_file:
-            create_readable_sample_file(id_column, categories, columns_to_keep, people_file, number_people_example_file)
+            create_readable_sample_file(categories, people_file, number_people_example_file, settings)
 
     with open(people_file_path, "r") as people_file:
-        people, columns_data, output_lines = init_categories_people(people_file, id_column, categories, columns_to_keep)
+        people, columns_data, output_lines = init_categories_people(people_file, categories, settings)
 
-    success, tries, people_selected, new_output_lines = run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, max_attempts, check_same_address, check_same_address_columns)
+    success, tries, people_selected, new_output_lines = run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings)
     output_lines += new_output_lines
 
     if success:
         # write selected people to a file
         with open(people_selected_file_path, mode="w") as selected_file, open(people_remaining_file_path, mode="w") as remaining_file:
-            output_lines += write_selected_people_to_file(people, people_selected, id_column, categories, columns_to_keep, columns_data, check_same_address, check_same_address_columns, selected_file, remaining_file)
+            # output_lines += write_selected_people_to_file(people, people_selected, id_column, categories, columns_to_keep, columns_data, check_same_address, check_same_address_columns, selected_file, remaining_file)
+            output_lines += write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file, remaining_file, settings)
     print("\n".join(output_lines) + "\n")
 
 

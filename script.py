@@ -10,7 +10,8 @@ from stratification import (
     read_in_cats,
     run_stratification,
     write_selected_people_to_file,
-    initialise_settings
+    NoSettingsFile,
+    Settings,
 )
 
 
@@ -25,7 +26,7 @@ class FileContents():
         self.number_people_to_select = 0
         # mins and maxs (from category data) for number of people one can select
         self.min_max_people = {}
-        self.id_column, self.columns_to_keep, self.check_same_address, self.check_same_address_columns, self.max_attempts = initialise_settings()
+        self.settings = Settings.load_from_file()
 
     def add_category_content(self, file_contents):
         csv_files.category_raw_content = file_contents
@@ -45,7 +46,8 @@ class FileContents():
         csv_files.selection_raw_content = file_contents
         people_file = StringIO(file_contents)
         try:
-            self.people, self.columns_data, msg_list = init_categories_people(people_file, self.id_column, self.categories, self.columns_to_keep)
+            self.people, self.columns_data, msg_list = init_categories_people(people_file, self.categories, self.settings)
+            print('in add_selection_content(), self.people: {}'.format(self.people))
             msg = " ".join(msg_list)
         except Exception as error:
             msg = "Number of people: {}".format(error)
@@ -69,14 +71,12 @@ class FileContents():
 
     def run_selection(self):
         success, tries, people_selected, output_lines = run_stratification(
-            self.categories, self.people, self.columns_data, self.number_people_to_select,
-            self.min_max_people, self.max_attempts, self.check_same_address,
-            self.check_same_address_columns
+            self.categories, self.people, self.columns_data, self.number_people_wanted, self.min_max_people, self.settings
         )
         if success:
             selectfile = StringIO()
             remainfile = StringIO()
-            output_lines += write_selected_people_to_file(self.people, people_selected, self.id_column, self.categories, self.columns_to_keep, self.columns_data, self.check_same_address, self.check_same_address_columns, selectfile, remainfile)
+            output_lines += write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, selectfile, remainfile, self.settings)
             eel.enable_selected_download(selectfile.getvalue(), 'selected.csv')
             eel.enable_remaining_download(remainfile.getvalue(), 'remaining.csv')
         # print output_lines to the App:

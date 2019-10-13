@@ -8,15 +8,56 @@ import copy
 import csv
 import random
 import typing
-import os
 from pathlib import Path
 
 import toml
 
 # 0 means no debug message, higher number (could) mean more messages
 debug = 0
-# Wanring: "name" value is hardcoded somewhere below :-)
-category_file_field_names = [ "category", "name", "min", "max"]
+# Warning: "name" value is hardcoded somewhere below :-)
+category_file_field_names = ["category", "name", "min", "max"]
+
+
+class NoSettingsFile(Exception):
+    pass
+
+
+class Settings():
+
+    def __init__(self, id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts):
+        assert(isinstance(id_column, str))
+        assert(isinstance(columns_to_keep, list))
+        # if they have no personal data this could actually be empty
+        # assert(len(columns_to_keep) > 0)
+        for column in columns_to_keep:
+            assert(isinstance(column, str))
+        assert(isinstance(check_same_address, bool))
+        assert(isinstance(check_same_address_columns, list))
+        assert(len(check_same_address_columns) == 2)
+        for column in check_same_address_columns:
+            assert(isinstance(column, str))
+        assert(isinstance(max_attempts, int))
+
+        self.id_column = id_column
+        self.columns_to_keep = columns_to_keep
+        self.check_same_address = check_same_address
+        self.check_same_address_columns = check_same_address_columns
+        self.max_attempts = max_attempts
+
+    @classmethod
+    def load_from_file(cls):
+        settings_file_path = Path.home() / "sf_stratification_settings.toml"
+        if not settings_file_path.is_file():
+            raise NoSettingsFile("Could not find settings file {}".format(settings_file_path.absolute()))
+        with open(settings_file_path, "r") as settings_file:
+            settings = toml.load(settings_file)
+        return cls(
+            settings['id_column'],
+            settings['columns_to_keep'],
+            settings['check_same_address'],
+            settings['check_same_address_columns'],
+            settings['max_attempts'],
+        )
 
 
 def initialise_settings():
@@ -61,15 +102,15 @@ class SelectionError(Exception):
 
 
 # create READABLE example file of people
-def create_readable_sample_file(id_column, categories, columns_to_keep, people_file: typing.TextIO, number_people_example_file):
+def create_readable_sample_file(categories, people_file: typing.TextIO, number_people_example_file, settings: Settings):
     example_people_writer = csv.writer(
         people_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
     cat_keys = categories.keys()
-    example_people_writer.writerow([id_column] + columns_to_keep + list(cat_keys))
+    example_people_writer.writerow([settings.id_column] + settings.columns_to_keep + list(cat_keys))
     for x in range(number_people_example_file):
         row = ["p{}".format(x)]
-        for col in columns_to_keep:
+        for col in settings.columns_to_keep:
             row.append(col + str(x))
         for cat_key, cats in categories.items():  # e.g. gender
             cat_items_list_weighted = []
@@ -211,27 +252,27 @@ def read_in_cats(category_file: typing.TextIO):
 
 
 # read in people and calculate how many people in each category in database
-def init_categories_people(people_file: typing.TextIO, id_column, categories, columns_to_keep):
+def init_categories_people(people_file: typing.TextIO, categories, settings: Settings):
     people = {}
     columns_data = {}
     people_data = csv.DictReader(people_file)
     # check that id_column and all the categories and columns_to_keep are in the people data fields
-    if id_column not in people_data.fieldnames:
+    if settings.id_column not in people_data.fieldnames:
         raise Exception(
-            "ERROR reading in people: no {} (unique id) column found in people data!".format(id_column)
+            "ERROR reading in people: no {} (unique id) column found in people data!".format(settings.id_column)
         )
     for cat_key in categories.keys():
         if cat_key not in people_data.fieldnames:
             raise Exception(
                 "ERROR reading in people: no {} (category) column found in people data!".format(cat_key)
             )
-    for column in columns_to_keep:
+    for column in settings.columns_to_keep:
         if column not in people_data.fieldnames:
             raise Exception(
                 "ERROR reading in people: no {} column (to keep) found in people data!".format(column)
             )
     for row in people_data:
-        pkey = row[id_column]
+        pkey = row[settings.id_column]
         value = {}
         for cat_key, cats in categories.items():
             # check for input errors here - if it's not in the list of category values...
@@ -244,7 +285,7 @@ def init_categories_people(people_file: typing.TextIO, id_column, categories, co
         people.update({pkey: value})
         # this is address, name etc that we need to keep for output file
         data_value = {}
-        for col in columns_to_keep:
+        for col in settings.columns_to_keep:
             data_value[col] = row[col]
         columns_data.update({pkey: data_value})
     # check if any cat[max] is set to zero... if so delete everyone with that cat...
@@ -363,9 +404,9 @@ def get_selection_number_range(min_max_people_cats):
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people_cats, max_attempts, check_same_address, check_same_address_columns):
+def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings):
     # First check if numbers in cat file and to select make sense
-    for mkey, mvalue in min_max_people_cats.items():
+    for mkey, mvalue in settings.min_max_people_cats.items():
         if number_people_wanted < mvalue["min"] or number_people_wanted > mvalue["max"]:
             error_msg = (
                 "The number of people to select ({}) is out of the range of the numbers of people "
@@ -377,7 +418,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
     success = False
     tries = 0
     output_lines = ["<b>Initial: (selected = 0, remaining = total people in category)</b>"]
-    while not success and tries < max_attempts:
+    while not success and tries < settings.max_attempts:
         people_selected = {}
         new_output_lines = []
         people_working = copy.deepcopy(people)
@@ -386,7 +427,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             output_lines += print_category_selected(categories_working, number_people_wanted)
         output_lines.append("<b>Trial number: {}</b>".format(tries))
         try:
-            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted, check_same_address, check_same_address_columns)
+            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted, settings.check_same_address, settings.check_same_address_columns)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
@@ -410,25 +451,25 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
 
 # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
 # BUT, we should not include in this people from the same address as someone who has been selected!
-def write_selected_people_to_file(people, people_selected, id_column, categories, columns_to_keep, columns_data, check_same_address, check_same_address_columns, selected_file: typing.TextIO, remaining_file):
+def write_selected_people_to_file(people, people_selected, categories, columns_data, selected_file, remaining_file, settings: Settings):
     people_working = copy.deepcopy(people)
     people_selected_writer = csv.writer(
         selected_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
     people_selected_writer.writerow(
-        [id_column] + columns_to_keep + list(categories.keys())
+        [settings.id_column] + settings.columns_to_keep + list(categories.keys())
     )
     output_lines = []  # do we want to output same address info?
     num_same_address_deleted = 0
     for pkey, person in people_selected.items():
         row = [pkey]
-        for col in columns_to_keep:
+        for col in settings.columns_to_keep:
             row.append(columns_data[pkey][col])
         row += person.values()
         people_selected_writer.writerow(row)
         # if check address then delete all those at this address (will delete the one we want as well)
-        if check_same_address:
-            people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, check_same_address_columns)
+        if settings.check_same_address:
+            people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, settings.check_same_address_columns)
             output_lines += new_output_lines
             num_same_address_deleted += len(new_output_lines) - 1  # don't include original
             # then delete this/these people at the same address from the reserve/remaining pool
@@ -441,11 +482,11 @@ def write_selected_people_to_file(people, people_selected, id_column, categories
         remaining_file, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
     people_remaining_writer.writerow(
-        [id_column] + columns_to_keep + list(categories.keys())
+        [settings.id_column] + settings.columns_to_keep + list(categories.keys())
     )
     for pkey, person in people_working.items():
         row = [pkey]
-        for col in columns_to_keep:
+        for col in settings.columns_to_keep:
             row.append(columns_data[pkey][col])
         row += person.values()
         people_remaining_writer.writerow(row)
