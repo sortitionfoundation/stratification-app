@@ -27,7 +27,7 @@ def initialise_settings():
     assert(isinstance(settings['id_column'], str))
     assert(isinstance(settings['columns_to_keep'], list))
     # if they have no personal data this could actually be empty
-    #assert(len(settings['columns_to_keep']) > 0)
+    # assert(len(settings['columns_to_keep']) > 0)
     for column in settings['columns_to_keep']:
         assert(isinstance(column, str))
     assert(isinstance(settings['check_same_address'], bool))
@@ -116,9 +116,10 @@ def really_delete_person(categories, people, pkey, selected):
             raise SelectionError("FAIL in delete_person: no one left in " + pval)
     del people[pkey]
 
+
 def get_people_at_same_address(people, pkey, columns_data, check_same_address_columns):
-    #primary_address1 = columns_data[pkey]["primary_address1"]
-    #primary_zip = columns_data[pkey]["primary_zip"]
+    # primary_address1 = columns_data[pkey]["primary_address1"]
+    # primary_zip = columns_data[pkey]["primary_zip"]
     primary_address1 = columns_data[pkey][check_same_address_columns[0]]
     primary_zip = columns_data[pkey][check_same_address_columns[1]]
     # there may be multiple people to delete, and deleting them as we go gives an error
@@ -126,8 +127,8 @@ def get_people_at_same_address(people, pkey, columns_data, check_same_address_co
     output_lines = []
     for compare_key in people.keys():
         if (
-            #primary_address1 == columns_data[compare_key]["primary_address1"]
-            #and primary_zip == columns_data[compare_key]["primary_zip"]
+            # primary_address1 == columns_data[compare_key]["primary_address1"]
+            # and primary_zip == columns_data[compare_key]["primary_zip"]
             primary_address1 == columns_data[compare_key][check_same_address_columns[0]]
             and primary_zip == columns_data[compare_key][check_same_address_columns[1]]
         ):
@@ -139,6 +140,7 @@ def get_people_at_same_address(people, pkey, columns_data, check_same_address_co
             people_to_delete.append(compare_key)
     return people_to_delete, output_lines
 
+
 # lucky person has been selected - delete person from DB
 def delete_person(categories, people, pkey, columns_data, check_same_address, check_same_address_columns):
     output_lines = []
@@ -148,7 +150,7 @@ def delete_person(categories, people, pkey, columns_data, check_same_address, ch
     # check if there are other people at the same address - if so, remove them!
     if check_same_address:
         people_to_delete, output_lines = get_people_at_same_address(people, pkey, columns_data, check_same_address_columns)
-	    # then delete this/these people at the same address
+        # then delete this/these people at the same address
         for del_person_key in people_to_delete:
             really_delete_person(categories, people, del_person_key, False)
     # then check if any cats of selected person is (was) in are full
@@ -247,12 +249,13 @@ def init_categories_people(people_file: typing.TextIO, id_column, categories, co
         columns_data.update({pkey: data_value})
     # check if any cat[max] is set to zero... if so delete everyone with that cat...
     # NOT DONE: could then check if anyone is left...
-    msg = [ "Number of people: {}.".format(len(people.keys())) ]
+    msg = ["Number of people: {}.".format(len(people.keys()))]
     for cat_key, cats in categories.items():
         for cat, cat_item in cats.items():
-            if cat_item["max"] == 0: # we don't want any of these people
+            if cat_item["max"] == 0:  # we don't want any of these people
                 msg += delete_all_in_cat(categories, people, cat_key, cat)
     return people, columns_data, msg
+
 
 # returns dict of category key, category item name, random person number
 def find_max_ratio_cat(categories):
@@ -415,19 +418,19 @@ def write_selected_people_to_file(people, people_selected, id_column, categories
     people_selected_writer.writerow(
         [id_column] + columns_to_keep + list(categories.keys())
     )
-    output_lines = [] # do we want to output same address info?
+    output_lines = []  # do we want to output same address info?
     num_same_address_deleted = 0
     for pkey, person in people_selected.items():
         row = [pkey]
         for col in columns_to_keep:
             row.append(columns_data[pkey][col])
         row += person.values()
-        people_selected_writer.writerow(row)   
+        people_selected_writer.writerow(row)
         # if check address then delete all those at this address (will delete the one we want as well)
         if check_same_address:
             people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, check_same_address_columns)
             output_lines += new_output_lines
-            num_same_address_deleted += len(new_output_lines) - 1 #don't include original
+            num_same_address_deleted += len(new_output_lines) - 1  # don't include original
             # then delete this/these people at the same address from the reserve/remaining pool
             for del_person_key in people_to_delete:
                 del people_working[del_person_key]
@@ -446,5 +449,5 @@ def write_selected_people_to_file(people, people_selected, id_column, categories
             row.append(columns_data[pkey][col])
         row += person.values()
         people_remaining_writer.writerow(row)
-    output_lines = [ "Deleted {} people from remaining file who had the same address as selected people.".format( num_same_address_deleted ) ]
+    output_lines = ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
     return output_lines

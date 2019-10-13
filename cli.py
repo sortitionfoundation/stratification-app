@@ -11,7 +11,7 @@ from stratification import (
 
 # INPUT FILES etc:
 root_io_dir = Path(
-    #"/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/HelathyDemocracy/"
+    # "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/HelathyDemocracy/"
     "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/process/python/example-input-output/"
     # "/home/hamish/dev/sortition/brett-20190513/"
 )
