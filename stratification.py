@@ -379,7 +379,7 @@ def get_selection_number_range(min_max_people_cats):
 
 def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings):
     # First check if numbers in cat file and to select make sense
-    for mkey, mvalue in settings.min_max_people_cats.items():
+    for mkey, mvalue in min_max_people.items():
         if number_people_wanted < mvalue["min"] or number_people_wanted > mvalue["max"]:
             error_msg = (
                 "The number of people to select ({}) is out of the range of the numbers of people "
