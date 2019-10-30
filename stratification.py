@@ -390,7 +390,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             return False, 0, {}, [error_msg]
     success = False
     tries = 0
-    output_lines = ["<b>Initial: (selected = 0, remaining = total people in category)</b>"]
+    output_lines = ["<b>Initial: (selected = 0, remaining = {})</b>".format(len(people.keys()))]
     while not success and tries < settings.max_attempts:
         people_selected = {}
         new_output_lines = []
