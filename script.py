@@ -1,5 +1,6 @@
 import platform
 import sys
+from copy import deepcopy
 from io import StringIO
 
 import eel
@@ -20,8 +21,10 @@ class FileContents():
     def __init__(self):
         self.category_raw_content = ''
         self.selection_raw_content = ''
-        self.categories = None
+        self.original_categories = None
+        self.categories_after_people = None
         self.columns_data = None
+        self.people_file_contents = None
         self.people = None
         self.number_people_to_select = 0
         # mins and maxs (from category data) for number of people one can select
@@ -48,28 +51,39 @@ class FileContents():
         csv_files.category_raw_content = file_contents
         category_file = StringIO(file_contents)
         try:
-            self.categories, self.min_max_people = read_in_cats(category_file)
+            self.original_categories, self.min_max_people = read_in_cats(category_file)
         except Exception as error:
             # TODO: put error in the GUI box
             print("Error reading in categories: {}".format(error))
-        eel.update_categories_output_area("Number of categories: {}".format(len(self.categories.keys())))
+        eel.update_categories_output_area("Number of categories: {}".format(len(self.original_categories.keys())))
         self.update_selection_content()
         min_selection, max_selection = get_selection_number_range(self.min_max_people)
         eel.update_selection_range(min_selection, max_selection)
+        # if we've already uploaded people, we need to re-process them with the
+        # (possibly) new categories settings
+        if self.people_file_contents:
+            self.update_people()
         self.update_run_button()
 
     def add_selection_content(self, file_contents):
         self._init_settings()
         csv_files.selection_raw_content = file_contents
-        people_file = StringIO(file_contents)
+        self.people_file_contents = file_contents
+        self.update_people()
+        self.update_run_button()
+
+    def update_people(self):
+        people_file = StringIO(self.people_file_contents)
+        # init_categories_people() modifies the categories, so we need to
+        # keep the original categories here
+        self.categories_after_people = deepcopy(self.original_categories)
         try:
-            self.people, self.columns_data, msg_list = init_categories_people(people_file, self.categories, self.settings)
+            self.people, self.columns_data, msg_list = init_categories_people(people_file, self.categories_after_people, self.settings)
             print('in add_selection_content(), self.people: {}'.format(self.people))
             msg = " ".join(msg_list)
         except Exception as error:
-            msg = "Number of people: {}".format(error)
+            msg = "Error loading people: {}".format(error)
         eel.update_selection_output_area(msg)
-        self.update_run_button()
 
     def update_selection_content(self):
         if self.category_raw_content:
@@ -89,12 +103,12 @@ class FileContents():
     def run_selection(self):
         self._init_settings()
         success, tries, people_selected, output_lines = run_stratification(
-            self.categories, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, self.settings
+            self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, self.settings
         )
         if success:
             selectfile = StringIO()
             remainfile = StringIO()
-            output_lines += write_selected_people_to_file(self.people, people_selected, self.categories, self.columns_data, selectfile, remainfile, self.settings)
+            output_lines += write_selected_people_to_file(self.people, people_selected, self.categories_after_people, self.columns_data, selectfile, remainfile, self.settings)
             eel.enable_selected_download(selectfile.getvalue(), 'selected.csv')
             eel.enable_remaining_download(remainfile.getvalue(), 'remaining.csv')
         # print output_lines to the App:
