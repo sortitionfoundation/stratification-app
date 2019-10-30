@@ -13,12 +13,16 @@ $(function(){
         run_btn.addEventListener('click', handle_run_button, false);
     }
 
-    eel.expose(report_fatal_error);
-    function report_fatal_error(error_text) {
-        const error_div = document.getElementById("fatal-errors");
-        error_div.classList.add("alert");
-        error_div.classList.add("alert-danger");
-        error_div.textContent = error_text;
+    eel.expose(alert_user);
+    function alert_user(message, is_error) {
+        const alerts_div = document.getElementById("user-alerts");
+        alerts_div.classList.add("alert");
+        if (is_error) {
+            alerts_div.classList.add("alert-danger");
+        } else {
+            alerts_div.classList.add("alert-info");
+        }
+        alerts_div.textContent = message;
     }
 
     // this allows repeat upload of a file

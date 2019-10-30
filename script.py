@@ -41,10 +41,9 @@ class FileContents():
         Call from lots of places to report the error early
         """
         if self._settings is None:
-            try:
-                self._settings = Settings.load_from_file()
-            except NoSettingsFile as error:
-                eel.report_fatal_error(str(error))
+            self._settings, message = Settings.load_from_file()
+            if message:
+                eel.alert_user(message, False)
 
     def add_category_content(self, file_contents):
         self._init_settings()

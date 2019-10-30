@@ -18,6 +18,39 @@ debug = 0
 category_file_field_names = ["category", "name", "min", "max"]
 
 
+DEFAULT_SETTINGS = """
+# #####################################################################
+#
+# IF YOU EDIT THIS FILE YOU NEED TO RESTART THE APPLICATION
+#
+# #####################################################################
+
+# this is written in TOML - https://github.com/toml-lang/toml
+
+id_column = "nationbuilder_id"
+
+# if check_same_address is true, then no 2 people from the same address will be selected
+# the comparison is between TWO fields listed here, which MUST also be below in columns_to_keep
+check_same_address = true
+check_same_address_columns = [
+    "primary_address1",
+    "primary_zip"
+]
+max_attempts = 100
+columns_to_keep = [
+    "first_name",
+    "last_name",
+    "email",
+    "mobile_number",
+    "primary_address1",
+    "primary_address2",
+    "primary_city",
+    "primary_zip",
+    "age"
+]
+"""
+
+
 class NoSettingsFile(Exception):
     pass
 
@@ -46,9 +79,14 @@ class Settings():
 
     @classmethod
     def load_from_file(cls):
+        message = ""
         settings_file_path = Path.home() / "sf_stratification_settings.toml"
         if not settings_file_path.is_file():
-            raise NoSettingsFile("Could not find settings file {}".format(settings_file_path.absolute()))
+            with open(settings_file_path, "w") as settings_file:
+                settings_file.write(DEFAULT_SETTINGS)
+            message = "Wrote default settings to '{}' - if editing is required, restart this app.".format(
+                settings_file_path.absolute()
+            )
         with open(settings_file_path, "r") as settings_file:
             settings = toml.load(settings_file)
         return cls(
@@ -57,7 +95,7 @@ class Settings():
             settings['check_same_address'],
             settings['check_same_address_columns'],
             settings['max_attempts'],
-        )
+        ), message
 
 
 # categories is a dict of dicts of dicts... like:
