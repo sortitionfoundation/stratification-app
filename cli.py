@@ -44,7 +44,9 @@ number_people_example_file = 300
 def main():
     output_lines = []
     min_max_people = {}
-    settings = Settings.load_from_file()
+    settings, message = Settings.load_from_file()
+    if message:
+        print(message)
 
     with open(category_file_path, "r") as category_file:
         categories, min_max_people = read_in_cats(category_file)
