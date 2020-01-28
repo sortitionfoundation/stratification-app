@@ -33,7 +33,7 @@ class Settings():
             assert(isinstance(column, str))
         assert(isinstance(check_same_address, bool))
         assert(isinstance(check_same_address_columns, list))
-        assert(len(check_same_address_columns) == 2)
+        #assert(len(check_same_address_columns) == 2)
         for column in check_same_address_columns:
             assert(isinstance(column, str))
         assert(isinstance(max_attempts, int))

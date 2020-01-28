@@ -12,7 +12,8 @@ from stratification import (
 # INPUT FILES etc:
 root_io_dir = Path(
     # "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/HelathyDemocracy/"
-    "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/process/python/example-input-output/"
+    #"/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/process/python/example-input-output/"
+    "/Users/bsh/brett/sortition/foundation/projects-events/Stratification-Services/UK climate CA/data"
     # "/home/hamish/dev/sortition/brett-20190513/"
 )
 
@@ -22,7 +23,7 @@ category_file_path = root_io_dir / "categories.csv"
 
 # this file MUST have at least columns = id_column (below) AND those described
 # in category file (other columns are ignored)
-people_file_path = root_io_dir / "example_people.csv"
+people_file_path = root_io_dir / "Respondents for Ariel.csv"
 
 # OUTPUT FILES:
 people_selected_file_path = root_io_dir / "example_people_22-selected.csv"
@@ -31,7 +32,7 @@ people_remaining_file_path = root_io_dir / "example_people_22-remaining.csv"
 #######
 
 # the number of people in each category must be (more or less) the total number of people to be selected
-number_people_wanted = 22
+number_people_wanted = 110
 
 ######
 
