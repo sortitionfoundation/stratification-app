@@ -58,18 +58,22 @@ class NoSettingsFile(Exception):
 class Settings():
 
     def __init__(self, id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts):
-        assert(isinstance(id_column, str))
-        assert(isinstance(columns_to_keep, list))
-        # if they have no personal data this could actually be empty
-        # assert(len(columns_to_keep) > 0)
-        for column in columns_to_keep:
-            assert(isinstance(column, str))
-        assert(isinstance(check_same_address, bool))
-        assert(isinstance(check_same_address_columns, list))
-        #assert(len(check_same_address_columns) == 2)
-        for column in check_same_address_columns:
-            assert(isinstance(column, str))
-        assert(isinstance(max_attempts, int))
+        try:
+            assert(isinstance(id_column, str))
+            assert(isinstance(columns_to_keep, list))
+            # if they have no personal data this could actually be empty
+            # assert(len(columns_to_keep) > 0)
+            for column in columns_to_keep:
+                assert(isinstance(column, str))
+            assert(isinstance(check_same_address, bool))
+            assert(isinstance(check_same_address_columns, list))
+			# this could be empty
+            #assert(len(check_same_address_columns) == 2)
+            for column in check_same_address_columns:
+                assert(isinstance(column, str))
+            assert(isinstance(max_attempts, int))
+        except AssertionError as error:
+            print(error)
 
         self.id_column = id_column
         self.columns_to_keep = columns_to_keep
@@ -225,14 +229,20 @@ def read_in_cats(category_file: typing.TextIO):
             "ERROR reading in category file: expected first line to be {} ".format(category_file_field_names)
         )
     for row in cat_file:  # must convert min/max to ints
-        if row["category"] in categories:  # must convert min/max to ints
-            min_max_people_cats[row["category"]]["min"] += int(row["min"])
-            min_max_people_cats[row["category"]]["max"] += int(row["max"])
-            categories[row["category"]].update(
+        # allow for some dirty data - at least strip white space from cat and name
+        cat = row["category"].strip()
+        cat_value = row["name"].strip()
+        # must convert min/max to ints
+        min = int(row["min"])
+        max = int(row["max"])
+        if cat in categories:
+            min_max_people_cats[cat]["min"] += min
+            min_max_people_cats[cat]["max"] += max
+            categories[cat].update(
                 {
-                    row["name"]: {
-                        "min": int(row["min"]),
-                        "max": int(row["max"]),
+                    cat_value: {
+                        "min": min,
+                        "max": max,
                         "selected": 0,
                         "remaining": 0,
                     }
@@ -241,18 +251,18 @@ def read_in_cats(category_file: typing.TextIO):
         else:
             min_max_people_cats.update(
                 {
-                    row["category"]: {
-                        "min": int(row["min"]),
-                        "max": int(row["max"])
+                    cat: {
+                        "min": min,
+                        "max": max
                     }
                 }
             )
             categories.update(
                 {
-                    row["category"]: {
-                        row["name"]: {
-                            "min": int(row["min"]),
-                            "max": int(row["max"]),
+                    cat: {
+                        cat_value: {
+                            "min": min,
+                            "max": max,
                             "selected": 0,
                             "remaining": 0,
                         }
@@ -275,24 +285,31 @@ def init_categories_people(people_file: typing.TextIO, categories, settings: Set
     for cat_key in categories.keys():
         if cat_key not in people_data.fieldnames:
             raise Exception(
-                "ERROR reading in people: no {} (category) column found in people data!".format(cat_key)
+                "ERROR reading in people: no '{}' (category) column found in people data!".format(cat_key)
             )
     for column in settings.columns_to_keep:
         if column not in people_data.fieldnames:
             raise Exception(
-                "ERROR reading in people: no {} column (to keep) found in people data!".format(column)
+                "ERROR reading in people: no '{}' column (to keep) found in people data!".format(column)
+            )
+    for column in settings.check_same_address_columns:
+        if column not in people_data.fieldnames:
+            raise Exception(
+                "ERROR reading in people: no '{}' column (to check same address) found in people data!".format(column)
             )
     for row in people_data:
         pkey = row[settings.id_column]
         value = {}
         for cat_key, cats in categories.items():
             # check for input errors here - if it's not in the list of category values...
-            if row[cat_key] not in cats:
+            # allow for some unclean data - at least strip empty space
+            p_value = row[cat_key].strip()
+            if p_value not in cats:
                 raise Exception(
-                    "ERROR reading in people (init_categories_people): Person (id = {}) has value {} not in category {}".format(pkey, row[cat_key], cat_key)
+                    "ERROR reading in people (init_categories_people): Person (id = {}) has value '{}' not in category {}".format(pkey, p_value, cat_key)
                 )
-            value.update({cat_key: row[cat_key]})
-            categories[cat_key][row[cat_key]]["remaining"] += 1
+            value.update({cat_key: p_value})
+            categories[cat_key][p_value]["remaining"] += 1
         people.update({pkey: value})
         # this is address, name etc that we need to keep for output file
         data_value = {}

@@ -51,10 +51,11 @@ class FileContents():
         category_file = StringIO(file_contents)
         try:
             self.original_categories, self.min_max_people = read_in_cats(category_file)
+            msg = "Number of categories: {}".format(len(self.original_categories.keys()))
         except Exception as error:
-            # TODO: put error in the GUI box
-            print("Error reading in categories: {}".format(error))
-        eel.update_categories_output_area("Number of categories: {}".format(len(self.original_categories.keys())))
+            # put error in the GUI box !
+            msg = "Error reading in categories: {}".format(error)
+        eel.update_categories_output_area(msg)
         self.update_selection_content()
         min_selection, max_selection = get_selection_number_range(self.min_max_people)
         eel.update_selection_range(min_selection, max_selection)
