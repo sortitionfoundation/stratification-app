@@ -48,6 +48,12 @@ columns_to_keep = [
     "primary_zip",
     "age"
 ]
+
+# selection_algorithm can either be "legacy", "maximin", or "nash"
+selection_algorithm = "maximin"
+# If false, maximin and nash algorithms aim to balance each person's probability. If true, they instead aim to give
+# each household the same probability of having some member participate.
+fair_to_households = false
 """
 
 
@@ -57,7 +63,8 @@ class NoSettingsFile(Exception):
 
 class Settings():
 
-    def __init__(self, id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts):
+    def __init__(self, id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts,
+                 selection_algorithm, fair_to_households):
         try:
             assert(isinstance(id_column, str))
             assert(isinstance(columns_to_keep, list))
@@ -72,6 +79,8 @@ class Settings():
             for column in check_same_address_columns:
                 assert(isinstance(column, str))
             assert(isinstance(max_attempts, int))
+            assert(selection_algorithm in ["legacy", "maximin", "nash"])
+            assert(isinstance(fair_to_households, bool))
         except AssertionError as error:
             print(error)
 
@@ -80,6 +89,8 @@ class Settings():
         self.check_same_address = check_same_address
         self.check_same_address_columns = check_same_address_columns
         self.max_attempts = max_attempts
+        self.selection_algorithm = selection_algorithm
+        self.fair_to_households = fair_to_households
 
     @classmethod
     def load_from_file(cls):
@@ -99,6 +110,8 @@ class Settings():
             settings['check_same_address'],
             settings['check_same_address_columns'],
             settings['max_attempts'],
+            settings['selection_algorithm'],
+            settings['fair_to_households']
         ), message
 
 
@@ -395,8 +408,37 @@ def check_min_cats(categories):
     return got_min, output_msg
 
 
-# main algorithm to try to find a random sample
-def find_random_sample(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns):
+def find_random_sample(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns,
+                           selection_algorithm, fair_to_households):
+    """Main algorithm to try to find a random sample.
+
+    Args:
+        categories (dict): categories["feature"]["value"] is a dictionary with keys "min", "max", "selected", "remaining".
+        people (dict): people["nationbuilder_id"] is dictionary mapping "feature" to "value" for a person.
+        columns_data (dict): columns_data["nationbuilder_id"] is dictionary mapping "contact_field" to "value" for a person.
+        number_people_wanted (int):
+        check_same_address (bool):
+        check_same_address_columns (list of str): list of contact fields of columns that have to be equal for being
+            counted as residing at the same address
+        selection_algorithm (str): one out of "legacy", "maximin", or "nash"
+        fair_to_households (bool): for maximin and nash algorithm, whether multiple members of the same household should
+            only count as much as a single person from a single-person household
+    Returns:
+        (people_selected (dict), output_lines (list of str))
+        `people_selected` is a subdictionary of `people` with `number_people_wanted` many entries.
+        `output_lines` is a list of debug strings.
+    """
+    if selection_algorithm == "legacy":
+        return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns)
+    elif selection_algorithm == "maximin":
+        raise NotImplementedError()
+    elif selection_algorithm == "nash":
+        raise NotImplementedError()
+    else:
+        raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}.")
+
+
+def find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns):
     output_lines = []
     people_selected = {}
     for count in range(number_people_wanted):
@@ -455,7 +497,9 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             output_lines += print_category_selected(categories_working, number_people_wanted)
         output_lines.append("<b>Trial number: {}</b>".format(tries))
         try:
-            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted, settings.check_same_address, settings.check_same_address_columns)
+            people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data, number_people_wanted,
+                                                                   settings.check_same_address, settings.check_same_address_columns,
+                                                                   settings.selection_algorithm, settings.fair_to_households)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
