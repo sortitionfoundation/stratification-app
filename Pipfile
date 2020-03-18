@@ -7,6 +7,10 @@ name = "pypi"
 Eel = "*"
 greenlet = "*"
 toml = "*"
+numpy = "*"
+cvxpy = "*"
+# contains a specific bug fix on master that is not released yet as of March 18, 2020
+mip = {git = "https://github.com/coin-or/python-mip.git", ref = "1586ec2d1a290fbb967d433744e425298851c33d"}
 
 [dev-packages]
 # black = "19.3b0"

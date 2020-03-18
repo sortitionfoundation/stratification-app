@@ -8,15 +8,21 @@ import copy
 import csv
 import random
 import typing
+from typing import Dict, List, Tuple
 from pathlib import Path
 
+import cvxpy as cp
+import mip
+import numpy as np
 import toml
 
 # 0 means no debug message, higher number (could) mean more messages
 debug = 0
 # Warning: "name" value is hardcoded somewhere below :-)
 category_file_field_names = ["category", "name", "min", "max"]
-
+# numerical deviation accepted as equality when dealing with solvers
+EPS = 0.005  # TODO: Find good value
+EPS2 = 0.0000001
 
 DEFAULT_SETTINGS = """
 # #####################################################################
@@ -50,7 +56,7 @@ columns_to_keep = [
 ]
 
 # selection_algorithm can either be "legacy", "maximin", or "nash"
-selection_algorithm = "maximin"
+selection_algorithm = "nash"
 # If false, maximin and nash algorithms aim to balance each person's probability. If true, they instead aim to give
 # each household the same probability of having some member participate.
 fair_to_households = false
@@ -408,37 +414,53 @@ def check_min_cats(categories):
     return got_min, output_msg
 
 
-def find_random_sample(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns,
-                           selection_algorithm, fair_to_households):
+def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
+                       columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
+                       check_same_address_columns: List[str], selection_algorithm: str, fair_to_households: bool)\
+                       -> Tuple[Dict[str, Dict[str, str]], List[str]]:
     """Main algorithm to try to find a random sample.
 
     Args:
-        categories (dict): categories["feature"]["value"] is a dictionary with keys "min", "max", "selected", "remaining".
-        people (dict): people["nationbuilder_id"] is dictionary mapping "feature" to "value" for a person.
-        columns_data (dict): columns_data["nationbuilder_id"] is dictionary mapping "contact_field" to "value" for a person.
-        number_people_wanted (int):
-        check_same_address (bool):
-        check_same_address_columns (list of str): list of contact fields of columns that have to be equal for being
+        categories: categories["feature"]["value"] is a dictionary with keys "min", "max", "selected", "remaining".
+        people: people["nationbuilder_id"] is dictionary mapping "feature" to "value" for a person.
+        columns_data: columns_data["nationbuilder_id"] is dictionary mapping "contact_field" to "value" for a person.
+        number_people_wanted:
+        check_same_address:
+        check_same_address_columns: list of contact fields of columns that have to be equal for being
             counted as residing at the same address
-        selection_algorithm (str): one out of "legacy", "maximin", or "nash"
-        fair_to_households (bool): for maximin and nash algorithm, whether multiple members of the same household should
+        selection_algorithm: one out of "legacy", "maximin", or "nash"
+        fair_to_households: for maximin and nash algorithm, whether multiple members of the same household should
             only count as much as a single person from a single-person household
     Returns:
-        (people_selected (dict), output_lines (list of str))
+        (people_selected, output_lines)
         `people_selected` is a subdictionary of `people` with `number_people_wanted` many entries.
         `output_lines` is a list of debug strings.
+    Side Effects:
+        The "selected" and "remaining" fields in `categories` to be changed.
     """
     if selection_algorithm == "legacy":
         return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns)
     elif selection_algorithm == "maximin":
         raise NotImplementedError()
     elif selection_algorithm == "nash":
-        raise NotImplementedError()
+        people_selected, output_lines = find_random_sample_nash(categories, people, columns_data, number_people_wanted, check_same_address,
+                                       check_same_address_columns, fair_to_households)
     else:
         raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}.")
 
+    # update categories for the algorithms other than legacy
+    for id, person in people_selected.items():
+        for feature in person:
+            value = person[feature]
+            categories[feature][value]["selected"] += 1
+            categories[feature][value]["remaining"] -= 1
+    return people_selected, output_lines
 
-def find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns):
+
+def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
+                              columns_data: Dict[str, Dict[str, str]], number_people_wanted: int,
+                              check_same_address: bool, check_same_address_columns: List[str]) \
+                             -> Tuple[Dict[str, Dict[str, str]], List[str]]:
     output_lines = []
     people_selected = {}
     for count in range(number_people_wanted):
@@ -457,6 +479,205 @@ def find_random_sample_legacy(categories, people, columns_data, number_people_wa
         if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
     return people_selected, output_lines
+
+
+def _binarize_ilp_results(dict: Dict[str, mip.entities.Var]) -> Dict[str, bool]:
+    res = {}
+    for id in dict:
+        try:
+            if dict[id].x > 0.5:
+                res[id] = True
+            else:
+                res[id] = False
+        except Exception as e:  # unfortunately, MIP sometimes throws generic Exceptions rather than a subclass.
+            raise ValueError(f"It seems like variable {id} does not have a value. Original exception: {e}.")
+    return res
+
+
+def _same_address(columns_data1: Dict[str, str], columns_data2: Dict[str, str], check_same_address_columns: List[str]):
+    return all(columns_data1[column] == columns_data2[column] for column in check_same_address_columns)
+
+
+def _allocations_to_matrix_fair_to_individuals(allocations: List[Dict[str, bool]], entitled_agents: List[str]):
+    columns = []
+    for alloc in allocations:
+        columns.append(np.array([int(alloc[id]) for id in entitled_agents]))
+    return np.column_stack(columns)
+
+
+def _allocations_to_matrix_fair_to_households(allocations: List[Dict[str, bool]], entitled_households: List[str],
+                                              address_groups: Dict[str, str]):
+    columns = []
+    for alloc in allocations:
+        column_dict = {household: 0 for household in entitled_households}
+        for id in alloc:
+            if alloc[id]:
+                column_dict[address_groups[id]] += 1
+        column = [column_dict[household] for household in entitled_households]
+        columns.append(np.array(column))
+    return np.column_stack(columns)
+
+
+def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
+                            columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
+                            check_same_address_columns: List[str], fair_to_households: bool) -> Tuple[Dict[str, Dict[str, str]], List[str]]:
+    """Find a distribution over feasible committees that maximizes the so-called Nash welfare, i.e., the product of
+    selection probabilities over all persons (or over all households if `fair_to_households`).
+
+    Arguments and return follow the pattern of `find_random_sample`.
+
+    The following gives more details about the algorithm:
+    Instead of directly maximizing the product of selection probabilities Πᵢ pᵢ, we equivalently maximize
+    log(Πᵢ pᵢ) = Σᵢ log(pᵢ). If some person/household i is not included in any feasible committee, their pᵢ is 0, and
+    this sum is -∞. We will then try to maximize Σᵢ log(pᵢ) where i is restricted to range over persons/households that
+    can possibly be included.
+    """
+    # TODO:remove import
+    from collections import Counter
+    output_lines = []
+
+    # `new_constraint_model` is an integer linear program (ILP) used for discovering new feasible committees.
+    # We will use it many times, putting different weights on the inclusion of different agents to find many feasible
+    # committees.
+    # TODO: do not specify solver to able to use installed Gurobi where available, currently there for testing purposes
+    new_constraint_model = mip.Model(sense=mip.MAXIMIZE, solver_name=mip.CBC)
+    new_constraint_model.verbose = debug
+
+    # for every person, we have a binary variable indicating whether they are in the committee
+    constraint_agent_vars = {id: new_constraint_model.add_var(var_type=mip.BINARY) for id in people}
+
+    # we have to select exactly `number_people_wanted` many persons
+    new_constraint_model.add_constr(mip.xsum(constraint_agent_vars.values()) == number_people_wanted)
+
+    # we have to respect quotas
+    for feature in categories:
+        for value in categories[feature]:
+            number_feature_value_agents = mip.xsum(constraint_agent_vars[id] for id, person in people.items()
+                                                   if person[feature] == value)
+            new_constraint_model.add_constr(number_feature_value_agents >= categories[feature][value]["min"])
+            new_constraint_model.add_constr(number_feature_value_agents <= categories[feature][value]["max"])
+
+    # we might not be able to select multiple persons from the same household
+    if check_same_address:
+        ids = list(people.keys())
+        address_groups = {id: None for id in people} # for each agent, the id of the earliest person with same address
+
+        for i, id1 in enumerate(ids):
+            if address_groups[id1] is not None:
+                continue
+            address_groups[id1] = id1
+            house_vars = [constraint_agent_vars[id1]]
+            for id2 in ids[i + 1:]:
+                if address_groups[id2] is None and _same_address(columns_data[id1], columns_data[id2], check_same_address_columns):
+                    address_groups[id2] = id1
+                    house_vars.append(constraint_agent_vars[id2])
+            if len(house_vars) >= 2:
+                new_constraint_model.add_constr(mip.xsum(house_vars) <= 1)
+
+    # Optimize once without any constraints to check if no feasible committees exist at all.
+    status = new_constraint_model.optimize()
+    if status != mip.OptimizationStatus.OPTIMAL:
+        raise ValueError(f"No feasible committees found, solver returns code {status} (see https://docs.python-mip.com/"
+                         "en/latest/classes.html#optimizationstatus). Excluding a solver failure, the quotas are "
+                         "unsatisfiable.")
+
+    # Start by finding committees including every agent, and learn which agents cannot possibly be included.
+    allocations: List[Dict[str, bool]] = []  # set of feasible committees, add more over time
+    agent_covered = {id: False for id in people}
+    for id in people:
+        if not agent_covered[id]:
+            # try to find an objective in which agent `id` is selected
+            new_constraint_model.objective = constraint_agent_vars[id]
+            new_constraint_model.optimize()
+            new_set = _binarize_ilp_results(constraint_agent_vars)
+            if not new_set[id]:
+                output_lines.append(f"Agent {id} is not contained in any feasible committee. Maybe relax quotas?")
+            else:
+                allocations.append(new_set)
+                for id2 in people:
+                    if new_set[id2]:
+                        agent_covered[id2] = True
+    assert len(allocations) >= 1
+    if all(agent_covered.values()):
+        output_lines.append("All agents are contained in some feasible committee.")
+
+    if fair_to_households:
+        entitled_households = list(set(address_groups[id] for id in agent_covered if agent_covered[id]))
+        contributes_to_index = {}
+        for id in people:
+            try:
+                contributes_to_index[id] = entitled_households.index(address_groups[id])
+            except ValueError:
+                pass
+    else:
+        entitled_agents = [id for id in agent_covered if agent_covered[id]]
+        contributes_to_index = {}
+        for id in people:
+            try:
+                contributes_to_index[id] = entitled_agents.index(id)
+            except ValueError:
+                pass
+
+    # Now, the algorithm proceeds iteratively. First, it finds probabilities for the committees already present in
+    # `allocations` that maximize the sum of logarithms. Then, reusing the old ILP, it finds the feasible committee
+    # (possibly outside of `allocations`) such that the partial derivative of the sum of logarithms with respect to the
+    # probability of outputting this committee is maximal.
+    start_lambdas = [1 / len(allocations) for _ in allocations]
+    while True:
+        lambdas = cp.Variable(len(allocations))  # probability of outputting a specific committee
+        lambdas.value = start_lambdas
+        # A is a binary matrix, whose (i,j)th entry indicates whether agent `feasible_agents[i]`
+        if fair_to_households:
+            A = _allocations_to_matrix_fair_to_households(allocations, entitled_households, address_groups)
+            assert A.shape == (len(entitled_households), len(allocations))
+        else:
+            A = _allocations_to_matrix_fair_to_individuals(allocations, entitled_agents)
+            assert A.shape == (len(entitled_agents), len(allocations))
+
+        objective = cp.Maximize(cp.sum(cp.log(A * lambdas)))
+        constraints = [0 <= lambdas, sum(lambdas) == 1]
+        problem = cp.Problem(objective, constraints)
+        # TODO: test relative performance of both solvers, see whether warm_start helps.
+        try:
+            nash_welfare = problem.solve(solver=cp.ECOS, warm_start=True)
+        except cp.SolverError:
+            # Sometimes, the ECOS solver in cvxpy crashes (numerical instabilities?). In this case, try another solver.
+            output_lines.append("Had to switch to SCS solver.")
+            nash_welfare = problem.solve(solver=cp.SCS, warm_start=True)
+        output_lines.append(f"Nash welfare is now: {nash_welfare}.")
+        print(f"Nash welfare is now: {nash_welfare}.")
+
+        assert lambdas.value.shape == (len(allocations),)
+        entitled_utilities = A.dot(lambdas.value)
+        assert entitled_utilities.shape == ((len(entitled_households),) if fair_to_households else (len(entitled_agents),))
+        assert((entitled_utilities > EPS2).all())
+        entitled_reciprocals = 1 / entitled_utilities
+        assert entitled_reciprocals.shape == ((len(entitled_households),) if fair_to_households else (len(entitled_agents),))
+        differentials = entitled_reciprocals.dot(A)
+        assert differentials.shape == (len(allocations),)
+        # TODO: delete
+        diffs2 = [diff for diff, l in zip(differentials, lambdas) if l.value > 0.0002]
+        print("diffs:", Counter(differentials.round(2)))
+
+        obj = []
+        for id in people:
+            if id in contributes_to_index:
+                obj.append(entitled_reciprocals[contributes_to_index[id]] * constraint_agent_vars[id])
+        new_constraint_model.objective = mip.xsum(obj)
+        new_constraint_model.optimize()
+
+        new_set = _binarize_ilp_results(constraint_agent_vars)
+        value = sum(entitled_reciprocals[contributes_to_index[id]] * new_set[id] for id in people if id in contributes_to_index)
+        if value <= differentials.max() + EPS:
+            probabilities = np.array(lambdas.value).clip(0, 1)
+            probabilities = probabilities / sum(probabilities)
+            alloc = np.random.choice(allocations, 1, p=probabilities)
+            res = {id: people[id] for id in people if alloc[0][id]}
+            return res, output_lines
+        else:
+            print(value, differentials.max(), value - differentials.max())
+            allocations.append(new_set)
+            start_lambdas = np.array(lambdas.value).resize(len(allocations))
 
 
 def get_selection_number_range(min_max_people_cats):
