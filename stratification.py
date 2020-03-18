@@ -2,10 +2,12 @@
     Python (3) script to do a stratified, random selection from respondents to random mail out
 
     written by Brett Hennig bsh [AT] sortitionfoundation.org
+    contributions by Paul Gölz pgoelz (AT) cs.cmu.edu
 
 """
 import copy
 import csv
+from math import log
 import random
 import typing
 from typing import Dict, List, Tuple
@@ -21,7 +23,7 @@ debug = 0
 # Warning: "name" value is hardcoded somewhere below :-)
 category_file_field_names = ["category", "name", "min", "max"]
 # numerical deviation accepted as equality when dealing with solvers
-EPS = 0.005  # TODO: Find good value
+EPS = 0.05  # TODO: Find good value
 EPS2 = 0.0000001
 
 DEFAULT_SETTINGS = """
@@ -414,6 +416,34 @@ def check_min_cats(categories):
     return got_min, output_msg
 
 
+def _distribution_stats(people:  Dict[str, Dict[str, str]], allocations: List[Dict[str, bool]],
+                        probabilities: List[float]) -> List[str]:
+    output_lines = []
+
+    assert len(allocations) == len(probabilities)
+    num_non_zero = sum([1 for prob in probabilities if prob > 0])
+    output_lines.append(f"Algorithm produced distribution over {len(allocations)} committees, out of which "
+                        f"{num_non_zero} are chosen with positive probability.")
+
+    individual_probabilities = {id: 0 for id in people}
+    committees = {id: [] for id in people}
+    for alloc, prob in zip(allocations, probabilities):
+        for id in alloc:
+            if alloc[id] and prob > 0:
+                individual_probabilities[id] += prob
+                committees[id].append(alloc)
+
+    table = ["<table border='1' cellpadding='5'><tr><th>Agent ID</th><th>Probability of selection</th><th>Included in #"
+             "of committees</th></tr>"]
+
+    for _, id in sorted((prob, id) for id, prob in individual_probabilities.items()):
+        table.append(f"<tr><td>{id}</td><td>{individual_probabilities[id]:.4%}</td><td>{len(committees[id])}</td></tr>")
+    table.append("</table>")
+    output_lines.append("".join(table))
+
+    return output_lines
+
+
 def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                        columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
                        check_same_address_columns: List[str], selection_algorithm: str, fair_to_households: bool)\
@@ -433,20 +463,30 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
             only count as much as a single person from a single-person household
     Returns:
         (people_selected, output_lines)
-        `people_selected` is a subdictionary of `people` with `number_people_wanted` many entries.
+        `people_selected` is a subdictionary of `people` with `number_people_wanted` many entries, guaranteed to satisfy
+            the constraints on a feasible committee.
         `output_lines` is a list of debug strings.
     Side Effects:
         The "selected" and "remaining" fields in `categories` to be changed.
     """
-    if selection_algorithm == "legacy":
+    if selection_algorithm not in ["legacy", "maximin", "nash"]:
+        raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}.")
+    elif selection_algorithm == "legacy":
         return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns)
-    elif selection_algorithm == "maximin":
+
+    if selection_algorithm == "maximin":
         raise NotImplementedError()
     elif selection_algorithm == "nash":
-        people_selected, output_lines = find_random_sample_nash(categories, people, columns_data, number_people_wanted, check_same_address,
-                                       check_same_address_columns, fair_to_households)
-    else:
-        raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}.")
+        allocations, probabilities, output_lines = find_distribution_nash(categories, people, columns_data,
+                                                                          number_people_wanted, check_same_address,
+                                                                          check_same_address_columns,
+                                                                          fair_to_households)
+
+    output_lines += _distribution_stats(people, allocations, probabilities)
+
+    # choose a concrete committee from the distribution
+    committee = np.random.choice(allocations, 1, p=probabilities)[0]
+    people_selected = {id: people[id] for id in committee if committee[id]}
 
     # update categories for the algorithms other than legacy
     for id, person in people_selected.items():
@@ -518,13 +558,27 @@ def _allocations_to_matrix_fair_to_households(allocations: List[Dict[str, bool]]
     return np.column_stack(columns)
 
 
-def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
-                            columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
-                            check_same_address_columns: List[str], fair_to_households: bool) -> Tuple[Dict[str, Dict[str, str]], List[str]]:
+def _print(message: str) -> str:
+    print(message)
+    return message
+
+
+def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
+                           columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
+                           check_same_address_columns: List[str], fair_to_households: bool) \
+                          -> Tuple[List[Dict[str, bool]], List[float], List[str]]:
     """Find a distribution over feasible committees that maximizes the so-called Nash welfare, i.e., the product of
     selection probabilities over all persons (or over all households if `fair_to_households`).
 
-    Arguments and return follow the pattern of `find_random_sample`.
+    Arguments follow the pattern of `find_random_sample`.
+
+    Returns:
+        (allocations, probabilities, output_lines)
+        `allocations` is a list of feasible committees, where each committee is represented by a dictionary mapping the
+            ids of people to booleans (is this person part of the committe?).
+        `probabilities` is a list of probabilities of equal length, describing the probability with which each committee
+            should be selected.
+        `output_lines` is a list of debug strings.
 
     The following gives more details about the algorithm:
     Instead of directly maximizing the product of selection probabilities Πᵢ pᵢ, we equivalently maximize
@@ -591,7 +645,8 @@ def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], pe
             new_constraint_model.optimize()
             new_set = _binarize_ilp_results(constraint_agent_vars)
             if not new_set[id]:
-                output_lines.append(f"Agent {id} is not contained in any feasible committee. Maybe relax quotas?")
+                output_lines.append(
+                    _print(f"Agent {id} is not contained in any feasible committee. Maybe relax quotas?"))
             else:
                 allocations.append(new_set)
                 for id2 in people:
@@ -599,10 +654,11 @@ def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], pe
                         agent_covered[id2] = True
     assert len(allocations) >= 1
     if all(agent_covered.values()):
-        output_lines.append("All agents are contained in some feasible committee.")
+        output_lines.append(_print("All agents are contained in some feasible committee."))
 
     if fair_to_households:
         entitled_households = list(set(address_groups[id] for id in agent_covered if agent_covered[id]))
+        num_entitlements = len(entitled_households)
         contributes_to_index = {}
         for id in people:
             try:
@@ -611,6 +667,7 @@ def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], pe
                 pass
     else:
         entitled_agents = [id for id in agent_covered if agent_covered[id]]
+        num_entitlements = len(entitled_agents)
         contributes_to_index = {}
         for id in people:
             try:
@@ -629,10 +686,9 @@ def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], pe
         # A is a binary matrix, whose (i,j)th entry indicates whether agent `feasible_agents[i]`
         if fair_to_households:
             A = _allocations_to_matrix_fair_to_households(allocations, entitled_households, address_groups)
-            assert A.shape == (len(entitled_households), len(allocations))
         else:
             A = _allocations_to_matrix_fair_to_individuals(allocations, entitled_agents)
-            assert A.shape == (len(entitled_agents), len(allocations))
+        assert A.shape == (num_entitlements, len(allocations))
 
         objective = cp.Maximize(cp.sum(cp.log(A * lambdas)))
         constraints = [0 <= lambdas, sum(lambdas) == 1]
@@ -642,22 +698,22 @@ def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], pe
             nash_welfare = problem.solve(solver=cp.ECOS, warm_start=True)
         except cp.SolverError:
             # Sometimes, the ECOS solver in cvxpy crashes (numerical instabilities?). In this case, try another solver.
-            output_lines.append("Had to switch to SCS solver.")
+            output_lines.append(_print("Had to switch to SCS solver."))
             nash_welfare = problem.solve(solver=cp.SCS, warm_start=True)
-        output_lines.append(f"Nash welfare is now: {nash_welfare}.")
-        print(f"Nash welfare is now: {nash_welfare}.")
+        scaled_welfare = nash_welfare - num_entitlements * log(number_people_wanted / num_entitlements)
+        output_lines.append(_print(f"Scaled Nash welfare is now: {scaled_welfare}."))
 
         assert lambdas.value.shape == (len(allocations),)
         entitled_utilities = A.dot(lambdas.value)
-        assert entitled_utilities.shape == ((len(entitled_households),) if fair_to_households else (len(entitled_agents),))
+        assert entitled_utilities.shape == (num_entitlements,)
         assert((entitled_utilities > EPS2).all())
         entitled_reciprocals = 1 / entitled_utilities
-        assert entitled_reciprocals.shape == ((len(entitled_households),) if fair_to_households else (len(entitled_agents),))
+        assert entitled_reciprocals.shape == (num_entitlements,)
         differentials = entitled_reciprocals.dot(A)
         assert differentials.shape == (len(allocations),)
         # TODO: delete
-        diffs2 = [diff for diff, l in zip(differentials, lambdas) if l.value > 0.0002]
-        print("diffs:", Counter(differentials.round(2)))
+        #diffs2 = [diff for diff, l in zip(differentials, lambdas) if l.value > 0.0002]
+        #print("diffs:", Counter(differentials.round(2)))
 
         obj = []
         for id in people:
@@ -670,10 +726,8 @@ def find_random_sample_nash(categories: Dict[str, Dict[str, Dict[str, int]]], pe
         value = sum(entitled_reciprocals[contributes_to_index[id]] * new_set[id] for id in people if id in contributes_to_index)
         if value <= differentials.max() + EPS:
             probabilities = np.array(lambdas.value).clip(0, 1)
-            probabilities = probabilities / sum(probabilities)
-            alloc = np.random.choice(allocations, 1, p=probabilities)
-            res = {id: people[id] for id in people if alloc[0][id]}
-            return res, output_lines
+            probabilities = list(probabilities / sum(probabilities))
+            return allocations, probabilities, output_lines
         else:
             print(value, differentials.max(), value - differentials.max())
             allocations.append(new_set)
