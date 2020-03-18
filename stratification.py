@@ -10,7 +10,7 @@ import csv
 from math import log
 import random
 import typing
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, FrozenSet, Optional
 from pathlib import Path
 
 import cvxpy as cp
@@ -416,7 +416,7 @@ def check_min_cats(categories):
     return got_min, output_msg
 
 
-def _distribution_stats(people:  Dict[str, Dict[str, str]], allocations: List[Dict[str, bool]],
+def _distribution_stats(people:  Dict[str, Dict[str, str]], allocations: List[FrozenSet[str]],
                         probabilities: List[float]) -> List[str]:
     output_lines = []
 
@@ -428,8 +428,8 @@ def _distribution_stats(people:  Dict[str, Dict[str, str]], allocations: List[Di
     individual_probabilities = {id: 0 for id in people}
     committees = {id: [] for id in people}
     for alloc, prob in zip(allocations, probabilities):
-        for id in alloc:
-            if alloc[id] and prob > 0:
+        if prob > 0:
+            for id in alloc:
                 individual_probabilities[id] += prob
                 committees[id].append(alloc)
 
@@ -482,11 +482,12 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
                                                                           check_same_address_columns,
                                                                           fair_to_households)
 
+    assert len(set(allocations)) == len(allocations)
     output_lines += _distribution_stats(people, allocations, probabilities)
 
     # choose a concrete committee from the distribution
-    committee = np.random.choice(allocations, 1, p=probabilities)[0]
-    people_selected = {id: people[id] for id in committee if committee[id]}
+    committee: FrozenSet[str] = np.random.choice(allocations, 1, p=probabilities)[0]
+    people_selected = {id: people[id] for id in committee}
 
     # update categories for the algorithms other than legacy
     for id, person in people_selected.items():
@@ -521,16 +522,16 @@ def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], 
     return people_selected, output_lines
 
 
-def _binarize_ilp_results(dict: Dict[str, mip.entities.Var]) -> Dict[str, bool]:
-    res = {}
-    for id in dict:
-        try:
-            if dict[id].x > 0.5:
-                res[id] = True
-            else:
-                res[id] = False
-        except Exception as e:  # unfortunately, MIP sometimes throws generic Exceptions rather than a subclass.
-            raise ValueError(f"It seems like variable {id} does not have a value. Original exception: {e}.")
+def _ilp_results_to_committee(variables: Dict[str, mip.entities.Var],
+                              number_people_wanted: Optional[int] = None) -> FrozenSet[str]:
+    try:
+        res = frozenset(id for id in variables if variables[id].x > 0.5)
+    except Exception as e:  # unfortunately, MIP sometimes throws generic Exceptions rather than a subclass.
+        raise ValueError(f"It seems like some variables does not have a value. Original exception: {e}.")
+
+    if number_people_wanted is not None:
+        assert len(res) == number_people_wanted
+
     return res
 
 
@@ -538,21 +539,20 @@ def _same_address(columns_data1: Dict[str, str], columns_data2: Dict[str, str], 
     return all(columns_data1[column] == columns_data2[column] for column in check_same_address_columns)
 
 
-def _allocations_to_matrix_fair_to_individuals(allocations: List[Dict[str, bool]], entitled_agents: List[str]):
+def _allocations_to_matrix_fair_to_individuals(allocations: List[FrozenSet[str]], entitled_agents: List[str]):
     columns = []
     for alloc in allocations:
-        columns.append(np.array([int(alloc[id]) for id in entitled_agents]))
+        columns.append(np.array([int(id in alloc) for id in entitled_agents]))
     return np.column_stack(columns)
 
 
-def _allocations_to_matrix_fair_to_households(allocations: List[Dict[str, bool]], entitled_households: List[str],
+def _allocations_to_matrix_fair_to_households(allocations: List[FrozenSet[str]], entitled_households: List[str],
                                               address_groups: Dict[str, str]):
     columns = []
     for alloc in allocations:
         column_dict = {household: 0 for household in entitled_households}
         for id in alloc:
-            if alloc[id]:
-                column_dict[address_groups[id]] += 1
+            column_dict[address_groups[id]] += 1
         column = [column_dict[household] for household in entitled_households]
         columns.append(np.array(column))
     return np.column_stack(columns)
@@ -566,7 +566,7 @@ def _print(message: str) -> str:
 def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                            columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
                            check_same_address_columns: List[str], fair_to_households: bool) \
-                          -> Tuple[List[Dict[str, bool]], List[float], List[str]]:
+                          -> Tuple[List[FrozenSet[str]], List[float], List[str]]:
     """Find a distribution over feasible committees that maximizes the so-called Nash welfare, i.e., the product of
     selection probabilities over all persons (or over all households if `fair_to_households`).
 
@@ -574,8 +574,8 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
 
     Returns:
         (allocations, probabilities, output_lines)
-        `allocations` is a list of feasible committees, where each committee is represented by a dictionary mapping the
-            ids of people to booleans (is this person part of the committe?).
+        `allocations` is a list of feasible committees, where each committee is represented by a frozen set of included
+            agent ids.
         `probabilities` is a list of probabilities of equal length, describing the probability with which each committee
             should be selected.
         `output_lines` is a list of debug strings.
@@ -636,22 +636,22 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
                          "unsatisfiable.")
 
     # Start by finding committees including every agent, and learn which agents cannot possibly be included.
-    allocations: List[Dict[str, bool]] = []  # set of feasible committees, add more over time
+    allocations: List[FrozenSet[str]] = []  # set of feasible committees, add more over time
     agent_covered = {id: False for id in people}
     for id in people:
         if not agent_covered[id]:
             # try to find an objective in which agent `id` is selected
             new_constraint_model.objective = constraint_agent_vars[id]
             new_constraint_model.optimize()
-            new_set = _binarize_ilp_results(constraint_agent_vars)
-            if not new_set[id]:
+            new_set: FrozenSet[str] = _ilp_results_to_committee(constraint_agent_vars, number_people_wanted)
+            if id not in new_set:
                 output_lines.append(
                     _print(f"Agent {id} is not contained in any feasible committee. Maybe relax quotas?"))
             else:
+                assert new_set not in allocations
                 allocations.append(new_set)
-                for id2 in people:
-                    if new_set[id2]:
-                        agent_covered[id2] = True
+                for id2 in new_set:
+                    agent_covered[id2] = True
     assert len(allocations) >= 1
     if all(agent_covered.values()):
         output_lines.append(_print("All agents are contained in some feasible committee."))
@@ -678,7 +678,9 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
     # Now, the algorithm proceeds iteratively. First, it finds probabilities for the committees already present in
     # `allocations` that maximize the sum of logarithms. Then, reusing the old ILP, it finds the feasible committee
     # (possibly outside of `allocations`) such that the partial derivative of the sum of logarithms with respect to the
-    # probability of outputting this committee is maximal.
+    # probability of outputting this committee is maximal. If this partial derivative is less than the maximal partial
+    # derivative of any committee already in `allocations`, the Karush-Kuhn-Tucker conditions (which are sufficient in
+    # this case) imply that the distribution is optimal even with all other committees receiving probability 0.
     start_lambdas = [1 / len(allocations) for _ in allocations]
     while True:
         lambdas = cp.Variable(len(allocations))  # probability of outputting a specific committee
@@ -722,14 +724,16 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
         new_constraint_model.objective = mip.xsum(obj)
         new_constraint_model.optimize()
 
-        new_set = _binarize_ilp_results(constraint_agent_vars)
-        value = sum(entitled_reciprocals[contributes_to_index[id]] * new_set[id] for id in people if id in contributes_to_index)
+        new_set = _ilp_results_to_committee(constraint_agent_vars, number_people_wanted)
+        value = sum(entitled_reciprocals[contributes_to_index[id]] for id in new_set if id in contributes_to_index)
         if value <= differentials.max() + EPS:
             probabilities = np.array(lambdas.value).clip(0, 1)
             probabilities = list(probabilities / sum(probabilities))
+            # TODO: filter 0-probability allocations?
             return allocations, probabilities, output_lines
         else:
             print(value, differentials.max(), value - differentials.max())
+            assert new_set not in allocations
             allocations.append(new_set)
             start_lambdas = np.array(lambdas.value).resize(len(allocations))
 
