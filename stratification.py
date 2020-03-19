@@ -701,7 +701,27 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
     incremental_model.add_constr(mip.xsum(incr_agent_vars.values()) == 1)
     incremental_model.objective = upper_bound
 
-    allocations = []
+    allocations_set = set()
+    coefficients = {id: 1 for id in people}
+    for i in range(1000):
+        new_committee_model.objective = mip.xsum(coefficients[id] * agent_vars[id] for id in people)
+        new_committee_model.optimize()
+        new_set = _ilp_results_to_committee(agent_vars)
+        for id in new_set:
+            coefficients[id] *= 0.8
+        coefficient_sum = sum(coefficients.values())
+        for id in people:
+            coefficients[id] *= len(people) / coefficient_sum
+        print(sum(coefficients.values()))
+        if new_set not in allocations_set:
+            allocations_set.add(new_set)
+            incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
+        else:
+            for id in people:
+                coefficients[id] = 0.9 * coefficients[id] + 0.1
+        print(i, len(allocations_set))
+    allocations = list(allocations_set)
+
     while True:
         incremental_model.optimize()
 
