@@ -741,6 +741,27 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
             allocations.append(new_set)
             incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
 
+            # heuristic: see whether can find counter-examples even to slightly changed LP solution (probably not optimal)
+            for i in range(10):
+                for id in new_set:
+                    probs[id] = probs[id] * upper / value
+                sum_probs = sum(probs.values())
+                if sum_probs < EPS:
+                    break
+                for id in people:
+                    probs[id] /= sum_probs
+                upper /= sum_probs
+                new_committee_model.objective = mip.xsum(probs[id] * agent_vars[id] for id in people)
+                new_committee_model.optimize()
+                new_set = _ilp_results_to_committee(agent_vars)
+                value = sum(probs[id] for id in new_set)
+                if value <= upper + EPS or new_set in allocations:
+                    break
+                else:
+                    allocations.append(new_set)
+                    incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
+            print(f"Successful heuristic {i} times.")
+
 
 def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                            columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
