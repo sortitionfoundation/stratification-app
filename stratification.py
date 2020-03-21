@@ -416,7 +416,7 @@ def check_min_cats(categories):
     return got_min, output_msg
 
 
-def _distribution_stats(people:  Dict[str, Dict[str, str]], allocations: List[FrozenSet[str]],
+def _distribution_stats(people: Dict[str, Dict[str, str]], allocations: List[FrozenSet[str]],
                         probabilities: List[float]) -> List[str]:
     output_lines = []
 
@@ -447,7 +447,7 @@ def _distribution_stats(people:  Dict[str, Dict[str, str]], allocations: List[Fr
 def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                        columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
                        check_same_address_columns: List[str], selection_algorithm: str, fair_to_households: bool)\
-                       -> Tuple[Dict[str, Dict[str, str]], List[str]]:
+                      -> Tuple[Dict[str, Dict[str, str]], List[str]]:
     """Main algorithm to try to find a random sample.
 
     Args:
@@ -467,7 +467,7 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
             the constraints on a feasible committee.
         `output_lines` is a list of debug strings.
     Side Effects:
-        The "selected" and "remaining" fields in `categories` to be changed.
+        Existing callers assume the "selected" and "remaining" fields in `categories` to be changed.
     """
     if selection_algorithm == "legacy":
         return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address,
@@ -519,7 +519,8 @@ def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], 
                     if debug > 0:
                         print("Found random person in this cat... adding them")
                     people_selected.update({pkey: pvalue})
-                    output_lines += delete_person(categories, people, pkey, columns_data, check_same_address, check_same_address_columns)
+                    output_lines += delete_person(categories, people, pkey, columns_data, check_same_address,
+                                                  check_same_address_columns)
                     break
         if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
@@ -535,11 +536,13 @@ def _ilp_results_to_committee(variables: Dict[str, mip.entities.Var]) -> FrozenS
     return res
 
 
-def _same_address(columns_data1: Dict[str, str], columns_data2: Dict[str, str], check_same_address_columns: List[str]):
+def _same_address(columns_data1: Dict[str, str], columns_data2: Dict[str, str], check_same_address_columns: List[str]) \
+                 -> bool:
     return all(columns_data1[column] == columns_data2[column] for column in check_same_address_columns)
 
 
-def _allocations_to_matrix(allocations: List[FrozenSet[str]], entitlements, contributes_to_entitlement):
+def _allocations_to_matrix(allocations: List[FrozenSet[str]], entitlements: list,
+                           contributes_to_entitlement: Dict[str, int]) -> np.ndarray:
     columns = []
     for alloc in allocations:
         column = [0 for _ in entitlements]
@@ -914,10 +917,10 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
         lambdas = cp.Variable(len(allocations))  # probability of outputting a specific committee
         lambdas.value = start_lambdas
         # A is a binary matrix, whose (i,j)th entry indicates whether agent `feasible_agents[i]`
-        A = _allocations_to_matrix(allocations, entitlements, contributes_to_entitlement)
-        assert A.shape == (len(entitlements), len(allocations))
+        matrix = _allocations_to_matrix(allocations, entitlements, contributes_to_entitlement)
+        assert matrix.shape == (len(entitlements), len(allocations))
 
-        objective = cp.Maximize(cp.sum(cp.log(A * lambdas)))
+        objective = cp.Maximize(cp.sum(cp.log(matrix * lambdas)))
         constraints = [0 <= lambdas, sum(lambdas) == 1]
         problem = cp.Problem(objective, constraints)
         # TODO: test relative performance of both solvers, see whether warm_start helps.
@@ -931,12 +934,12 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
         output_lines.append(_print(f"Scaled Nash welfare is now: {scaled_welfare}."))
 
         assert lambdas.value.shape == (len(allocations),)
-        entitled_utilities = A.dot(lambdas.value)
+        entitled_utilities = matrix.dot(lambdas.value)
         assert entitled_utilities.shape == (len(entitlements),)
-        assert((entitled_utilities > EPS2).all())
+        assert (entitled_utilities > EPS2).all()
         entitled_reciprocals = 1 / entitled_utilities
         assert entitled_reciprocals.shape == (len(entitlements),)
-        differentials = entitled_reciprocals.dot(A)
+        differentials = entitled_reciprocals.dot(matrix)
         assert differentials.shape == (len(allocations),)
 
         obj = []

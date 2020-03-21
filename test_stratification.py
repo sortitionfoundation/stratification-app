@@ -73,24 +73,6 @@ class Test(TestCase):
                 self.assertNotEqual([columns_data[id1][col] for col in check_same_address_columns],
                                     [columns_data[id2][col] for col in check_same_address_columns])
 
-    def test__ilp_results_to_committee(self):
-        self.fail()
-
-    def test__same_address(self):
-        self.fail()
-
-    def test__setup_committee_generation(self):
-        self.fail()
-
-    def test__generate_initial_committees(self):
-        self.fail()
-
-    def test__define_entitlements(self):
-        self.fail()
-
-    def test__find_committee_probabilities(self):
-        self.fail()
-
     def test_find_distribution_maximin_no_adress_fair_to_people(self):
         categories = example1.categories
         people = example1.people
