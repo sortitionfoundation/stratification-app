@@ -427,18 +427,19 @@ def _distribution_stats(people: Dict[str, Dict[str, str]], committees: List[Froz
                         f"{num_non_zero} are chosen with positive probability.")
 
     individual_probabilities = {id: 0 for id in people}
-    committees = {id: [] for id in people}
+    containing_committees = {id: [] for id in people}
     for committee, prob in zip(committees, probabilities):
         if prob > 0:
             for id in committee:
                 individual_probabilities[id] += prob
-                committees[id].append(committee)
+                containing_committees[id].append(committee)
 
     table = ["<table border='1' cellpadding='5'><tr><th>Agent ID</th><th>Probability of selection</th><th>Included in #"
              "of committees</th></tr>"]
 
     for _, id in sorted((prob, id) for id, prob in individual_probabilities.items()):
-        table.append(f"<tr><td>{id}</td><td>{individual_probabilities[id]:.4%}</td><td>{len(committees[id])}</td></tr>")
+        table.append(f"<tr><td>{id}</td><td>{individual_probabilities[id]:.4%}</td><td>{len(containing_committees[id])}"
+                     "</td></tr>")
     table.append("</table>")
     output_lines.append("".join(table))
 
