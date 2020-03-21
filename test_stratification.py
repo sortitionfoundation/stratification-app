@@ -40,10 +40,10 @@ example2.columns_data = {"lisa": {"home": "1"},
                          "scrooge": {"home": "1"}}
 
 
-def _calculate_marginals(people, allocations, probabilities):
+def _calculate_marginals(people, committees, probabilities):
     marginals = {id: 0 for id in people}
-    for alloc, prob in zip(allocations, probabilities):
-        for id in alloc:
+    for committee, prob in zip(committees, probabilities):
+        for id in committee:
             marginals[id] += prob
     return marginals
 
@@ -81,17 +81,18 @@ class Test(TestCase):
         check_same_address = False
         check_same_address_columns = []
         fair_to_households = False
-        allocations, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                  check_same_address, check_same_address_columns,
-                                                                  fair_to_households)
+        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
+                                                                 check_same_address, check_same_address_columns,
+                                                                 fair_to_households)
         self._probabilities_well_formed(probabilities)
-        for alloc in allocations:
-            self._allocation_feasible(alloc, categories, people, columns_data, number_people_wanted, check_same_address,
+        for committee in committees:
+            self._allocation_feasible(committee, categories, people, columns_data, number_people_wanted,
+                                      check_same_address,
                                       check_same_address_columns)
 
         # maximin is 1/3, can be achieved uniquely by
         # 1/3: {louie, marge}, 1/3: {dewey, marge}, 1/3: {scrooge, lisa}
-        marginals = _calculate_marginals(people, allocations, probabilities)
+        marginals = _calculate_marginals(people, committees, probabilities)
         self.assertAlmostEqual(marginals["lisa"], 1 / 3)
         self.assertAlmostEqual(marginals["scrooge"], 1 / 3)
         self.assertAlmostEqual(marginals["louie"], 1 / 3)
@@ -106,18 +107,19 @@ class Test(TestCase):
         check_same_address = True
         check_same_address_columns = ["home"]
         fair_to_households = False
-        allocations, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                  check_same_address, check_same_address_columns,
-                                                                  fair_to_households)
+        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
+                                                                 check_same_address, check_same_address_columns,
+                                                                 fair_to_households)
         self._probabilities_well_formed(probabilities)
-        for alloc in allocations:
-            self._allocation_feasible(alloc, categories, people, columns_data, number_people_wanted, check_same_address,
+        for committee in committees:
+            self._allocation_feasible(committee, categories, people, columns_data, number_people_wanted,
+                                      check_same_address,
                                       check_same_address_columns)
 
         # Scrooge and Lisa can no longer be included. E.g. if Scrooge is included, we need a simpsons child for the
         # second position. Only Lisa qualifies, but lives in the same household. Unique maximin among everyone else is:
         # 1/2: {louie, marge}, 1/2: {dewey, marge}
-        marginals = _calculate_marginals(people, allocations, probabilities)
+        marginals = _calculate_marginals(people, committees, probabilities)
         self.assertAlmostEqual(marginals["lisa"], 0)
         self.assertAlmostEqual(marginals["scrooge"], 0)
         self.assertAlmostEqual(marginals["louie"], 1 / 2)
@@ -132,17 +134,18 @@ class Test(TestCase):
         check_same_address = False
         check_same_address_columns = ["home"]
         fair_to_households = True
-        allocations, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                  check_same_address, check_same_address_columns,
-                                                                  fair_to_households)
+        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
+                                                                 check_same_address, check_same_address_columns,
+                                                                 fair_to_households)
         self._probabilities_well_formed(probabilities)
-        for alloc in allocations:
-            self._allocation_feasible(alloc, categories, people, columns_data, number_people_wanted, check_same_address,
+        for committee in committees:
+            self._allocation_feasible(committee, categories, people, columns_data, number_people_wanted,
+                                      check_same_address,
                                       check_same_address_columns)
 
         # maximin is 2/3 (for households), can be achieved uniquely by
         # 2/3: {dewey, marge}, 1/3: {scrooge, lisa}
-        marginals = _calculate_marginals(people, allocations, probabilities)
+        marginals = _calculate_marginals(people, committees, probabilities)
         self.assertAlmostEqual(marginals["lisa"], 1 / 3)
         self.assertAlmostEqual(marginals["scrooge"], 1 / 3)
         self.assertAlmostEqual(marginals["louie"], 0)

@@ -416,22 +416,22 @@ def check_min_cats(categories):
     return got_min, output_msg
 
 
-def _distribution_stats(people: Dict[str, Dict[str, str]], allocations: List[FrozenSet[str]],
+def _distribution_stats(people: Dict[str, Dict[str, str]], committees: List[FrozenSet[str]],
                         probabilities: List[float]) -> List[str]:
     output_lines = []
 
-    assert len(allocations) == len(probabilities)
+    assert len(committees) == len(probabilities)
     num_non_zero = sum([1 for prob in probabilities if prob > 0])
-    output_lines.append(f"Algorithm produced distribution over {len(allocations)} committees, out of which "
+    output_lines.append(f"Algorithm produced distribution over {len(committees)} committees, out of which "
                         f"{num_non_zero} are chosen with positive probability.")
 
     individual_probabilities = {id: 0 for id in people}
     committees = {id: [] for id in people}
-    for alloc, prob in zip(allocations, probabilities):
+    for committee, prob in zip(committees, probabilities):
         if prob > 0:
-            for id in alloc:
+            for id in committee:
                 individual_probabilities[id] += prob
-                committees[id].append(alloc)
+                committees[id].append(committee)
 
     table = ["<table border='1' cellpadding='5'><tr><th>Agent ID</th><th>Probability of selection</th><th>Included in #"
              "of committees</th></tr>"]
@@ -473,12 +473,12 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
         return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address,
                                          check_same_address_columns)
     elif selection_algorithm == "maximin":
-        allocations, probabilities, output_lines = find_distribution_maximin(categories, people, columns_data,
+        committees, probabilities, output_lines = find_distribution_maximin(categories, people, columns_data,
                                                                              number_people_wanted, check_same_address,
                                                                              check_same_address_columns,
                                                                              fair_to_households)
     elif selection_algorithm == "nash":
-        allocations, probabilities, output_lines = find_distribution_nash(categories, people, columns_data,
+        committees, probabilities, output_lines = find_distribution_nash(categories, people, columns_data,
                                                                           number_people_wanted, check_same_address,
                                                                           check_same_address_columns,
                                                                           fair_to_households)
@@ -486,11 +486,11 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
         # selection_algorithm not in ["legacy", "maximin", "nash"]:
         raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}.")
 
-    assert len(set(allocations)) == len(allocations)
-    output_lines += _distribution_stats(people, allocations, probabilities)
+    assert len(set(committees)) == len(committees)
+    output_lines += _distribution_stats(people, committees, probabilities)
 
     # choose a concrete committee from the distribution
-    committee: FrozenSet[str] = np.random.choice(list(allocations), 1, p=probabilities)[0]
+    committee: FrozenSet[str] = np.random.choice(list(committees), 1, p=probabilities)[0]
     people_selected = {id: people[id] for id in committee}
 
     # update categories for the algorithms other than legacy
@@ -541,12 +541,12 @@ def _same_address(columns_data1: Dict[str, str], columns_data2: Dict[str, str], 
     return all(columns_data1[column] == columns_data2[column] for column in check_same_address_columns)
 
 
-def _allocations_to_matrix(allocations: List[FrozenSet[str]], entitlements: list,
-                           contributes_to_entitlement: Dict[str, int]) -> np.ndarray:
+def _committees_to_matrix(committees: List[FrozenSet[str]], entitlements: list,
+                          contributes_to_entitlement: Dict[str, int]) -> np.ndarray:
     columns = []
-    for alloc in allocations:
+    for committee in committees:
         column = [0 for _ in entitlements]
-        for id in alloc:
+        for id in committee:
             column[contributes_to_entitlement[id]] += 1
         columns.append(np.array(column))
     return np.column_stack(columns)
@@ -627,7 +627,7 @@ def _generate_initial_committees(new_committee_model: mip.model.Model, agent_var
     these committees.
     """
     new_output_lines = []
-    allocations: Set[FrozenSet[str]] = set()  # Committees discovered so far
+    committees: Set[FrozenSet[str]] = set()  # Committees discovered so far
     covered_agents: Set[str] = set()  # All agents included in some committee
 
     # We begin using a multiplicative-weight stage. Each agent has a weight starting at 1.
@@ -648,17 +648,17 @@ def _generate_initial_committees(new_committee_model: mip.model.Model, agent_var
         for id in agent_vars:
             weights[id] *= len(agent_vars) / coefficient_sum
 
-        if new_set not in allocations:
-            # We found a new allocation, and repeat.
-            allocations.add(new_set)
+        if new_set not in committees:
+            # We found a new committee, and repeat.
+            committees.add(new_set)
             for id in new_set:
                 covered_agents.add(id)
         else:
-            # If our allocation is already known, make all weights a bit more equal again to mix things up a little.
+            # If our committee is already known, make all weights a bit more equal again to mix things up a little.
             for id in agent_vars:
                 weights[id] = 0.9 * weights[id] + 0.1
 
-        print(i, len(allocations))
+        print(i, len(committees))
 
     # If there are any agents that have not been included so far, try to find a committee including this specific agent.
     for id in agent_vars:
@@ -667,19 +667,19 @@ def _generate_initial_committees(new_committee_model: mip.model.Model, agent_var
             new_committee_model.optimize()
             new_set: FrozenSet[str] = _ilp_results_to_committee(agent_vars)
             if id in new_set:
-                allocations.add(new_set)
+                committees.add(new_set)
                 for id2 in new_set:
                     covered_agents.add(id2)
             else:
                 new_output_lines.append(_print("Agent {id} not contained in any feasible committee."))
 
     # We assume in this stage that the quotas are feasible.
-    assert len(allocations) >= 1
+    assert len(committees) >= 1
 
     if len(covered_agents) == len(agent_vars):
         new_output_lines.append(_print("All agents are contained in some feasible committee."))
 
-    return allocations, frozenset(covered_agents), new_output_lines
+    return committees, frozenset(covered_agents), new_output_lines
 
 
 def _define_entitlements(fair_to_households: bool, covered_agents: FrozenSet[str], households: Dict[str, int]) \
@@ -700,17 +700,17 @@ def _define_entitlements(fair_to_households: bool, covered_agents: FrozenSet[str
     return entitlements, contributes_to_entitlement
 
 
-def _find_committee_probabilities(allocations: List[FrozenSet[str]], num_entitlements: int,
+def _find_committee_probabilities(committees: List[FrozenSet[str]], num_entitlements: int,
                                   contributes_to_entitlement: Dict[str, int]) -> List[float]:
     model = mip.Model(sense=mip.MAXIMIZE, solver_name=mip.CBC)
     model.verbose = debug
-    alloc_variables = [model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=1.) for _ in allocations]
-    model.add_constr(mip.xsum(alloc_variables) == 1)
+    committee_variables = [model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=1.) for _ in committees]
+    model.add_constr(mip.xsum(committee_variables) == 1)
     entitlements = [0 for _ in range(num_entitlements)]
-    for i, alloc in enumerate(allocations):
-        for id in alloc:
+    for i, committee in enumerate(committees):
+        for id in committee:
             if id in contributes_to_entitlement:
-                entitlements[contributes_to_entitlement[id]] += alloc_variables[i]
+                entitlements[contributes_to_entitlement[id]] += committee_variables[i]
 
     lower = model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=1.)
     for entitlement in entitlements:
@@ -719,7 +719,7 @@ def _find_committee_probabilities(allocations: List[FrozenSet[str]], num_entitle
     status = model.optimize()
     assert status == mip.OptimizationStatus.OPTIMAL
 
-    probabilities = [var.x for var in alloc_variables]
+    probabilities = [var.x for var in committee_variables]
     probabilities = [max(p, 0) for p in probabilities]
     sum_probabilities = sum(probabilities)
     probabilities = [p / sum_probabilities for p in probabilities]
@@ -737,8 +737,8 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
     Arguments follow the pattern of `find_random_sample`.
 
     Returns:
-        (allocations, probabilities, output_lines)
-        `allocations` is a list of feasible committees, where each committee is represented by a frozen set of included
+        (committees, probabilities, output_lines)
+        `committees` is a list of feasible committees, where each committee is represented by a frozen set of included
             agent ids.
         `probabilities` is a list of probabilities of equal length, describing the probability with which each committee
             should be selected.
@@ -757,9 +757,9 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
                                                                   check_same_address, households)
 
     # Start by finding some initial committees, guaranteed to cover every agent that can be covered by some committee
-    allocations: Set[FrozenSet[str]]  # set of feasible committees, add more over time
+    committees: Set[FrozenSet[str]]  # set of feasible committees, add more over time
     covered_agents: FrozenSet[str]  # all agent ids for agents that can actually be included
-    allocations, covered_agents, new_output_lines = _generate_initial_committees(new_committee_model, agent_vars,
+    committees, covered_agents, new_output_lines = _generate_initial_committees(new_committee_model, agent_vars,
                                                                                  len(people) // 2)
     output_lines += new_output_lines
 
@@ -777,9 +777,9 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
     #           Σ_e y_e = 1
     #           y_e ≥ 0                  ∀ e
     #
-    # At any point in time, constraint (*) is only enforced for the committees in `allocations`. By linear-programming
+    # At any point in time, constraint (*) is only enforced for the committees in `committees`. By linear-programming
     # duality, if the optimal solution with these reduced constraints satisfies all possible constraints, the committees
-    # in `allocations` are enough to find the maximin allocation among them.
+    # in `committees` are enough to find the maximin distribution among them.
     incremental_model = mip.Model(sense=mip.MINIMIZE, solver_name=mip.CBC)
     incremental_model.verbose = debug
 
@@ -792,9 +792,9 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
     incremental_model.add_constr(mip.xsum(incr_entitlement_vars) == 1)
     incremental_model.objective = upper_bound
 
-    for alloc in allocations:
-        alloc_sum = mip.xsum([incr_agent_vars[id] for id in alloc])
-        incremental_model.add_constr(alloc_sum <= upper_bound)
+    for committee in committees:
+        committee_sum = mip.xsum([incr_agent_vars[id] for id in committee])
+        incremental_model.add_constr(committee_sum <= upper_bound)
 
     while True:
         incremental_model.optimize()
@@ -811,17 +811,17 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
 
         if value <= upper + EPS:
             # No feasible committee B violates Σ_{i ∈ B} y_{e(i)} ≤ z (at least up to EPS, to prevent rounding errors).
-            # Thus, we have enough allocations.
-            allocations_list = list(allocations)
-            probabilities = _find_committee_probabilities(allocations_list, len(entitlements),
+            # Thus, we have enough committees.
+            committee_list = list(committees)
+            probabilities = _find_committee_probabilities(committee_list, len(entitlements),
                                                           contributes_to_entitlement)
-            return allocations_list, probabilities, output_lines
+            return committee_list, probabilities, output_lines
         else:
-            print(upper, value, value - upper, len(allocations))
+            print(upper, value, value - upper, len(committees))
 
-            # Some committee B violates Σ_{i ∈ B} y_{e(i)} ≤ z. We add B to `allocations` and recurse.
-            assert new_set not in allocations
-            allocations.add(new_set)
+            # Some committee B violates Σ_{i ∈ B} y_{e(i)} ≤ z. We add B to `committees` and recurse.
+            assert new_set not in committees
+            committees.add(new_set)
             incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
 
             # Heuristic for better speed in practice:
@@ -847,10 +847,10 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
                 new_committee_model.optimize()
                 new_set = _ilp_results_to_committee(agent_vars)
                 value = sum(entitlement_weights[contributes_to_entitlement[id]] for id in new_set)
-                if value <= upper + EPS or new_set in allocations:
+                if value <= upper + EPS or new_set in committees:
                     break
                 else:
-                    allocations.add(new_set)
+                    committees.add(new_set)
                     incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
                 counter += 1
             print(f"Successful heuristic {counter} times.")
@@ -866,8 +866,8 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
     Arguments follow the pattern of `find_random_sample`.
 
     Returns:
-        (allocations, probabilities, output_lines)
-        `allocations` is a list of feasible committees, where each committee is represented by a frozen set of included
+        (committees, probabilities, output_lines)
+        `committees` is a list of feasible committees, where each committee is represented by a frozen set of included
             agent ids.
         `probabilities` is a list of probabilities of equal length, describing the probability with which each committee
             should be selected.
@@ -893,11 +893,11 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
                                                                   check_same_address, households)
 
     # Start by finding committees including every agent, and learn which agents cannot possibly be included.
-    allocations: List[FrozenSet[str]]  # set of feasible committees, add more over time
+    committees: List[FrozenSet[str]]  # set of feasible committees, add more over time
     covered_agents: FrozenSet[str]  # all agent ids for agents that can actually be included
-    allocations_set, covered_agents, new_output_lines = _generate_initial_committees(new_committee_model, agent_vars,
-                                                                                     len(people))
-    allocations = list(allocations_set)
+    committee_set, covered_agents, new_output_lines = _generate_initial_committees(new_committee_model, agent_vars,
+                                                                                   len(people))
+    committees = list(committee_set)
     output_lines += new_output_lines
 
     # Entitlements are the entities deserving fair representation; either the feasible agents
@@ -907,18 +907,18 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
     entitlements, contributes_to_entitlement = _define_entitlements(fair_to_households, covered_agents, households)
 
     # Now, the algorithm proceeds iteratively. First, it finds probabilities for the committees already present in
-    # `allocations` that maximize the sum of logarithms. Then, reusing the old ILP, it finds the feasible committee
-    # (possibly outside of `allocations`) such that the partial derivative of the sum of logarithms with respect to the
+    # `committees` that maximize the sum of logarithms. Then, reusing the old ILP, it finds the feasible committee
+    # (possibly outside of `committees`) such that the partial derivative of the sum of logarithms with respect to the
     # probability of outputting this committee is maximal. If this partial derivative is less than the maximal partial
-    # derivative of any committee already in `allocations`, the Karush-Kuhn-Tucker conditions (which are sufficient in
+    # derivative of any committee already in `committees`, the Karush-Kuhn-Tucker conditions (which are sufficient in
     # this case) imply that the distribution is optimal even with all other committees receiving probability 0.
-    start_lambdas = [1 / len(allocations) for _ in allocations]
+    start_lambdas = [1 / len(committees) for _ in committees]
     while True:
-        lambdas = cp.Variable(len(allocations))  # probability of outputting a specific committee
+        lambdas = cp.Variable(len(committees))  # probability of outputting a specific committee
         lambdas.value = start_lambdas
         # A is a binary matrix, whose (i,j)th entry indicates whether agent `feasible_agents[i]`
-        matrix = _allocations_to_matrix(allocations, entitlements, contributes_to_entitlement)
-        assert matrix.shape == (len(entitlements), len(allocations))
+        matrix = _committees_to_matrix(committees, entitlements, contributes_to_entitlement)
+        assert matrix.shape == (len(entitlements), len(committees))
 
         objective = cp.Maximize(cp.sum(cp.log(matrix * lambdas)))
         constraints = [0 <= lambdas, sum(lambdas) == 1]
@@ -933,14 +933,14 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
         scaled_welfare = nash_welfare - len(entitlements) * log(number_people_wanted / len(entitlements))
         output_lines.append(_print(f"Scaled Nash welfare is now: {scaled_welfare}."))
 
-        assert lambdas.value.shape == (len(allocations),)
+        assert lambdas.value.shape == (len(committees),)
         entitled_utilities = matrix.dot(lambdas.value)
         assert entitled_utilities.shape == (len(entitlements),)
         assert (entitled_utilities > EPS2).all()
         entitled_reciprocals = 1 / entitled_utilities
         assert entitled_reciprocals.shape == (len(entitlements),)
         differentials = entitled_reciprocals.dot(matrix)
-        assert differentials.shape == (len(allocations),)
+        assert differentials.shape == (len(committees),)
 
         obj = []
         for id in covered_agents:
@@ -953,13 +953,13 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
         if value <= differentials.max() + EPS_DUAL:
             probabilities = np.array(lambdas.value).clip(0, 1)
             probabilities = list(probabilities / sum(probabilities))
-            # TODO: filter 0-probability allocations?
-            return allocations, probabilities, output_lines
+            # TODO: filter 0-probability committees?
+            return committees, probabilities, output_lines
         else:
             print(value, differentials.max(), value - differentials.max())
-            assert new_set not in allocations
-            allocations.append(new_set)
-            start_lambdas = np.array(lambdas.value).resize(len(allocations))
+            assert new_set not in committees
+            committees.append(new_set)
+            start_lambdas = np.array(lambdas.value).resize(len(committees))
 
 
 def get_selection_number_range(min_max_people_cats):
