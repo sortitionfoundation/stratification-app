@@ -83,7 +83,7 @@ class Settings:
                 assert(isinstance(column, str))
             assert(isinstance(check_same_address, bool))
             assert(isinstance(check_same_address_columns, list))
-			# this could be empty
+            # this could be empty
             #assert(len(check_same_address_columns) == 2)
             for column in check_same_address_columns:
                 assert(isinstance(column, str))
@@ -784,21 +784,25 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
     incremental_model = mip.Model(sense=mip.MINIMIZE, solver_name=mip.CBC)
     incremental_model.verbose = debug
 
-    upper_bound = incremental_model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=1.)  # variable z
+    upper_bound = incremental_model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=mip.INF)  # variable z
     # variables y_e
     incr_entitlement_vars = [incremental_model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=1.) for _ in entitlements]
     # shortcuts for y_{e(i)}
     incr_agent_vars = {id: incr_entitlement_vars[contributes_to_entitlement[id]] for id in covered_agents}
 
+    # Σ_e y_e = 1
     incremental_model.add_constr(mip.xsum(incr_entitlement_vars) == 1)
+    # minimize z
     incremental_model.objective = upper_bound
 
     for committee in committees:
         committee_sum = mip.xsum([incr_agent_vars[id] for id in committee])
+        # Σ_{i ∈ B} y_{e(i)} ≤ z   ∀ B ∈ `committees`
         incremental_model.add_constr(committee_sum <= upper_bound)
 
     while True:
-        incremental_model.optimize()
+        status = incremental_model.optimize()
+        assert status == mip.OptimizationStatus.OPTIMAL
 
         entitlement_weights = [var.x for var in incr_entitlement_vars]  # currently optimal values for the y_e
         upper = upper_bound.x  # currently optimal value for z
@@ -854,7 +858,7 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
                     committees.add(new_set)
                     incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
                 counter += 1
-            print(f"Successful heuristic {counter} times.")
+            print(f"Heuristic successfully generated {counter} additional committees.")
 
 
 def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
