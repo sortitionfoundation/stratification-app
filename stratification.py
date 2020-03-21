@@ -61,7 +61,8 @@ columns_to_keep = [
 # selection_algorithm can either be "legacy", "maximin", or "nash"
 selection_algorithm = "maximin"
 # If false, maximin and nash algorithms aim to balance each person's probability. If true, they instead aim to give
-# each household the same probability of having some member participate.
+# each household the same expected number of members on the committee. If households are contacted by mail without
+# consideration for their size, `fair_to_households = false` can counterbalance the bias against larger households.
 fair_to_households = false
 """
 
