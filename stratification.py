@@ -24,7 +24,7 @@ debug = 0
 category_file_field_names = ["category", "name", "min", "max"]
 # numerical deviation accepted as equality when dealing with solvers
 EPS = 0.001  # TODO: Find good value
-EPS_DUAL = 0.1
+EPS_DUAL = 0.005
 EPS2 = 0.00000001
 
 DEFAULT_SETTINGS = """
@@ -936,8 +936,9 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
         try:
             nash_welfare = problem.solve(solver=cp.SCS, warm_start=True)
         except cp.SolverError:
-            # Sometimes, the ECOS solver in cvxpy crashes (numerical instabilities?). In this case, try another solver.
-            output_lines.append(_print("Had to switch to SCS solver."))
+            # At least the ECOS solver in cvxpy crashes sometimes (numerical instabilities?). In this case, try another
+            # solver. But hope that SCS is more stable.
+            output_lines.append(_print("Had to switch to ECOS solver."))
             nash_welfare = problem.solve(solver=cp.ECOS, warm_start=True)
         scaled_welfare = nash_welfare - len(entitlements) * log(number_people_wanted / len(entitlements))
         output_lines.append(_print(f"Scaled Nash welfare is now: {scaled_welfare}."))

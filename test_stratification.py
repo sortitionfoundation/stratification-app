@@ -101,6 +101,33 @@ example5 = Example({"gender":
                     "grace": {}},
                    5)
 
+# In this example, agent "p61" cannot be chosen for the committee, but in a somewhat subtle way. Consider just groups
+# A, B, and C for now (D, E, and F are symmetric). The lower quotas on the v1's need at least 23 agents on A, B, and C;
+# e.g. it could place 8 on A, 8 on B, and 7 on C. The same is true for D, E, and F; so none of the 46 seats is free for
+# the extra person. This is subtle because the situation would be very different if we could choose fractions of a
+# person on our committee. Then, we could choose 7.5 people from A through F each and even choose the extra person each
+# time, or choose every person with equal probability.
+example6_categories = {"f1": {"v1": {"min": 15, "max": 46},  # at least 15 people from A & B together
+                              "v2": {"min": 15, "max": 46},  # at least 15 people from D & E together
+                              "v3": {"min": 0, "max": 46}},
+                       "f2": {"v1": {"min": 15, "max": 46},  # at least 15 people from A & C together
+                              "v2": {"min": 15, "max": 46},  # at least 15 people from D & F together
+                              "v3": {"min": 0, "max": 46}},
+                       "f3": {"v1": {"min": 15, "max": 46},  # at least 15 people from B & C together
+                              "v2": {"min": 15, "max": 46},  # at least 15 people from E & F together
+                              "v3": {"min": 0, "max": 46}}}
+example6_people = {}
+for i in range(1, 11):
+    example6_people['p' + str(i)]      = {"f1": "v1", "f2": "v1", "f3": "v3"}  # 10 people of kind A
+    example6_people['p' + str(i + 10)] = {"f1": "v1", "f2": "v3", "f3": "v1"}  # 10 people of kind B
+    example6_people['p' + str(i + 20)] = {"f1": "v3", "f2": "v1", "f3": "v1"}  # 10 people of kind C
+    example6_people['p' + str(i + 30)] = {"f1": "v2", "f2": "v2", "f3": "v3"}  # 10 people of kind D
+    example6_people['p' + str(i + 40)] = {"f1": "v2", "f2": "v3", "f3": "v2"}  # 10 people of kind E
+    example6_people['p' + str(i + 50)] = {"f1": "v3", "f2": "v2", "f3": "v2"}  # 10 people of kind F
+example6_people['p61']                 = {"f1": "v3", "f2": "v3", "f3": "v3"}  # 1 extra person
+example6_columns_data = {id: {} for id in example6_people}
+example6 = Example(example6_categories, example6_people, example6_columns_data, 46)
+
 
 def _calculate_marginals(people, committees, probabilities):
     marginals = {id: 0 for id in people}
@@ -235,7 +262,7 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # second position. Only Lisa qualifies, but lives in the same household. Unique maximin among households is 1/2:
         # 1/2: {louie, marge}, 1/2: {dewey, marge}
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["lisa"], 0, self.PRECISION)
+        self.assertEqual(marginals["lisa"], 0)
         self.assertAlmostEqual(marginals["scrooge"], 0, self.PRECISION)
         self.assertAlmostEqual(marginals["louie"], 1 / 2, self.PRECISION)
         self.assertAlmostEqual(marginals["dewey"], 1 / 2, self.PRECISION)
@@ -337,6 +364,27 @@ class FindDistributionMaximinTests(FindDistributionTests):
         self.assertAlmostEqual(marginals["elinor"], 1 / 2, self.PRECISION)
         self.assertAlmostEqual(marginals["grace"], 1 / 2, self.PRECISION)
 
+    def test_no_address_fair_to_people_5(self):
+        categories = example6.categories
+        people = example6.people
+        columns_data = example6.columns_data
+        number_people_wanted = example6.number_people_wanted
+        check_same_address = False
+        check_same_address_columns = []
+        fair_to_households = False
+        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
+                                                                 check_same_address, check_same_address_columns,
+                                                                 fair_to_households)
+        self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
+                                check_same_address, check_same_address_columns)
+
+        # The full maximin is 0 because p61 cannot be selected. But our algorithm should aim for the maximin among the
+        # remaining agents, which means choosing everyone else with probability 46/60.
+        marginals = _calculate_marginals(people, committees, probabilities)
+        self.assertEqual(marginals["p61"], 0)
+        for i in range(1, 61):
+            self.assertAlmostEqual(marginals["p" + str(i)], 46 / 60, self.PRECISION)
+
 
 class FindDistributionNashTests(FindDistributionTests):
     PRECISION = 3
@@ -382,3 +430,24 @@ class FindDistributionNashTests(FindDistributionTests):
         self.assertAlmostEqual(marginals["frank"], 4 / 7, self.PRECISION)
         self.assertAlmostEqual(marginals["elinor"], 4 / 7, self.PRECISION)
         self.assertAlmostEqual(marginals["grace"], 3 / 7, self.PRECISION)
+
+    def  test_no_address_fair_to_people_5(self):
+        categories = example6.categories
+        people = example6.people
+        columns_data = example6.columns_data
+        number_people_wanted = example6.number_people_wanted
+        check_same_address = False
+        check_same_address_columns = []
+        fair_to_households = False
+        committees, probabilities, _ = find_distribution_nash(categories, people, columns_data, number_people_wanted,
+                                                              check_same_address, check_same_address_columns,
+                                                              fair_to_households)
+        self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
+                                check_same_address, check_same_address_columns)
+
+        # The full maximin is -∞ because p61 cannot be selected. But our algorithm should maximize the Nash welfare of
+        # the remaining agents, which means choosing everyone else with probability 46/60.
+        marginals = _calculate_marginals(people, committees, probabilities)
+        self.assertEqual(marginals["p61"], 0)
+        for i in range(1, 61):
+            self.assertAlmostEqual(marginals["p" + str(i)], 46 / 60, self.PRECISION)
