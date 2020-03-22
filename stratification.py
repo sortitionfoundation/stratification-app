@@ -660,7 +660,8 @@ def _generate_initial_committees(new_committee_model: mip.model.Model, agent_var
             for id in agent_vars:
                 weights[id] = 0.9 * weights[id] + 0.1
 
-        print(i, len(committees))
+        print(f"Multiplicative weights phase, round {i+1}/{multiplicative_weights_rounds}. Discovered {len(committees)}"
+              " committees so far.")
 
     # If there are any agents that have not been included so far, try to find a committee including this specific agent.
     for id in agent_vars:
@@ -762,7 +763,7 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
     committees: Set[FrozenSet[str]]  # set of feasible committees, add more over time
     covered_agents: FrozenSet[str]  # all agent ids for agents that can actually be included
     committees, covered_agents, new_output_lines = _generate_initial_committees(new_committee_model, agent_vars,
-                                                                                 len(people) // 2)
+                                                                                len(people) // 2)
     output_lines += new_output_lines
 
     # Entitlements are the entities deserving fair representation; either the feasible agents
@@ -823,7 +824,8 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
                                                           contributes_to_entitlement)
             return committee_list, probabilities, output_lines
         else:
-            print(upper, value, value - upper, len(committees))
+            output_lines.append(_print(f"Maximin is at most {upper:.2%}, can do {value:.2%} with {len(committees)} "
+                                       f"committees. Gap {value - upper:.2%}>{EPS:%}."))
 
             # Some committee B violates Σ_{i ∈ B} y_{e(i)} ≤ z. We add B to `committees` and recurse.
             assert new_set not in committees
@@ -859,7 +861,8 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
                     committees.add(new_set)
                     incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
                 counter += 1
-            print(f"Heuristic successfully generated {counter} additional committees.")
+            if counter > 0:
+                print(f"Heuristic successfully generated {counter} additional committees.")
 
 
 def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
