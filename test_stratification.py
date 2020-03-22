@@ -450,4 +450,4 @@ class FindDistributionNashTests(FindDistributionTests):
         marginals = _calculate_marginals(people, committees, probabilities)
         self.assertEqual(marginals["p61"], 0)
         for i in range(1, 61):
-            self.assertAlmostEqual(marginals["p" + str(i)], 46 / 60, self.PRECISION)
+            self.assertAlmostEqual(marginals["p" + str(i)], 46 / 60, self.PRECISION - 1)

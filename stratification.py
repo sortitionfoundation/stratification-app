@@ -824,7 +824,7 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
                                                           contributes_to_entitlement)
             return committee_list, probabilities, output_lines
         else:
-            output_lines.append(_print(f"Maximin is at most {upper:.2%}, can do {value:.2%} with {len(committees)} "
+            output_lines.append(_print(f"Maximin is at most {value:.2%}, can do {upper:.2%} with {len(committees)} "
                                        f"committees. Gap {value - upper:.2%}>{EPS:%}."))
 
             # Some committee B violates Σ_{i ∈ B} y_{e(i)} ≤ z. We add B to `committees` and recurse.
