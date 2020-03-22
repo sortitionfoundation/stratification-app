@@ -111,13 +111,15 @@ def _calculate_marginals(people, committees, probabilities):
 
 
 class FindDistributionTests(TestCase):
+    PRECISION = 5
+
     def _probabilities_well_formed(self, probabilities):
         self.assertGreaterEqual(len(probabilities), 1)
         for prob in probabilities:
             self.assertGreaterEqual(prob, 0)
             self.assertLessEqual(prob, 1)
         prob_sum = sum(probabilities)
-        self.assertAlmostEqual(prob_sum, 1)
+        self.assertAlmostEqual(prob_sum, 1, self.PRECISION)
 
     def _allocation_feasible(self, committee, categories, people, columns_data, number_people_wanted,
                              check_same_address, check_same_address_columns):
@@ -162,11 +164,11 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # maximin is 1/3, can be achieved uniquely by
         # 1/3: {louie, marge}, 1/3: {dewey, marge}, 1/3: {scrooge, lisa}
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["lisa"], 1 / 3)
-        self.assertAlmostEqual(marginals["scrooge"], 1 / 3)
-        self.assertAlmostEqual(marginals["louie"], 1 / 3)
-        self.assertAlmostEqual(marginals["dewey"], 1 / 3)
-        self.assertAlmostEqual(marginals["marge"], 2 / 3)
+        self.assertAlmostEqual(marginals["lisa"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["scrooge"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["louie"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["dewey"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["marge"], 2 / 3, self.PRECISION)
 
     def test_address_fair_to_people_1(self):
         categories = example1.categories
@@ -186,11 +188,11 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # second position. Only Lisa qualifies, but lives in the same household. Unique maximin among everyone else is:
         # 1/2: {louie, marge}, 1/2: {dewey, marge}
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["lisa"], 0)
-        self.assertAlmostEqual(marginals["scrooge"], 0)
-        self.assertAlmostEqual(marginals["louie"], 1 / 2)
-        self.assertAlmostEqual(marginals["dewey"], 1 / 2)
-        self.assertAlmostEqual(marginals["marge"], 1)
+        self.assertAlmostEqual(marginals["lisa"], 0, self.PRECISION)
+        self.assertAlmostEqual(marginals["scrooge"], 0, self.PRECISION)
+        self.assertAlmostEqual(marginals["louie"], 1 / 2, self.PRECISION)
+        self.assertAlmostEqual(marginals["dewey"], 1 / 2, self.PRECISION)
+        self.assertAlmostEqual(marginals["marge"], 1, self.PRECISION)
 
     def test_no_address_fair_to_households_1(self):
         categories = example2.categories
@@ -209,11 +211,11 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # maximin is 2/3 (for households), can be achieved uniquely by
         # 2/3: {dewey, marge}, 1/3: {scrooge, lisa}
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["lisa"], 1 / 3)
-        self.assertAlmostEqual(marginals["scrooge"], 1 / 3)
-        self.assertAlmostEqual(marginals["louie"], 0)
-        self.assertAlmostEqual(marginals["dewey"], 2 / 3)
-        self.assertAlmostEqual(marginals["marge"], 2 / 3)
+        self.assertAlmostEqual(marginals["lisa"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["scrooge"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["louie"], 0, self.PRECISION)
+        self.assertAlmostEqual(marginals["dewey"], 2 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["marge"], 2 / 3, self.PRECISION)
 
     def test_address_fair_to_households_1(self):
         categories = example2.categories
@@ -233,11 +235,11 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # second position. Only Lisa qualifies, but lives in the same household. Unique maximin among households is 1/2:
         # 1/2: {louie, marge}, 1/2: {dewey, marge}
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["lisa"], 0)
-        self.assertAlmostEqual(marginals["scrooge"], 0)
-        self.assertAlmostEqual(marginals["louie"], 1 / 2)
-        self.assertAlmostEqual(marginals["dewey"], 1 / 2)
-        self.assertAlmostEqual(marginals["marge"], 1)
+        self.assertAlmostEqual(marginals["lisa"], 0, self.PRECISION)
+        self.assertAlmostEqual(marginals["scrooge"], 0, self.PRECISION)
+        self.assertAlmostEqual(marginals["louie"], 1 / 2, self.PRECISION)
+        self.assertAlmostEqual(marginals["dewey"], 1 / 2, self.PRECISION)
+        self.assertAlmostEqual(marginals["marge"], 1, self.PRECISION)
 
     def test_no_address_fair_to_people_2(self):
         categories = example3.categories
@@ -256,10 +258,10 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # maximin is 1/3, can be achieved uniquely by
         # 1/3: {a, b}, 1/3: {a, c}, 1/3: {a, d}
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["a"], 1)
-        self.assertAlmostEqual(marginals["b"], 1 / 3)
-        self.assertAlmostEqual(marginals["c"], 1 / 3)
-        self.assertAlmostEqual(marginals["d"], 1 / 3)
+        self.assertAlmostEqual(marginals["a"], 1, self.PRECISION)
+        self.assertAlmostEqual(marginals["b"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["c"], 1 / 3, self.PRECISION)
+        self.assertAlmostEqual(marginals["d"], 1 / 3, self.PRECISION)
 
     def test_no_address_fair_to_households_2(self):
         categories = example3.categories
@@ -278,9 +280,9 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # maximin for households is 1/2, can be achieved by
         # 1/2: {a, b}, α: {a, c}, (1/2 - α): {a, d} for any α
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["a"], 1)
-        self.assertAlmostEqual(marginals["b"], 1 / 2)
-        self.assertAlmostEqual(marginals["c"] + marginals["d"], 1 / 2)
+        self.assertAlmostEqual(marginals["a"], 1, self.PRECISION)
+        self.assertAlmostEqual(marginals["b"], 1 / 2, self.PRECISION)
+        self.assertAlmostEqual(marginals["c"] + marginals["d"], 1 / 2, self.PRECISION)
 
     def test_no_address_fair_to_households_3(self):
         categories = example3.categories
@@ -332,11 +334,13 @@ class FindDistributionMaximinTests(FindDistributionTests):
         self.assertGreaterEqual(marginals["cameron"], 1 / 2 - 1e-05)
         self.assertGreaterEqual(marginals["dave"], 1 / 2 - 1e-05)
         self.assertGreaterEqual(marginals["frank"], 1 / 2 - 1e-05)
-        self.assertAlmostEqual(marginals["elinor"], 1 / 2)
-        self.assertAlmostEqual(marginals["grace"], 1 / 2)
+        self.assertAlmostEqual(marginals["elinor"], 1 / 2, self.PRECISION)
+        self.assertAlmostEqual(marginals["grace"], 1 / 2, self.PRECISION)
 
 
 class FindDistributionNashTests(FindDistributionTests):
+    PRECISION = 3
+
     def test_no_address_fair_to_people_3(self):
         categories = example4.categories
         people = example4.people
@@ -371,10 +375,10 @@ class FindDistributionNashTests(FindDistributionTests):
 
         # hand-calculated unique nash optimum
         marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["adam"], 6 / 7)
-        self.assertAlmostEqual(marginals["brian"], 6 / 7)
-        self.assertAlmostEqual(marginals["cameron"], 6 / 7)
-        self.assertAlmostEqual(marginals["dave"], 6 / 7)
-        self.assertAlmostEqual(marginals["frank"], 4 / 7)
-        self.assertAlmostEqual(marginals["elinor"], 4 / 7)
-        self.assertAlmostEqual(marginals["grace"], 3 / 7)
+        self.assertAlmostEqual(marginals["adam"], 6 / 7, self.PRECISION)
+        self.assertAlmostEqual(marginals["brian"], 6 / 7, self.PRECISION)
+        self.assertAlmostEqual(marginals["cameron"], 6 / 7, self.PRECISION)
+        self.assertAlmostEqual(marginals["dave"], 6 / 7, self.PRECISION)
+        self.assertAlmostEqual(marginals["frank"], 4 / 7, self.PRECISION)
+        self.assertAlmostEqual(marginals["elinor"], 4 / 7, self.PRECISION)
+        self.assertAlmostEqual(marginals["grace"], 3 / 7, self.PRECISION)
