@@ -23,11 +23,11 @@ install:
 - if [ -n $EXTRA_PYINSTALLER_REQ ]; then pipenv install $EXTRA_PYINSTALLER_REQ; fi
 
 script:
+- $SCRIPT_PYTHON -m unittest test_stratification.py
 # version with onefile
 # - python -m eel script.py web --onefile --noconsole --name stratapp
 # multifile version in a zip file
 - $SCRIPT_PYTHON -m eel script.py web --onefile --noconsole --name stratapp_$NAME_SUFFIX
-
 # - zip -r dist/stratapp dist/stratapp
 
 deploy:

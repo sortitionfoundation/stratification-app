@@ -7,6 +7,9 @@ name = "pypi"
 Eel = "*"
 greenlet = "*"
 toml = "*"
+numpy = "*"
+cvxpy = "*"
+mip = "*"
 
 [dev-packages]
 # black = "19.3b0"
