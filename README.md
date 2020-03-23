@@ -44,7 +44,7 @@ To make a single file executable, we use [PyInstaller](https://pyinstaller.readt
 The command is:
 
 ```
-python -m eel script.py web --onefile --noconsole
+python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
 ```
 
 **Platform** means Windows, Mac OS X or Linux.  So if you run the above command on Linux, you can give the file to someone else running Linux.  So if the person who wants the app is running Windows, you need to run the above command on Windows.
