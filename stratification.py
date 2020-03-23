@@ -582,7 +582,7 @@ def _setup_committee_generation(categories: Dict[str, Dict[str, Dict[str, int]]]
                                 number_people_wanted: int, check_same_address: bool,
                                 households: Optional[Dict[str, int]]) \
                                -> Tuple[mip.model.Model, Dict[str, mip.entities.Var]]:
-    model = mip.Model(sense=mip.MAXIMIZE, solver_name=mip.CBC)
+    model = mip.Model(sense=mip.MAXIMIZE)
     model.verbose = debug
 
     # for every person, we have a binary variable indicating whether they are in the committee
@@ -705,7 +705,7 @@ def _define_entitlements(fair_to_households: bool, covered_agents: FrozenSet[str
 
 def _find_committee_probabilities(committees: List[FrozenSet[str]], num_entitlements: int,
                                   contributes_to_entitlement: Dict[str, int]) -> List[float]:
-    model = mip.Model(sense=mip.MAXIMIZE, solver_name=mip.CBC)
+    model = mip.Model(sense=mip.MAXIMIZE)
     model.verbose = debug
     committee_variables = [model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=1.) for _ in committees]
     model.add_constr(mip.xsum(committee_variables) == 1)
@@ -783,7 +783,7 @@ def find_distribution_maximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
     # At any point in time, constraint (*) is only enforced for the committees in `committees`. By linear-programming
     # duality, if the optimal solution with these reduced constraints satisfies all possible constraints, the committees
     # in `committees` are enough to find the maximin distribution among them.
-    incremental_model = mip.Model(sense=mip.MINIMIZE, solver_name=mip.CBC)
+    incremental_model = mip.Model(sense=mip.MINIMIZE)
     incremental_model.verbose = debug
 
     upper_bound = incremental_model.add_var(var_type=mip.CONTINUOUS, lb=0., ub=mip.INF)  # variable z
