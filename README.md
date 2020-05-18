@@ -8,7 +8,7 @@ A simple GUI for stratification for sortition/citizens' assemblies.
 About
 -----
 
-blah
+Random stratified selection software
 
 Development
 -----------
