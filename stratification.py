@@ -7,7 +7,7 @@
 """
 import copy
 import csv
-from math import log
+from math import log, floor, ceil
 import random
 import typing
 from typing import Dict, List, Tuple, FrozenSet, Optional, Set
@@ -468,6 +468,9 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
         `people_selected` is a subdictionary of `people` with `number_people_wanted` many entries, guaranteed to satisfy
             the constraints on a feasible committee.
         `output_lines` is a list of debug strings.
+    Raises:
+        InfeasibleQuotasError if the quotas cannot be satisfied, which includes a suggestion for how to modify them.
+        SelectionError in multiple other failure cases.
     Side Effects:
         Existing callers assume the "selected" and "remaining" fields in `categories` to be changed.
     """
@@ -578,6 +581,82 @@ def _compute_households(people: Dict[str, Dict[str, str]], columns_data: Dict[st
     return households
 
 
+class InfeasibleQuotasError(Exception):
+    def __init__(self, quotas: Dict[Tuple[str, str], Tuple[int, int]], output: List[str]):
+        self.quotas = quotas
+        self.output = ["The quotas are infeasible:"] + output
+
+    def __str__(self):
+        return "\n".join(self.output)
+
+
+def _relax_infeasible_quotas(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
+                             number_people_wanted: int, check_same_address: bool,
+                             households: Optional[Dict[str, int]]) \
+                             -> Tuple[Dict[Tuple[str, str], Tuple[int, int]], List[str]]:
+    model = mip.Model(sense=mip.MINIMIZE)
+    model.verbose = debug
+
+    # for every person, we have a binary variable indicating whether they are in the committee
+    agent_vars = {id: model.add_var(var_type=mip.BINARY) for id in people}
+
+    # for every feature, a variable for how much the upper and lower quotas are relaxed
+    feature_values = [(feature, value) for feature in categories for value in categories[feature]]
+    min_vars = {fv: model.add_var(var_type=mip.CONTINUOUS, lb=0.) for fv in feature_values}
+    max_vars = {fv: model.add_var(var_type=mip.CONTINUOUS, lb=0.) for fv in feature_values}
+
+    # we have to select exactly `number_people_wanted` many persons
+    model.add_constr(mip.xsum(agent_vars.values()) == number_people_wanted)
+
+    # we have to respect the relaxed quotas quotas
+    for feature, value in feature_values:
+        number_feature_value_agents = mip.xsum(agent_vars[id] for id, person in people.items()
+                                               if person[feature] == value)
+        model.add_constr(
+            number_feature_value_agents >= (1 - min_vars[(feature, value)]) * categories[feature][value]["min"])
+        model.add_constr(
+            number_feature_value_agents <= (1 + max_vars[(feature, value)]) * categories[feature][value]["max"])
+
+    # we might not be able to select multiple persons from the same household
+    if check_same_address:
+        people_by_household = {}
+        for id, household in households.items():
+            if household not in people_by_household:
+                people_by_household[household] = []
+            people_by_household[household].append(id)
+
+        for household, members in people_by_household.items():
+            if len(members) >= 2:
+                model.add_constr(mip.xsum(agent_vars[id] for id in members) <= 1)
+
+    # we want to minimize the amount by which we have to relax quotas
+    model.objective = mip.xsum([min_vars[fv] for fv in feature_values] + [max_vars[fv] for fv in feature_values])
+
+    # Optimize once without any constraints to check if no feasible committees exist at all.
+    status = model.optimize()
+    if status != mip.OptimizationStatus.OPTIMAL:
+        raise SelectionError(f"No feasible committees found, solver returns code {status} (see "
+                             f"https://docs.python-mip.com/en/latest/classes.html#optimizationstatus). Either the pool "
+                             f"is very bad or something is wrong with the solver.")
+
+    output_lines = []
+    new_quotas = {}
+    for fv in feature_values:
+        feature, value = fv
+        lower = ceil((1 - min_vars[fv].x) * categories[feature][value]["min"] - EPS)
+        assert lower <= categories[feature][value]["min"]
+        if lower < categories[feature][value]["min"]:
+            output_lines.append(f"Recommend lowering lower quota of {feature}:{value} to {lower}.")
+        upper = floor((1 + max_vars[fv].x) * categories[feature][value]["max"] + EPS)
+        assert upper >= categories[feature][value]["max"]
+        if upper > categories[feature][value]["max"]:
+            assert lower == categories[feature][value]["min"]
+            output_lines.append(f"Recommend raising upper quota of {feature}:{value} to {upper}.")
+        new_quotas[fv] = (lower, upper)
+
+    return new_quotas, output_lines
+
+
 def _setup_committee_generation(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                                 number_people_wanted: int, check_same_address: bool,
                                 households: Optional[Dict[str, int]]) \
@@ -613,10 +692,13 @@ def _setup_committee_generation(categories: Dict[str, Dict[str, Dict[str, int]]]
 
     # Optimize once without any constraints to check if no feasible committees exist at all.
     status = model.optimize()
-    if status != mip.OptimizationStatus.OPTIMAL:
-        raise ValueError(f"No feasible committees found, solver returns code {status} (see https://docs.python-mip.com/"
-                         "en/latest/classes.html#optimizationstatus). Excluding a solver failure, the quotas are "
-                         "unsatisfiable.")
+    if status == mip.OptimizationStatus.INFEASIBLE:
+        new_quotas, output_lines = _relax_infeasible_quotas(categories, people, number_people_wanted,
+                                                            check_same_address, households)
+        raise InfeasibleQuotasError(new_quotas, output_lines)
+    elif status != mip.OptimizationStatus.OPTIMAL:
+        raise SelectionError(f"No feasible committees found, solver returns code {status} (see "
+                             "https://docs.python-mip.com/en/latest/classes.html#optimizationstatus).")
 
     return model, agent_vars
 
@@ -1021,6 +1103,9 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                 success = True
             else:
                 output_lines += new_output_lines
+        except InfeasibleQuotasError as err:
+            output_lines += err.output
+            break
         except SelectionError as serr:
             output_lines.append("Failed: Selection Error thrown: " + serr.msg)
         tries += 1

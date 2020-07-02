@@ -335,7 +335,7 @@ class FindDistributionMaximinTests(FindDistributionTests):
         fair_to_households = False
 
         # There are no feasible committees at all.
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InfeasibleQuotasError):
             find_distribution_maximin(categories, people, columns_data, number_people_wanted, check_same_address,
                                       check_same_address_columns, fair_to_households)
 
@@ -399,7 +399,7 @@ class FindDistributionNashTests(FindDistributionTests):
         fair_to_households = False
 
         # There are no feasible committees at all.
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InfeasibleQuotasError):
             find_distribution_nash(categories, people, columns_data, number_people_wanted, check_same_address,
                                    check_same_address_columns, fair_to_households)
 
