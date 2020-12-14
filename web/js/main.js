@@ -72,9 +72,9 @@ $(function(){
     }
 
     eel.expose(update_selection_output_area);
-    function update_selection_output_area(output_text) {
+    function update_selection_output_area(output_html) {
         const output_area = document.getElementById("output-area-selection-target-p");
-        output_area.textContent = output_text;
+        output_area.innerHTML = output_html;
     }
     
     function handle_number_people() {

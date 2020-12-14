@@ -175,12 +175,8 @@ def delete_all_in_cat(categories, people, cat, cat_value):
                     )
     for p in people_to_delete:
         del people[p]
-    return [
-        "Category {} full - deleted {}, {} left.".format(
-            cat_value, len(people_to_delete), len(people)
-        )
-    ]
-
+    # return the number of people deleted and the number of people left
+    return len(people_to_delete), len(people)
 
 # selected = True means we are deleting because they have been chosen,
 # otherwise they are being deleted because they live at same address as someone selected
@@ -235,7 +231,8 @@ def delete_person(categories, people, pkey, columns_data, check_same_address, ch
     for (pcat, pval) in person.items():
         cat_item = categories[pcat][pval]
         if cat_item["selected"] == cat_item["max"]:
-            output_lines += delete_all_in_cat(categories, people, pcat, pval)
+            num_deleted, num_left = delete_all_in_cat(categories, people, pcat, pval)
+            output_lines += [ "Category {} full - deleted {}, {} left.".format(pval, num_deleted, num_left) ]
     return output_lines
 
 
@@ -245,11 +242,13 @@ def read_in_cats(category_file: typing.TextIO):
     # to keep track of number in cats - number people selected MUST be between these limits in every cat...
     min_max_people_cats = {}
     cat_file = csv.DictReader(category_file)
-    # check that the fieldnames are what we expect
-    if cat_file.fieldnames != category_file_field_names:
-        raise Exception(
-            "ERROR reading in category file: expected first line to be {} ".format(category_file_field_names)
-        )
+    # check that the fieldnames are (at least) what we expect
+    input_fieldnames = cat_file.fieldnames
+    for fn in category_file_field_names:
+    	if fn not in input_fieldnames:
+            raise Exception(
+            	"ERROR reading in category file: did not find required column name '{}' in input file (found only {}) ".format(fn, input_fieldnames)
+            )
     for row in cat_file:  # must convert min/max to ints
         # allow for some dirty data - at least strip white space from cat and name
         cat = row["category"].strip()
@@ -340,11 +339,19 @@ def init_categories_people(people_file: typing.TextIO, categories, settings: Set
         columns_data.update({pkey: data_value})
     # check if any cat[max] is set to zero... if so delete everyone with that cat...
     # NOT DONE: could then check if anyone is left...
-    msg = ["Number of people: {}.".format(len(people.keys()))]
+    total_num_people = len(people.keys())
+    msg = ["Number of people: {}.".format(total_num_people)]
+    total_num_deleted = 0
     for cat_key, cats in categories.items():
         for cat, cat_item in cats.items():
             if cat_item["max"] == 0:  # we don't want any of these people
-                msg += delete_all_in_cat(categories, people, cat_key, cat)
+                num_deleted, num_left = delete_all_in_cat(categories, people, cat_key, cat)
+                total_num_deleted += num_deleted
+                msg += [ "Category {} full - deleted {}, {} left.".format(cat, num_deleted, num_left) ]
+    # if the total number of people deleted is lots then we're probably doing a replacement selection, which means
+    # the 'remaining' file will be useless - remind the user of this!
+    if total_num_deleted > total_num_people/2:
+    	msg += [ ">>> WARNING <<< That deleted MANY PEOPLE - are you doing a replacement? If so your REMAINING FILE WILL BE USELESS!!!" ]
     return people, columns_data, msg
 
 

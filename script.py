@@ -80,7 +80,7 @@ class FileContents():
         try:
             self.people, self.columns_data, msg_list = init_categories_people(people_file, self.categories_after_people, self.settings)
             #print('in add_selection_content(), self.people: {}'.format(self.people))
-            msg = " ".join(msg_list)
+            msg = "<br />".join(msg_list)
         except Exception as error:
             msg = "Error loading people: {}".format(error)
         eel.update_selection_output_area(msg)
