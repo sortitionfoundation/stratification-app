@@ -181,10 +181,8 @@ class FindDistributionMaximinTests(FindDistributionTests):
         number_people_wanted = example1.number_people_wanted
         check_same_address = False
         check_same_address_columns = []
-        fair_to_households = False
         committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
+                                                                 check_same_address, check_same_address_columns)
         self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
                                 check_same_address, check_same_address_columns)
 
@@ -204,10 +202,8 @@ class FindDistributionMaximinTests(FindDistributionTests):
         number_people_wanted = example1.number_people_wanted
         check_same_address = True
         check_same_address_columns = ["home"]
-        fair_to_households = False
         committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
+                                                                 check_same_address, check_same_address_columns)
         self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
                                 check_same_address, check_same_address_columns)
 
@@ -221,53 +217,6 @@ class FindDistributionMaximinTests(FindDistributionTests):
         self.assertAlmostEqual(marginals["dewey"], 1 / 2, self.PRECISION)
         self.assertAlmostEqual(marginals["marge"], 1, self.PRECISION)
 
-    def test_no_address_fair_to_households_1(self):
-        categories = example2.categories
-        people = example2.people
-        columns_data = example2.columns_data
-        number_people_wanted = example2.number_people_wanted
-        check_same_address = False
-        check_same_address_columns = ["home"]
-        fair_to_households = True
-        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
-        self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
-                                check_same_address, check_same_address_columns)
-
-        # maximin is 2/3 (for households), can be achieved uniquely by
-        # 2/3: {dewey, marge}, 1/3: {scrooge, lisa}
-        marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["lisa"], 1 / 3, self.PRECISION)
-        self.assertAlmostEqual(marginals["scrooge"], 1 / 3, self.PRECISION)
-        self.assertAlmostEqual(marginals["louie"], 0, self.PRECISION)
-        self.assertAlmostEqual(marginals["dewey"], 2 / 3, self.PRECISION)
-        self.assertAlmostEqual(marginals["marge"], 2 / 3, self.PRECISION)
-
-    def test_address_fair_to_households_1(self):
-        categories = example2.categories
-        people = example2.people
-        columns_data = example2.columns_data
-        number_people_wanted = example2.number_people_wanted
-        check_same_address = True
-        check_same_address_columns = ["home"]
-        fair_to_households = True
-        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
-        self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
-                                check_same_address, check_same_address_columns)
-
-        # Scrooge and Lisa can no longer be included. E.g. if Scrooge is included, we need a simpsons child for the
-        # second position. Only Lisa qualifies, but lives in the same household. Unique maximin among households is 1/2:
-        # 1/2: {louie, marge}, 1/2: {dewey, marge}
-        marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertEqual(marginals["lisa"], 0)
-        self.assertAlmostEqual(marginals["scrooge"], 0, self.PRECISION)
-        self.assertAlmostEqual(marginals["louie"], 1 / 2, self.PRECISION)
-        self.assertAlmostEqual(marginals["dewey"], 1 / 2, self.PRECISION)
-        self.assertAlmostEqual(marginals["marge"], 1, self.PRECISION)
-
     def test_no_address_fair_to_people_2(self):
         categories = example3.categories
         people = example3.people
@@ -275,10 +224,8 @@ class FindDistributionMaximinTests(FindDistributionTests):
         number_people_wanted = example3.number_people_wanted
         check_same_address = False
         check_same_address_columns = []
-        fair_to_households = False
         committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
+                                                                 check_same_address, check_same_address_columns)
         self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
                                 check_same_address, check_same_address_columns)
 
@@ -290,41 +237,6 @@ class FindDistributionMaximinTests(FindDistributionTests):
         self.assertAlmostEqual(marginals["c"], 1 / 3, self.PRECISION)
         self.assertAlmostEqual(marginals["d"], 1 / 3, self.PRECISION)
 
-    def test_no_address_fair_to_households_2(self):
-        categories = example3.categories
-        people = example3.people
-        columns_data = example3.columns_data
-        number_people_wanted = example3.number_people_wanted
-        check_same_address = False
-        check_same_address_columns = ["home"]
-        fair_to_households = True
-        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
-        self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
-                                check_same_address, check_same_address_columns)
-
-        # maximin for households is 1/2, can be achieved by
-        # 1/2: {a, b}, α: {a, c}, (1/2 - α): {a, d} for any α
-        marginals = _calculate_marginals(people, committees, probabilities)
-        self.assertAlmostEqual(marginals["a"], 1, self.PRECISION)
-        self.assertAlmostEqual(marginals["b"], 1 / 2, self.PRECISION)
-        self.assertAlmostEqual(marginals["c"] + marginals["d"], 1 / 2, self.PRECISION)
-
-    def test_no_address_fair_to_households_3(self):
-        categories = example3.categories
-        people = example3.people
-        columns_data = example3.columns_data
-        number_people_wanted = example3.number_people_wanted
-        check_same_address = False
-        check_same_address_columns = []  # SIC: all in same household. That's okay because we allow multiple members.
-        fair_to_households = True
-        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
-        self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
-                                check_same_address, check_same_address_columns)
-
     def test_no_address_fair_to_people_3(self):
         categories = example4.categories
         people = example4.people
@@ -332,12 +244,11 @@ class FindDistributionMaximinTests(FindDistributionTests):
         number_people_wanted = example4.number_people_wanted
         check_same_address = False
         check_same_address_columns = ["home"]
-        fair_to_households = False
 
         # There are no feasible committees at all.
         with self.assertRaises(InfeasibleQuotasError):
             find_distribution_maximin(categories, people, columns_data, number_people_wanted, check_same_address,
-                                      check_same_address_columns, fair_to_households)
+                                      check_same_address_columns)
 
     def test_no_address_fair_to_people_4(self):
         categories = example5.categories
@@ -346,11 +257,8 @@ class FindDistributionMaximinTests(FindDistributionTests):
         number_people_wanted = example5.number_people_wanted
         check_same_address = False
         check_same_address_columns = []
-        fair_to_households = False
-        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data,
-                                                                 number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
+        committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
+                                                                 check_same_address, check_same_address_columns)
         self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
                                 check_same_address, check_same_address_columns)
 
@@ -371,10 +279,8 @@ class FindDistributionMaximinTests(FindDistributionTests):
         number_people_wanted = example6.number_people_wanted
         check_same_address = False
         check_same_address_columns = []
-        fair_to_households = False
         committees, probabilities, _ = find_distribution_maximin(categories, people, columns_data, number_people_wanted,
-                                                                 check_same_address, check_same_address_columns,
-                                                                 fair_to_households)
+                                                                 check_same_address, check_same_address_columns)
         self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
                                 check_same_address, check_same_address_columns)
 
@@ -396,12 +302,11 @@ class FindDistributionNashTests(FindDistributionTests):
         number_people_wanted = example4.number_people_wanted
         check_same_address = False
         check_same_address_columns = ["home"]
-        fair_to_households = False
 
         # There are no feasible committees at all.
         with self.assertRaises(InfeasibleQuotasError):
             find_distribution_nash(categories, people, columns_data, number_people_wanted, check_same_address,
-                                   check_same_address_columns, fair_to_households)
+                                   check_same_address_columns)
 
     def test_no_address_fair_to_people_4(self):
         categories = example5.categories
@@ -410,11 +315,8 @@ class FindDistributionNashTests(FindDistributionTests):
         number_people_wanted = example5.number_people_wanted
         check_same_address = False
         check_same_address_columns = []
-        fair_to_households = False
-        committees, probabilities, _ = find_distribution_nash(categories, people, columns_data,
-                                                              number_people_wanted,
-                                                              check_same_address, check_same_address_columns,
-                                                              fair_to_households)
+        committees, probabilities, _ = find_distribution_nash(categories, people, columns_data, number_people_wanted,
+                                                              check_same_address, check_same_address_columns)
         self._probabilities_well_formed(probabilities)
         for committee in committees:
             self._allocation_feasible(committee, categories, people, columns_data, number_people_wanted,
@@ -431,17 +333,15 @@ class FindDistributionNashTests(FindDistributionTests):
         self.assertAlmostEqual(marginals["elinor"], 4 / 7, self.PRECISION)
         self.assertAlmostEqual(marginals["grace"], 3 / 7, self.PRECISION)
 
-    def  test_no_address_fair_to_people_5(self):
+    def test_no_address_fair_to_people_5(self):
         categories = example6.categories
         people = example6.people
         columns_data = example6.columns_data
         number_people_wanted = example6.number_people_wanted
         check_same_address = False
         check_same_address_columns = []
-        fair_to_households = False
         committees, probabilities, _ = find_distribution_nash(categories, people, columns_data, number_people_wanted,
-                                                              check_same_address, check_same_address_columns,
-                                                              fair_to_households)
+                                                              check_same_address, check_same_address_columns)
         self._distribution_okay(committees, probabilities, categories, people, columns_data, number_people_wanted,
                                 check_same_address, check_same_address_columns)
 
