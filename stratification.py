@@ -317,7 +317,7 @@ class PeopleAndCats():
 			output_lines += self._get_selected_people_lists( settings )
 		return success, output_lines
 
-	# this also output thems by calling the appropriate derived class method...
+	# this also outputs thems by calling the appropriate derived class method...
 	def _get_selected_people_lists( self, settings: Settings):
 		people_working = copy.deepcopy(self.people)
 		people_selected = self.people_selected
@@ -353,7 +353,6 @@ class PeopleAndCats():
 				row.append(columns_data[pkey][col])
 			row += person.values()
 			people_remaining_rows += [ row ]
-			#people_remaining_writer.writerow(row)
 		output_lines = ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
 		self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
 		return output_lines
@@ -385,13 +384,6 @@ class PeopleAndCatsCSV(PeopleAndCats):
 		people_data = csv.DictReader(people_file)
 		return self._init_categories_people(people_data.fieldnames, people_data, settings)
 	
-	'''
-	def people_cats_run_stratification( self, settings: Settings, selected_file, remaining_file ):
-		success, output_lines = super(PeopleAndCatsCSV, self).people_cats_run_stratification( settings )
-		if success:
-			output_lines += self._output_selected_remaining( settings, selectfile, remainfile )
-		return output_lines
-	'''
 	# Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
 	# BUT, we should not include in this people from the same address as someone who has been selected!
 	def _output_selected_remaining( self, settings: Settings, people_selected_rows, people_remaining_rows ):
@@ -501,6 +493,10 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 ###################################
 #
 # End PeopleAndCats classes...
+#
+#  ... of course in theory almsot all of the below functions could be integrated into
+#   the above (base) class but may be useful to keep separated? Or at least I can't be bothered
+#   integrating them in now ...
 #
 ###################################
 
