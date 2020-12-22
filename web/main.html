@@ -9,24 +9,30 @@
       <h1>Sortition Foundation - Stratification & Selection</h1>
       <div id="user-alerts"></div>
       <div>
-        <h2>Select CSV files</h2>
+        <h2>Option A: EITHER CSV file input (and output)</h2>
         <div class="form-group">
-          <label for="categories-file">Step 1: Select a CSV file with category information</label>
+          <label for="categories-file">Option A / Step 1: Select a CSV file with category information</label>
           <input type="file" class="form-control" id="categories-file">
         </div>
-        <div id="output-area-categories">
-          <p id="output-area-categories-target-p">Number of categories: No file selected</p>
-        </div>
         <div class="form-group">
-          <label for="selection-file">Step 2: Select a CSV file with people to select from</label>
+          <label for="selection-file">Option A / Step 2: Select a CSV file with people to select from</label>
           <input type="file" class="form-control" id="selection-file" disabled>
         </div>
-        <div id="output-area-selection">
-          <p id="output-area-selection-target-p">Number of people: No file selected</p>
-        </div>
-        <h2>Set number of people, run selection, and download output</h2>
+        <h2>Option B: OR import (and export) from/to a Google Sheet</h2>
         <div class="form-group">
-           <label for="selection-number">Step 3: Specify the number of people to select</label>
+           <label for="categories-g-sheet">Google spreadsheet name:</label>
+           <input type="text" id="categories-g-sheet" name="categories-g-sheet" min="0" size="20" maxlength=100>
+        </div>
+        <h2>Category and people information:</h2>
+        <div id="output-area-categories">
+          <p id="output-area-categories-target-p">Number of categories: No input yet</p>
+        </div>
+        <div id="output-area-selection">
+          <p id="output-area-selection-target-p">Number of people: No input yet</p>
+        </div>
+        <h2>Set number of people and run selection</h2>
+        <div class="form-group">
+           <label for="selection-number">Specify the number of people to select</label>
            <input type="text" id="selection-number" name="selection-number" min="0" size="10" maxlength=10>
         </div>
       </div>
@@ -35,6 +41,7 @@
       <input type='button' id='run-btn' class='btn btn-primary' value='Run Selection' disabled>
     </div>
     <div class="container mb-2">
+      <h2>Option A only (CSV file) ...and download output:</h2>
       <a href="#" role='button' id='download-selected-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
       <a href="#" role='button' id='download-remaining-btn' class='btn btn-primary btn-lg disabled'>Download Remaining</a>
     </div>

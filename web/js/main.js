@@ -4,6 +4,8 @@ $(function(){
         const categories_file_input = document.getElementById("categories-file");
         categories_file_input.addEventListener("click", clear_file_value, false);
         categories_file_input.addEventListener("change", handle_categories_file, false);
+        const categories_g_sheet_name_input = document.getElementById("categories-g-sheet");
+        categories_g_sheet_name_input.addEventListener("input", handle_g_sheet_name, false);
         const selection_file_input = document.getElementById("selection-file");
         selection_file_input.addEventListener("click", clear_file_value, false);
         selection_file_input.addEventListener("change", handle_selection_file, false);
@@ -45,6 +47,10 @@ $(function(){
         reader.readAsText(file_handle);
     }
 
+    function handle_g_sheet_name() {
+    	eel.update_g_sheet_name(this.value);
+    }
+
     function categories_file_loaded(e) {
         const file_contents = e.target.result;
         eel.handle_category_contents(file_contents);
@@ -56,9 +62,9 @@ $(function(){
     }
 
     eel.expose(update_categories_output_area);
-    function update_categories_output_area(output_text) {
+    function update_categories_output_area(output_html) {
         const output_area = document.getElementById("output-area-categories-target-p");
-        output_area.textContent = output_text;
+        output_area.innerHTML = output_html;
     }
 
     eel.expose(update_selection_range);
