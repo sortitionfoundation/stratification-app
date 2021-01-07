@@ -39,7 +39,7 @@ class FileContents():
 		msg = []
 		try:
 			self._init_settings()
-			msg, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content )
+			msg, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self._settings )
 		except Exception as error:
 			# put error in the GUI box !
 			# assume the worst...

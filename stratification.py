@@ -82,7 +82,7 @@ class NoSettingsFile(Exception):
 
 class Settings:
     def __init__(self, id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts,
-                 selection_algorithm, fair_to_households):
+                 selection_algorithm, fair_to_households, json_file_path):
         try:
             assert(isinstance(id_column, str))
             assert(isinstance(columns_to_keep, list))
@@ -109,6 +109,7 @@ class Settings:
         self.max_attempts = max_attempts
         self.selection_algorithm = selection_algorithm
         self.fair_to_households = fair_to_households
+        self.json_file_path = json_file_path
 
     @classmethod
     def load_from_file(cls):
@@ -122,6 +123,7 @@ class Settings:
             )
         with open(settings_file_path, "r") as settings_file:
             settings = toml.load(settings_file)
+        settings['json_file_path'] = Path.home() / "secret_do_not_commit.json"
         return cls(
             settings['id_column'],
             settings['columns_to_keep'],
@@ -129,7 +131,8 @@ class Settings:
             settings['check_same_address_columns'],
             settings['max_attempts'],
             settings['selection_algorithm'],
-            settings['fair_to_households']
+            settings['fair_to_households'],
+            settings['json_file_path']
         ), message
 
 # class for throwing error/fail exceptions
@@ -371,7 +374,7 @@ class PeopleAndCatsCSV(PeopleAndCats):
 	def get_remaining_file( self ):
 		return self.remaining_file
 
-	def load_cats( self, file_contents ):
+	def load_cats( self, file_contents, settings: Settings ):
 		self.category_content_loaded = True
 		category_file = StringIO(file_contents)
 		category_reader = csv.DictReader(category_file)
@@ -438,16 +441,17 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 			tab_ready = self.spreadsheet.add_worksheet(title=tab_name, rows=self.new_tab_default_size_rows, cols=self.new_tab_default_size_cols)
 		return tab_ready
 
-	def load_cats( self, g_sheet_name ):
+	def load_cats( self, g_sheet_name, settings: Settings ):
 		self.category_content_loaded = True
 		self.g_sheet_name = g_sheet_name
+		json_file_name = settings.json_file_path
 		min_val = 0
 		max_val = 0
 		msg = []
 		try:
 			if self.scope is None:
 				self.scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-				self.creds = ServiceAccountCredentials.from_json_keyfile_name('secret_do_not_commit.json', self.scope)
+				self.creds = ServiceAccountCredentials.from_json_keyfile_name(json_file_name, self.scope)
 				self.client = gspread.authorize(self.creds)
 			self.spreadsheet = self.client.open(self.g_sheet_name)
 			msg += ["Opened Google Sheet: '{}'. ".format(self.g_sheet_name)]
