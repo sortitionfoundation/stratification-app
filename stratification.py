@@ -498,6 +498,10 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     Side Effects:
         Existing callers assume the "selected" and "remaining" fields in `categories` to be changed.
     """
+    if check_same_address and len(check_same_address_columns) == 0:
+        raise ValueError("Since the algorithm is configured to prevent multiple house members to appear on the same "
+                         "panel (check_same_address = true), check_same_address_columns must not be empty.")
+
     output_lines = []
     if selection_algorithm == "leximin":
         try:
