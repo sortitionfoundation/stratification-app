@@ -39,12 +39,14 @@ class FileContents():
 		msg = []
 		try:
 			self._init_settings()
+		except Exception as error:
+			self.PeopleAndCats.category_content_loaded = False
+			msg += [ "Error reading in settings file: {}".format(error) ]
+		try:
 			msg, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self._settings )
 		except Exception as error:
-			# put error in the GUI box !
-			# assume the worst...
 			self.PeopleAndCats.category_content_loaded = False
-			msg += [ "Error reading in settings file or categories: {}".format(error) ]
+			msg += [ "Error reading in categories file: {}".format(error) ]
 		eel.update_categories_output_area("<br />".join(msg))
 		self.update_selection_content()
 		eel.update_selection_range(min_selection, max_selection)

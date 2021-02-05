@@ -190,8 +190,11 @@ class PeopleAndCats():
 				)
 		for row in cat_body:
 			# allow for some dirty data - at least strip white space from cat and name
-			cat = row["category"].strip()
-			cat_value = row["name"].strip()
+			# but only if they are strings! (sometimes people use ints as cat names and then strip produces as exception...)
+			if isinstance(row["category"], str):
+				cat = row["category"].strip()
+			if isinstance(row["name"], str):
+				cat_value = row["name"].strip()
 			# must convert min/max to ints
 			cat_min = int(row["min"])
 			cat_max = int(row["max"])
