@@ -191,10 +191,12 @@ class PeopleAndCats():
 		for row in cat_body:
 			# allow for some dirty data - at least strip white space from cat and name
 			# but only if they are strings! (sometimes people use ints as cat names and then strip produces as exception...)
-			if isinstance(row["category"], str):
-				cat = row["category"].strip()
-			if isinstance(row["name"], str):
-				cat_value = row["name"].strip()
+			cat = row["category"]
+			if isinstance(cat, str):
+				cat = cat.strip()
+			cat_value = row["name"]
+			if isinstance(cat_value, str):
+				cat_value = cat_value.strip()
 			# must convert min/max to ints
 			cat_min = int(row["min"])
 			cat_max = int(row["max"])
@@ -278,8 +280,11 @@ class PeopleAndCats():
 				value = {}
 				for cat_key, cats in categories.items():
 					# check for input errors here - if it's not in the list of category values...
-					# allow for some unclean data - at least strip empty space
-					p_value = row[cat_key].strip()
+					# allow for some unclean data - at least strip empty space, but only if a str!
+					# (some values will can be numbers)
+					p_value = row[cat_key]
+					if isinstance(row[cat_key], str):
+						p_value = p_value.strip()
 					if p_value not in cats:
 						raise Exception(
 							"ERROR reading in people (init_categories_people): Person (id = {}) has value '{}' not in category {}".format(pkey, p_value, cat_key)
