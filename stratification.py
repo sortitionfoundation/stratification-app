@@ -192,9 +192,17 @@ class PeopleAndCats():
 			# allow for some dirty data - at least strip white space from cat and name
 			# but only if they are strings! (sometimes people use ints as cat names and then strip produces as exception...)
 			cat = row["category"]
+			# and skip over any blank lines...
+			if cat == '':
+				continue
 			if isinstance(cat, str):
 				cat = cat.strip()
+			# check for blank entries and report a meaningful error
 			cat_value = row["name"]
+			if cat_value == '' or row["min"] == '' or row["max"] == '':
+				raise Exception(
+					"ERROR reading in category file: found a blank cell in a row of the category: {}. ".format(cat)
+				)
 			if isinstance(cat_value, str):
 				cat_value = cat_value.strip()
 			# must convert min/max to ints
@@ -421,11 +429,11 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 	client = None
 	category_tab_name = "Categories"
 	respondents_tab_name = "Respondents"
-	original_selected_tab_name = "Original Selected - output"
+	original_selected_tab_name = "Original Selected - output - "
 	selected_tab_name = "Selected"
 	columns_selected_first = "C"
 	column_selected_blank_num = 6
-	remaining_tab_name = "Remaining - output"
+	remaining_tab_name = "Remaining - output - "
 	new_tab_default_size_rows = "2"
 	new_tab_default_size_cols = "40"
 
@@ -442,11 +450,18 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 		return False
 
 	def _clear_or_create_tab(self, tab_name):
-		if self._tab_exists( tab_name ):
-			tab_ready = self.spreadsheet.worksheet( tab_name )
-			tab_ready.clear()
-		else:
-			tab_ready = self.spreadsheet.add_worksheet(title=tab_name, rows=self.new_tab_default_size_rows, cols=self.new_tab_default_size_cols)
+		# this nor does not clear data but increments the sheet number...
+		num = 0
+		tab_ready = None
+		tab_name_new = tab_name + str(num)
+		while tab_ready == None:
+			if self._tab_exists( tab_name_new ):
+				num += 1
+				tab_name_new = tab_name + str(num)
+				#tab_ready = self.spreadsheet.worksheet( tab_name )
+				#tab_ready.clear()
+			else:
+				tab_ready = self.spreadsheet.add_worksheet(title=tab_name_new, rows=self.new_tab_default_size_rows, cols=self.new_tab_default_size_cols)
 		return tab_ready
 
 	def load_cats( self, g_sheet_name, settings: Settings ):
@@ -482,7 +497,8 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 		try:
 			if self._tab_exists(self.respondents_tab_name):
 				tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
-				people_input = tab_people.get_all_records()
+				# the numericise_ignore doesn't convert the phone numbers to ints...
+				people_input = tab_people.get_all_records( numericise_ignore = ['all'] )
 				msg = [ "Reading in '{}' tab in above Google sheet.".format(self.respondents_tab_name) ]
 				msg += self._init_categories_people(people_input[0].keys(), people_input, settings)
 			else:
@@ -495,6 +511,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 	
 	def _output_selected_remaining( self, settings: Settings, people_selected_rows, people_remaining_rows ):
 			
+		print(people_selected_rows[1])
 		tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name)
 		tab_original_selected.update( people_selected_rows )
 
