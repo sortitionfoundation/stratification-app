@@ -182,11 +182,16 @@ class PeopleAndCats():
 		self.original_categories = {}
 		# to keep track of number in cats - number people selected MUST be between these limits in every cat...
 		self.min_max_people = {}
-		# check that the fieldnames are (at least) what we expect
+		# check that the fieldnames are (at least) what we expect, and only once!
 		for fn in PeopleAndCats.category_file_field_names:
-			if fn not in cat_head:
+			cat_head_fn_count = cat_head.count(fn)
+			if cat_head_fn_count == 0:
 				raise Exception(
-					"ERROR reading in category file: did not find required column name '{}' in input file (found only {}) ".format(fn, input_fieldnames)
+					"Did not find required column name '{}' in the input (found only {}) ".format(fn, cat_head)
+				)
+			elif cat_head_fn_count > 1:
+				raise Exception(
+					"Found MORE THAN 1 column named '{}' in the input (found {}) ".format(fn, cat_head)
 				)
 		for row in cat_body:
 			# allow for some dirty data - at least strip white space from cat and name
@@ -264,24 +269,45 @@ class PeopleAndCats():
 		# check that id_column and all the categories and columns_to_keep are in the people data fields
 		msg = []
 		try:
-			if settings.id_column not in people_head:
+			# check both for existence and duplicate column names
+			id_column_count = people_head.count(settings.id_column)
+			if id_column_count == 0:
 				raise Exception(
-					"ERROR reading in people: no {} (unique id) column found in people data!".format(settings.id_column)
+					"No {} (unique id) column found in people data!".format(settings.id_column)
+				)
+			elif id_column_count > 1:
+				raise Exception(
+					"MORE THAN 1 {} (unique id) column found in people data!".format(settings.id_column)
 				)
 			for cat_key in categories.keys():
-				if cat_key not in people_head:
+				cat_key_count = people_head.count(cat_key)
+				if cat_key_count == 0:
 					raise Exception(
-						"ERROR reading in people: no '{}' (category) column found in people data!".format(cat_key)
+						"No '{}' (category) column found in people data!".format(cat_key)
+					)
+				elif cat_key_count > 1:
+					raise Exception(
+						"MORE THAN 1 '{}' (category) column found in people data!".format(cat_key)
 					)
 			for column in settings.columns_to_keep:
-				if column not in people_head:
+				column_count = people_head.count(column)
+				if column_count == 0:
 					raise Exception(
-						"ERROR reading in people: no '{}' column (to keep) found in people data!".format(column)
+						"No '{}' column (to keep) found in people data!".format(column)
+					)
+				elif column_count > 1:
+					raise Exception(
+						"MORE THAN 1 '{}' column (to keep) found in people data!".format(column)
 					)
 			for column in settings.check_same_address_columns:
-				if column not in people_head:
+				column_count = people_head.count(column)
+				if column_count == 0:
 					raise Exception(
-						"ERROR reading in people: no '{}' column (to check same address) found in people data!".format(column)
+						"No '{}' column (to check same address) found in people data!".format(column)
+					)
+				elif column_count > 1:
+					raise Exception(
+						"MORE THAN 1 '{}' column (to check same address) found in people data!".format(column)
 					)
 			for row in people_body:
 				pkey = row[settings.id_column]
@@ -394,14 +420,14 @@ class PeopleAndCatsCSV(PeopleAndCats):
 		self.category_content_loaded = True
 		category_file = StringIO(file_contents)
 		category_reader = csv.DictReader(category_file)
-		return self._read_in_cats( category_reader.fieldnames, category_reader )
+		return self._read_in_cats( list( category_reader.fieldnames ), category_reader )
 	
 	def load_people( self, settings: Settings, file_contents = '' ):
 		if file_contents != '':
 			self.people_content_loaded = True
 		people_file = StringIO( file_contents )
 		people_data = csv.DictReader(people_file)
-		return self._init_categories_people(people_data.fieldnames, people_data, settings)
+		return self._init_categories_people(list(people_data.fieldnames), people_data, settings)
 	
 	# Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
 	# BUT, we should not include in this people from the same address as someone who has been selected!
@@ -480,8 +506,9 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 			msg += ["Opened Google Sheet: '{}'. ".format(self.g_sheet_name)]
 			if self._tab_exists(self.category_tab_name):
 				tab_cats = self.spreadsheet.worksheet(self.category_tab_name)
+				cat_head_input = tab_cats.row_values(1)
 				cat_input = tab_cats.get_all_records()
-				new_msg, min_val, max_val = self._read_in_cats(cat_input[0].keys(), cat_input)
+				new_msg, min_val, max_val = self._read_in_cats(cat_head_input, cat_input)
 				msg += [ "Read in '{}' tab in above Google sheet.".format(self.category_tab_name) ]
 				msg += new_msg
 			else:
@@ -497,10 +524,12 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 		try:
 			if self._tab_exists(self.respondents_tab_name):
 				tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
+				# if we don't read this in here we can't check if there are 2 columns with the same name
+				people_head_input = tab_people.row_values(1)
 				# the numericise_ignore doesn't convert the phone numbers to ints...
 				people_input = tab_people.get_all_records( numericise_ignore = ['all'] )
 				msg = [ "Reading in '{}' tab in above Google sheet.".format(self.respondents_tab_name) ]
-				msg += self._init_categories_people(people_input[0].keys(), people_input, settings)
+				msg += self._init_categories_people(people_head_input, people_input, settings)
 			else:
 				msg += ["Error in Google sheet: no tab called '{}' found. ".format(self.respondents_tab_name)]
 				self.people_content_loaded = False
@@ -511,7 +540,6 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 	
 	def _output_selected_remaining( self, settings: Settings, people_selected_rows, people_remaining_rows ):
 			
-		print(people_selected_rows[1])
 		tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name)
 		tab_original_selected.update( people_selected_rows )
 
