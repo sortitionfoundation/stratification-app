@@ -256,6 +256,11 @@ class PeopleAndCats():
 		max_val = min(max_values)
 		min_values = [v['min'] for v in self.min_max_people.values()]
 		min_val = max(min_values)
+		# if the min is bigger than the max we're in trouble i.e. there's an input error
+		if min_val > max_val:
+			raise Exception(
+				"Inconsistent numbers in min and max in the categories input: the sum of the minimum values of a category is larger than the sum of the maximum values of a(nother) category. "
+			)
 		return msg, min_val, max_val
 		
 	# read in people and calculate how many people in each category in database
