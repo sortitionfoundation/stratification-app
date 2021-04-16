@@ -13,6 +13,8 @@ $(function(){
         select_number_people_input.addEventListener("input", handle_number_people, false);
         const run_btn = document.getElementById('run-btn');
         run_btn.addEventListener('click', handle_run_button, false);
+        const run_test_btn = document.getElementById('run-test-btn');
+        run_test_btn.addEventListener('click', handle_run_test_button, false);
     }
 
     eel.expose(alert_user);
@@ -97,6 +99,10 @@ $(function(){
         eel.run_selection();
     }
 
+    function handle_run_test_button() {
+        eel.run_test_selection();
+    }
+
 	eel.expose(enable_selection_content);
     function enable_selection_content() {
         const selection_content = document.getElementById("selection-file");
@@ -107,6 +113,8 @@ $(function(){
     function enable_run_button() {
         const run_button = document.getElementById("run-btn");
         run_button.disabled = false;
+        const run_test_button = document.getElementById("run-test-btn");
+        run_test_button.disabled = false;
     }
 
     function enable_download(download_link_id, file_contents, filename) {

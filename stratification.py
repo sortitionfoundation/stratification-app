@@ -72,13 +72,15 @@ max_attempts = 100
 columns_to_keep = [
     "first_name",
     "last_name",
-    "email",
     "mobile_number",
+    "email",
     "primary_address1",
     "primary_address2",
     "primary_city",
-    "primary_zip",
-    "age"
+    "zip_royal_mail",
+    "tag_list",
+    "age",
+    "gender"
 ]
 
 # selection_algorithm can either be "legacy", "maximin", "leximin", or "nash"
@@ -324,6 +326,10 @@ class PeopleAndCats():
 					)
 			for row in people_body:
 				pkey = row[settings.id_column]
+				# skip over any blank lines... but warn the user
+				if pkey == '':
+					msg += [ "<b>WARNING</b>: blank cell found in ID column - skipped that line!"]
+					continue
 				value = {}
 				for cat_key, cats in categories.items():
 					# check for input errors here - if it's not in the list of category values...
@@ -347,7 +353,7 @@ class PeopleAndCats():
 			# check if any cat[max] is set to zero... if so delete everyone with that cat...
 			# NOT DONE: could then check if anyone is left...
 			total_num_people = len(people.keys())
-			msg = ["Number of people: {}.".format(total_num_people)]
+			msg += ["Number of people: {}.".format(total_num_people)]
 			total_num_deleted = 0
 			for cat_key, cats in categories.items():
 				for cat, cat_item in cats.items():
@@ -366,9 +372,9 @@ class PeopleAndCats():
 			msg += [ "Error loading people: {}".format(error) ]
 		return msg
 
-	def people_cats_run_stratification( self, settings: Settings ):
+	def people_cats_run_stratification( self, settings: Settings, test_selection ):
 		success, self.people_selected, output_lines = run_stratification(
-			self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, settings
+			self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, settings, test_selection
 		)
 		if success:
 			# this also outputs them...
@@ -797,7 +803,7 @@ def _output_panel_table(panels: List[FrozenSet[str]], probs: List[float]):
 
 def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                        columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
-                       check_same_address_columns: List[str], selection_algorithm: str) \
+                       check_same_address_columns: List[str], selection_algorithm: str, test_selection: bool) \
         -> Tuple[Dict[str, Dict[str, str]], List[str]]:
     """Main algorithm to try to find a random sample.
 
@@ -1611,7 +1617,7 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings):
+def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings, test_selection ):
     # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people.items():
         if settings.selection_algorithm == "legacy" and (  # For other algorithms, quotas are analyzed later
@@ -1625,7 +1631,10 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             return False, 0, {}, [error_msg]
     success = False
     tries = 0
-    output_lines = ["<b>Initial: (selected = 0, remaining = {})</b>".format(len(people.keys()))]
+    output_lines = []
+    if test_selection:
+    	output_lines.append("<b>WARNING</b>: TEST SELECTION ONLY - not random!!!") 
+    output_lines.append("<b>Initial: (selected = 0, remaining = {})</b>".format(len(people.keys())))
     while not success and tries < settings.max_attempts:
         people_selected = {}
         new_output_lines = []
@@ -1638,7 +1647,8 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data,
                                                                    number_people_wanted, settings.check_same_address,
                                                                    settings.check_same_address_columns,
-                                                                   settings.selection_algorithm)
+                                                                   settings.selection_algorithm,
+                                                                   test_selection)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
