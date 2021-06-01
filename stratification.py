@@ -373,6 +373,9 @@ class PeopleAndCats():
 		return msg
 
 	def people_cats_run_stratification( self, settings: Settings, test_selection ):
+		# if this is being called again (the user hit the button again!) we want to make sure all data is cleared etc
+		# but the function called here makes deep copies of categories_after_people and people
+		self.people_selected = None
 		success, self.people_selected, output_lines = run_stratification(
 			self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, settings, test_selection
 		)
@@ -381,7 +384,7 @@ class PeopleAndCats():
 			output_lines += self._get_selected_people_lists( settings )
 		return success, output_lines
 
-	# this also outputs thems by calling the appropriate derived class method...
+	# this also outputs them by calling the appropriate derived class method...
 	def _get_selected_people_lists( self, settings: Settings):
 		people_working = copy.deepcopy(self.people)
 		people_selected = self.people_selected
@@ -495,7 +498,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
         return False
 
     def _clear_or_create_tab(self, tab_name):
-        # this nor does not clear data but increments the sheet number...
+        # this now does not clear data but increments the sheet number...
         num = 0
         tab_ready = None
         tab_name_new = tab_name + str(num)
@@ -830,6 +833,10 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     if check_same_address and len(check_same_address_columns) == 0:
         raise ValueError("Since the algorithm is configured to prevent multiple house members to appear on the same "
                          "panel (check_same_address = true), check_same_address_columns must not be empty.")
+
+	# just go quick and nasty so we can hook up our charts ands tables :-)
+    if test_selection:
+        selection_algorithm = "legacy"
 
     output_lines = []
     if selection_algorithm == "leximin":
@@ -1633,7 +1640,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
     tries = 0
     output_lines = []
     if test_selection:
-    	output_lines.append("<b>WARNING</b>: TEST SELECTION ONLY - not random!!!") 
+    	output_lines.append("<b>WARNING</b>: TEST SELECTION ONLY - might not use random selection!!!") 
     output_lines.append("<b>Initial: (selected = 0, remaining = {})</b>".format(len(people.keys())))
     while not success and tries < settings.max_attempts:
         people_selected = {}

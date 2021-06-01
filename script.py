@@ -99,6 +99,8 @@ class FileContents():
 
 	def run_selection(self, test_selection ):
 		self._init_settings()
+		# they may have hit this button again, so clear the output area so it's more obvious
+		eel.update_selection_output_messages_area("Selecting... please wait...<br />")
 		success, output_lines = self.PeopleAndCats.people_cats_run_stratification( self.settings, test_selection )		
 		if success and self.PeopleAndCats.get_selected_file() is not None and self.PeopleAndCats.get_remaining_file() is not None:
 			eel.enable_selected_download(self.PeopleAndCats.get_selected_file().getvalue(), 'selected.csv')
