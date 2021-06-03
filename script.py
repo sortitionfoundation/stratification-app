@@ -67,6 +67,8 @@ class FileContents():
 	# do cats and people at same time...
 	def update_g_sheet_name(self, g_sheet_name):
 		if g_sheet_name != '':
+			msg = "Number of categories: No input yet</br>Number of people: No input yet"
+			eel.update_selection_output_area( msg )
 			self.PeopleAndCats = PeopleAndCatsGoogleSheet()
 			self._add_category_content( g_sheet_name )
 			msg = self.PeopleAndCats.load_people( self.settings )
@@ -89,6 +91,8 @@ class FileContents():
 	def update_run_button(self):
 		if self.PeopleAndCats.category_content_loaded and self.PeopleAndCats.people_content_loaded and self.PeopleAndCats.number_people_to_select > 0:
 			eel.enable_run_button()
+		else:
+			eel.disable_run_button()
 
 	def update_number_people(self, number_people):
 		if number_people == '':

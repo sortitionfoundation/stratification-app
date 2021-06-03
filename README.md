@@ -44,6 +44,8 @@ To make a single file executable, we use [PyInstaller](https://pyinstaller.readt
 The command is:
 
 ```
+git pull
+pipenv shell
 python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
 ```
 

@@ -117,6 +117,16 @@ $(function(){
         run_test_button.disabled = false;
     }
 
+    eel.expose(disable_run_button);
+    function disable_run_button() {
+    	const select_number_people_input = document.getElementById("selection-number");
+        select_number_people_input.value = '';
+        const run_button = document.getElementById("run-btn");
+        run_button.disabled = true;
+        const run_test_button = document.getElementById("run-test-btn");
+        run_test_button.disabled = true;
+    }
+
     function enable_download(download_link_id, file_contents, filename) {
         let download_link = document.getElementById(download_link_id);
         download_link.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(file_contents));
