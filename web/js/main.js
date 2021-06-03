@@ -6,6 +6,8 @@ $(function(){
         categories_file_input.addEventListener("change", handle_categories_file, false);
         const categories_g_sheet_name_input = document.getElementById("categories-g-sheet");
         categories_g_sheet_name_input.addEventListener("input", handle_g_sheet_name, false);
+        const reload_g_sheet_btn = document.getElementById('reload-g-sheet-btn');
+        reload_g_sheet_btn.addEventListener('click', handle_reload_g_sheet_btn, false);
         const selection_file_input = document.getElementById("selection-file");
         selection_file_input.addEventListener("click", clear_file_value, false);
         selection_file_input.addEventListener("change", handle_selection_file, false);
@@ -51,6 +53,16 @@ $(function(){
 
     function handle_g_sheet_name() {
     	eel.update_g_sheet_name(this.value);
+    }
+    
+    function handle_reload_g_sheet_btn() {
+    	eel.reload_g_sheet();
+    }
+
+    eel.expose(enable_reload_g_sheet_btn);
+    function enable_reload_g_sheet_btn() {
+        const reload_button = document.getElementById("reload-g-sheet-btn");
+        reload_button.disabled = false;
     }
 
     function categories_file_loaded(e) {
@@ -109,6 +121,12 @@ $(function(){
         selection_content.disabled = false;
     }
 	
+    eel.expose(set_select_number_people);
+    function set_select_number_people(number_people) {
+    	const select_number_people_input = document.getElementById("selection-number");
+        select_number_people_input.value = number_people;
+	}
+	
     eel.expose(enable_run_button);
     function enable_run_button() {
         const run_button = document.getElementById("run-btn");
@@ -119,8 +137,8 @@ $(function(){
 
     eel.expose(disable_run_button);
     function disable_run_button() {
-    	const select_number_people_input = document.getElementById("selection-number");
-        select_number_people_input.value = '';
+    	//const select_number_people_input = document.getElementById("selection-number");
+        //select_number_people_input.value = '';
         const run_button = document.getElementById("run-btn");
         run_button.disabled = true;
         const run_test_button = document.getElementById("run-test-btn");

@@ -18,6 +18,7 @@ class FileContents():
 	def __init__(self):
 		self.PeopleAndCats = None
 		self._settings = None
+		self.g_sheet_name = ''
 
 	@property
 	def settings(self):
@@ -50,6 +51,10 @@ class FileContents():
 		eel.update_categories_output_area("<br />".join(msg))
 		self.update_selection_content()
 		eel.update_selection_range(min_selection, max_selection)
+		# if these are the same just set the value!
+		if min_selection == max_selection and min_selection > 0:
+			eel.set_select_number_people(str(min_selection))
+			self.PeopleAndCats.number_people_to_select = int(min_selection)
 		# if we've already uploaded people, we need to re-process them with the
 		# (possibly) new categories settings
 		if self.PeopleAndCats.people_content_loaded:
@@ -65,16 +70,26 @@ class FileContents():
 
 	# called from g-sheet input
 	# do cats and people at same time...
-	def update_g_sheet_name(self, g_sheet_name):
-		if g_sheet_name != '':
-			msg = "Number of categories: No input yet</br>Number of people: No input yet"
-			eel.update_selection_output_area( msg )
+	def update_g_sheet_name(self, g_sheet_name_input, reload):
+		if reload:
+			eel.update_categories_output_area( "Number of categories: No input yet" )
+			eel.update_selection_output_area( "Number of people: No input yet" )
+			eel.update_selection_output_messages_area("")
+			eel.set_select_number_people('')
+		else:
+			self.g_sheet_name = g_sheet_name_input
+		if self.g_sheet_name != '':
+			eel.update_categories_output_area( "Number of categories: No input yet" )
+			eel.update_selection_output_area( "Number of people: No input yet" )
+			eel.update_selection_output_messages_area("")
+			eel.set_select_number_people('')
 			self.PeopleAndCats = PeopleAndCatsGoogleSheet()
-			self._add_category_content( g_sheet_name )
+			self._add_category_content( self.g_sheet_name )
 			msg = self.PeopleAndCats.load_people( self.settings )
 			eel.update_selection_output_area("<br />".join(msg))
 			self.update_run_button()
-
+			eel.enable_reload_g_sheet_btn()
+			
 	# 'selection' means people...
 	def add_selection_content(self, file_contents):
 		self._init_settings()
@@ -93,6 +108,8 @@ class FileContents():
 			eel.enable_run_button()
 		else:
 			eel.disable_run_button()
+		if self.PeopleAndCats.number_people_to_select <= 0:
+			eel.set_select_number_people('')
 
 	def update_number_people(self, number_people):
 		if number_people == '':
@@ -128,8 +145,12 @@ def handle_selection_contents(file_contents):
 
 @eel.expose
 def update_g_sheet_name(g_sheet_name):
-	csv_files.update_g_sheet_name(g_sheet_name)
+	csv_files.update_g_sheet_name(g_sheet_name, False)
 
+@eel.expose
+def reload_g_sheet():
+	csv_files.update_g_sheet_name('', True)
+	
 @eel.expose
 def update_number_people(number_people):
 	csv_files.update_number_people(number_people)
