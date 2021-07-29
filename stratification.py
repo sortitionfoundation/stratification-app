@@ -105,7 +105,7 @@ class Settings:
             assert (isinstance(check_same_address, bool))
             assert (isinstance(check_same_address_columns, list))
             # this could be empty
-            # assert(len(check_same_address_columns) == 2)
+            assert(len(check_same_address_columns) == 2 or len(check_same_address_columns) == 0)
             for column in check_same_address_columns:
                 assert (isinstance(column, str))
             assert (isinstance(max_attempts, int))
@@ -133,6 +133,9 @@ class Settings:
             )
         with open(settings_file_path, "r", encoding='utf-8') as settings_file:
             settings = toml.load(settings_file)
+        # you can't check an address if there is no info about which columns to check...
+        if len(settings['check_same_address_columns']) == 0 and settings['check_same_address'] == True:
+        	message += "\nWARNING: in sf_stratification_settings.toml file check_same_address is TRUE but there are no columns listed to check! FIX THIS and RESTART this program!"
         settings['json_file_path'] = Path.home() / "secret_do_not_commit.json"
         return cls(
             settings['id_column'],
