@@ -166,265 +166,265 @@ class SelectionError(Exception):
 
 class PeopleAndCats():
     # Warning: "name" value is hardcoded somewhere below :-)
-	category_file_field_names = ["category", "name", "min", "max"]
+    category_file_field_names = ["category", "name", "min", "max"]
 
-	def __init__(self):
-		# mins and maxs (from category data) for number of people one can select
-		self.min_max_people = {}
-		self.original_categories = None
-		self.categories_after_people = None
-		self.category_content_loaded = False
-		self.people_content_loaded = False
-		self.people = None
-		self.columns_data = None
-		self.people_selected = None
-		self.number_people_to_select = 0
-		# this, and the two functions below, are the only annoying things needed to distinguish CSV in GUI..
-		self.enable_file_download = False
+    def __init__(self):
+        # mins and maxs (from category data) for number of people one can select
+        self.min_max_people = {}
+        self.original_categories = None
+        self.categories_after_people = None
+        self.category_content_loaded = False
+        self.people_content_loaded = False
+        self.people = None
+        self.columns_data = None
+        self.people_selected = None
+        self.number_people_to_select = 0
+        # this, and the two functions below, are the only annoying things needed to distinguish CSV in GUI..
+        self.enable_file_download = False
 
-	def get_selected_file( self ):
-		return None
-	def get_remaining_file( self ):
-		return None
-	
-	# read in categories - a dict of dicts of dicts...
-	def _read_in_cats( self, cat_head, cat_body ):
-		self.original_categories = {}
-		# to keep track of number in cats - number people selected MUST be between these limits in every cat...
-		self.min_max_people = {}
-		# check that the fieldnames are (at least) what we expect, and only once!
-		for fn in PeopleAndCats.category_file_field_names:
-			cat_head_fn_count = cat_head.count(fn)
-			if cat_head_fn_count == 0:
-				raise Exception(
-					"Did not find required column name '{}' in the input (found only {}) ".format(fn, cat_head)
-				)
-			elif cat_head_fn_count > 1:
-				raise Exception(
-					"Found MORE THAN 1 column named '{}' in the input (found {}) ".format(fn, cat_head)
-				)
-		for row in cat_body:
-			# allow for some dirty data - at least strip white space from cat and name
-			# but only if they are strings! (sometimes people use ints as cat names and then strip produces as exception...)
-			cat = row["category"]
-			# and skip over any blank lines...
-			if cat == '':
-				continue
-			if isinstance(cat, str):
-				cat = cat.strip()
-			# check for blank entries and report a meaningful error
-			cat_value = row["name"]
-			if cat_value == '' or row["min"] == '' or row["max"] == '':
-				raise Exception(
-					"ERROR reading in category file: found a blank cell in a row of the category: {}. ".format(cat)
-				)
-			if isinstance(cat_value, str):
-				cat_value = cat_value.strip()
-			# must convert min/max to ints
-			cat_min = int(row["min"])
-			cat_max = int(row["max"])
-			if cat in self.original_categories:
-				self.min_max_people[cat]["min"] += cat_min
-				self.min_max_people[cat]["max"] += cat_max
-				self.original_categories[cat].update(
-					{
-						cat_value: {
-							"min": cat_min,
-							"max": cat_max,
-							"selected": 0,
-							"remaining": 0,
-						}
-					}
-				)
-			else:
-				self.min_max_people.update(
-					{
-						cat: {
-							"min": cat_min,
-							"max": cat_max
-						}
-					}
-				)
-				self.original_categories.update(
-					{
-						cat: {
-							cat_value: {
-								"min": cat_min,
-								"max": cat_max,
-								"selected": 0,
-								"remaining": 0,
-							}
-						}
-					}
-				)
-				
-		msg = [ "Number of categories: {}".format(len(self.original_categories.keys())) ]
-		
-		# work out what the min and max number of people should be,
-		# given these cats
-		max_values = [v['max'] for v in self.min_max_people.values()]
-		max_val = min(max_values)
-		min_values = [v['min'] for v in self.min_max_people.values()]
-		min_val = max(min_values)
-		# if the min is bigger than the max we're in trouble i.e. there's an input error
-		if min_val > max_val:
-			raise Exception(
-				"Inconsistent numbers in min and max in the categories input: the sum of the minimum values of a category is larger than the sum of the maximum values of a(nother) category. "
-			)
-		return msg, min_val, max_val
-		
-	# read in people and calculate how many people in each category in database
-	def _init_categories_people(self, people_head, people_body, settings: Settings):
-		people = {}
-		columns_data = {}
-		# this modifies the categories, so we keep the original categories here
-		self.categories_after_people = deepcopy(self.original_categories)
-		categories = self.categories_after_people
-		#people_data = csv.DictReader(people_file)
-		# check that id_column and all the categories and columns_to_keep are in the people data fields
-		msg = []
-		try:
-			# check both for existence and duplicate column names
-			id_column_count = people_head.count(settings.id_column)
-			if id_column_count == 0:
-				raise Exception(
-					"No {} (unique id) column found in people data!".format(settings.id_column)
-				)
-			elif id_column_count > 1:
-				raise Exception(
-					"MORE THAN 1 {} (unique id) column found in people data!".format(settings.id_column)
-				)
-			for cat_key in categories.keys():
-				cat_key_count = people_head.count(cat_key)
-				if cat_key_count == 0:
-					raise Exception(
-						"No '{}' (category) column found in people data!".format(cat_key)
-					)
-				elif cat_key_count > 1:
-					raise Exception(
-						"MORE THAN 1 '{}' (category) column found in people data!".format(cat_key)
-					)
-			for column in settings.columns_to_keep:
-				column_count = people_head.count(column)
-				if column_count == 0:
-					raise Exception(
-						"No '{}' column (to keep) found in people data!".format(column)
-					)
-				elif column_count > 1:
-					raise Exception(
-						"MORE THAN 1 '{}' column (to keep) found in people data!".format(column)
-					)
-			for column in settings.check_same_address_columns:
-				column_count = people_head.count(column)
-				if column_count == 0:
-					raise Exception(
-						"No '{}' column (to check same address) found in people data!".format(column)
-					)
-				elif column_count > 1:
-					raise Exception(
-						"MORE THAN 1 '{}' column (to check same address) found in people data!".format(column)
-					)
-			for row in people_body:
-				pkey = row[settings.id_column]
-				# skip over any blank lines... but warn the user
-				if pkey == '':
-					msg += [ "<b>WARNING</b>: blank cell found in ID column - skipped that line!"]
-					continue
-				value = {}
-				for cat_key, cats in categories.items():
-					# check for input errors here - if it's not in the list of category values...
-					# allow for some unclean data - at least strip empty space, but only if a str!
-					# (some values will can be numbers)
-					p_value = row[cat_key]
-					if isinstance(row[cat_key], str):
-						p_value = p_value.strip()
-					if p_value not in cats:
-						raise Exception(
-							"ERROR reading in people (init_categories_people): Person (id = {}) has value '{}' not in category {}".format(pkey, p_value, cat_key)
-						)
-					value.update({cat_key: p_value})
-					categories[cat_key][p_value]["remaining"] += 1
-				people.update({pkey: value})
-				# this is address, name etc that we need to keep for output file
-				data_value = {}
-				for col in settings.columns_to_keep:
-					data_value[col] = row[col]
-				columns_data.update({pkey: data_value})
-			# check if any cat[max] is set to zero... if so delete everyone with that cat...
-			# NOT DONE: could then check if anyone is left...
-			total_num_people = len(people.keys())
-			msg += ["Number of people: {}.".format(total_num_people)]
-			total_num_deleted = 0
-			for cat_key, cats in categories.items():
-				for cat, cat_item in cats.items():
-					if cat_item["max"] == 0:  # we don't want any of these people
-						num_deleted, num_left = delete_all_in_cat(categories, people, cat_key, cat)
-						total_num_deleted += num_deleted
-						msg += [ "Category {} full - deleted {}, {} left.".format(cat, num_deleted, num_left) ]
-			# if the total number of people deleted is lots then we're probably doing a replacement selection, which means
-			# the 'remaining' file will be useless - remind the user of this!
-			if total_num_deleted > total_num_people/2:
-				msg += [ ">>> WARNING <<< That deleted MANY PEOPLE - are you doing a replacement? If so your REMAINING FILE WILL BE USELESS!!!" ]
-			self.people = people
-			self.columns_data = columns_data
-		except Exception as error:
-			self.people_content_loaded = False
-			msg += [ "Error loading people: {}".format(error) ]
-		return msg
+    def get_selected_file( self ):
+        return None
+    def get_remaining_file( self ):
+        return None
 
-	def people_cats_run_stratification( self, settings: Settings, test_selection ):
-		# if this is being called again (the user hit the button again!) we want to make sure all data is cleared etc
-		# but the function called here makes deep copies of categories_after_people and people
-		self.people_selected = None
-		success, self.people_selected, output_lines = run_stratification(
-			self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, settings, test_selection
-		)
-		if success:
-			# this also outputs them...
-			output_lines += self._get_selected_people_lists( settings )
-		return success, output_lines
+    # read in categories - a dict of dicts of dicts...
+    def _read_in_cats( self, cat_head, cat_body ):
+        self.original_categories = {}
+        # to keep track of number in cats - number people selected MUST be between these limits in every cat...
+        self.min_max_people = {}
+        # check that the fieldnames are (at least) what we expect, and only once!
+        for fn in PeopleAndCats.category_file_field_names:
+            cat_head_fn_count = cat_head.count(fn)
+            if cat_head_fn_count == 0:
+                raise Exception(
+                    "Did not find required column name '{}' in the input (found only {}) ".format(fn, cat_head)
+                )
+            elif cat_head_fn_count > 1:
+                raise Exception(
+                    "Found MORE THAN 1 column named '{}' in the input (found {}) ".format(fn, cat_head)
+                )
+        for row in cat_body:
+            # allow for some dirty data - at least strip white space from cat and name
+            # but only if they are strings! (sometimes people use ints as cat names and then strip produces as exception...)
+            cat = row["category"]
+            # and skip over any blank lines...
+            if cat == '':
+                continue
+            if isinstance(cat, str):
+                cat = cat.strip()
+            # check for blank entries and report a meaningful error
+            cat_value = row["name"]
+            if cat_value == '' or row["min"] == '' or row["max"] == '':
+                raise Exception(
+                    "ERROR reading in category file: found a blank cell in a row of the category: {}. ".format(cat)
+                )
+            if isinstance(cat_value, str):
+                cat_value = cat_value.strip()
+            # must convert min/max to ints
+            cat_min = int(row["min"])
+            cat_max = int(row["max"])
+            if cat in self.original_categories:
+                self.min_max_people[cat]["min"] += cat_min
+                self.min_max_people[cat]["max"] += cat_max
+                self.original_categories[cat].update(
+                    {
+                        cat_value: {
+                            "min": cat_min,
+                            "max": cat_max,
+                            "selected": 0,
+                            "remaining": 0,
+                        }
+                    }
+                )
+            else:
+                self.min_max_people.update(
+                    {
+                        cat: {
+                            "min": cat_min,
+                            "max": cat_max
+                        }
+                    }
+                )
+                self.original_categories.update(
+                    {
+                        cat: {
+                            cat_value: {
+                                "min": cat_min,
+                                "max": cat_max,
+                                "selected": 0,
+                                "remaining": 0,
+                            }
+                        }
+                    }
+                )
 
-	# this also outputs them by calling the appropriate derived class method...
-	def _get_selected_people_lists( self, settings: Settings):
-		people_working = copy.deepcopy(self.people)
-		people_selected = self.people_selected
-		categories = self.categories_after_people
-		columns_data = self.columns_data
+        msg = [ "Number of categories: {}".format(len(self.original_categories.keys())) ]
 
-		people_selected_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
-		people_remaining_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
-		
-		output_lines = []  # do we want to output same address info? Nah, this overwritten at the end of this function...
-		num_same_address_deleted = 0
-		for pkey, person in people_selected.items():
-			row = [pkey]
-			for col in settings.columns_to_keep:
-				row.append(columns_data[pkey][col])
-			row += person.values()
-			people_selected_rows += [ row ] 
-			# if check address then delete all those at this address (will delete the one we want as well)
-			if settings.check_same_address:
-				people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, settings.check_same_address_columns)
-				output_lines += new_output_lines
-				num_same_address_deleted += len(new_output_lines) - 1  # don't include original
-				# then delete this/these people at the same address from the reserve/remaining pool
-				for del_person_key in people_to_delete:
-					del people_working[del_person_key]
-			else:
-				del people_working[pkey]
+        # work out what the min and max number of people should be,
+        # given these cats
+        max_values = [v['max'] for v in self.min_max_people.values()]
+        max_val = min(max_values)
+        min_values = [v['min'] for v in self.min_max_people.values()]
+        min_val = max(min_values)
+        # if the min is bigger than the max we're in trouble i.e. there's an input error
+        if min_val > max_val:
+            raise Exception(
+                "Inconsistent numbers in min and max in the categories input: the sum of the minimum values of a category is larger than the sum of the maximum values of a(nother) category. "
+            )
+        return msg, min_val, max_val
 
-		# add the columns to keep into to remaining people
-		for pkey, person in people_working.items():
-			row = [pkey]
-			for col in settings.columns_to_keep:
-				row.append(columns_data[pkey][col])
-			row += person.values()
-			people_remaining_rows += [ row ]
-		output_lines = ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
-		self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
-		return output_lines
+    # read in people and calculate how many people in each category in database
+    def _init_categories_people(self, people_head, people_body, settings: Settings):
+        people = {}
+        columns_data = {}
+        # this modifies the categories, so we keep the original categories here
+        self.categories_after_people = deepcopy(self.original_categories)
+        categories = self.categories_after_people
+        #people_data = csv.DictReader(people_file)
+        # check that id_column and all the categories and columns_to_keep are in the people data fields
+        msg = []
+        try:
+            # check both for existence and duplicate column names
+            id_column_count = people_head.count(settings.id_column)
+            if id_column_count == 0:
+                raise Exception(
+                    "No {} (unique id) column found in people data!".format(settings.id_column)
+                )
+            elif id_column_count > 1:
+                raise Exception(
+                    "MORE THAN 1 {} (unique id) column found in people data!".format(settings.id_column)
+                )
+            for cat_key in categories.keys():
+                cat_key_count = people_head.count(cat_key)
+                if cat_key_count == 0:
+                    raise Exception(
+                        "No '{}' (category) column found in people data!".format(cat_key)
+                    )
+                elif cat_key_count > 1:
+                    raise Exception(
+                        "MORE THAN 1 '{}' (category) column found in people data!".format(cat_key)
+                    )
+            for column in settings.columns_to_keep:
+                column_count = people_head.count(column)
+                if column_count == 0:
+                    raise Exception(
+                        "No '{}' column (to keep) found in people data!".format(column)
+                    )
+                elif column_count > 1:
+                    raise Exception(
+                        "MORE THAN 1 '{}' column (to keep) found in people data!".format(column)
+                    )
+            for column in settings.check_same_address_columns:
+                column_count = people_head.count(column)
+                if column_count == 0:
+                    raise Exception(
+                        "No '{}' column (to check same address) found in people data!".format(column)
+                    )
+                elif column_count > 1:
+                    raise Exception(
+                        "MORE THAN 1 '{}' column (to check same address) found in people data!".format(column)
+                    )
+            for row in people_body:
+                pkey = row[settings.id_column]
+                # skip over any blank lines... but warn the user
+                if pkey == '':
+                    msg += [ "<b>WARNING</b>: blank cell found in ID column - skipped that line!"]
+                    continue
+                value = {}
+                for cat_key, cats in categories.items():
+                    # check for input errors here - if it's not in the list of category values...
+                    # allow for some unclean data - at least strip empty space, but only if a str!
+                    # (some values will can be numbers)
+                    p_value = row[cat_key]
+                    if isinstance(row[cat_key], str):
+                        p_value = p_value.strip()
+                    if p_value not in cats:
+                        raise Exception(
+                            "ERROR reading in people (init_categories_people): Person (id = {}) has value '{}' not in category {}".format(pkey, p_value, cat_key)
+                        )
+                    value.update({cat_key: p_value})
+                    categories[cat_key][p_value]["remaining"] += 1
+                people.update({pkey: value})
+                # this is address, name etc that we need to keep for output file
+                data_value = {}
+                for col in settings.columns_to_keep:
+                    data_value[col] = row[col]
+                columns_data.update({pkey: data_value})
+            # check if any cat[max] is set to zero... if so delete everyone with that cat...
+            # NOT DONE: could then check if anyone is left...
+            total_num_people = len(people.keys())
+            msg += ["Number of people: {}.".format(total_num_people)]
+            total_num_deleted = 0
+            for cat_key, cats in categories.items():
+                for cat, cat_item in cats.items():
+                    if cat_item["max"] == 0:  # we don't want any of these people
+                        num_deleted, num_left = delete_all_in_cat(categories, people, cat_key, cat)
+                        total_num_deleted += num_deleted
+                        msg += [ "Category {} full - deleted {}, {} left.".format(cat, num_deleted, num_left) ]
+            # if the total number of people deleted is lots then we're probably doing a replacement selection, which means
+            # the 'remaining' file will be useless - remind the user of this!
+            if total_num_deleted > total_num_people/2:
+                msg += [ ">>> WARNING <<< That deleted MANY PEOPLE - are you doing a replacement? If so your REMAINING FILE WILL BE USELESS!!!" ]
+            self.people = people
+            self.columns_data = columns_data
+        except Exception as error:
+            self.people_content_loaded = False
+            msg += [ "Error loading people: {}".format(error) ]
+        return msg
 
-	
+    def people_cats_run_stratification( self, settings: Settings, test_selection ):
+        # if this is being called again (the user hit the button again!) we want to make sure all data is cleared etc
+        # but the function called here makes deep copies of categories_after_people and people
+        self.people_selected = None
+        success, self.people_selected, output_lines = run_stratification(
+            self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, settings, test_selection
+        )
+        if success:
+            # this also outputs them...
+            output_lines += self._get_selected_people_lists( settings )
+        return success, output_lines
+
+    # this also outputs them by calling the appropriate derived class method...
+    def _get_selected_people_lists( self, settings: Settings):
+        people_working = copy.deepcopy(self.people)
+        people_selected = self.people_selected
+        categories = self.categories_after_people
+        columns_data = self.columns_data
+
+        people_selected_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
+        people_remaining_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
+
+        output_lines = []  # do we want to output same address info? Nah, this overwritten at the end of this function...
+        num_same_address_deleted = 0
+        for pkey, person in people_selected.items():
+            row = [pkey]
+            for col in settings.columns_to_keep:
+                row.append(columns_data[pkey][col])
+            row += person.values()
+            people_selected_rows += [ row ]
+            # if check address then delete all those at this address (will delete the one we want as well)
+            if settings.check_same_address:
+                people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, settings.check_same_address_columns)
+                output_lines += new_output_lines
+                num_same_address_deleted += len(new_output_lines) - 1  # don't include original
+                # then delete this/these people at the same address from the reserve/remaining pool
+                for del_person_key in people_to_delete:
+                    del people_working[del_person_key]
+            else:
+                del people_working[pkey]
+
+        # add the columns to keep into to remaining people
+        for pkey, person in people_working.items():
+            row = [pkey]
+            for col in settings.columns_to_keep:
+                row.append(columns_data[pkey][col])
+            row += person.values()
+            people_remaining_rows += [ row ]
+        output_lines = ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
+        self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
+        return output_lines
+
+
 class PeopleAndCatsCSV(PeopleAndCats):
 
     def __init__(self):
@@ -834,9 +834,11 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
         raise ValueError("Since the algorithm is configured to prevent multiple house members to appear on the same "
                          "panel (check_same_address = true), check_same_address_columns must not be empty.")
 
-	# just go quick and nasty so we can hook up our charts ands tables :-)
+    # just go quick and nasty so we can hook up our charts ands tables :-)
     if test_selection:
-        selection_algorithm = "legacy"
+        print("Running test selection.")
+        return _find_any_committee(categories, people, columns_data, number_people_wanted, check_same_address,
+                                   check_same_address_columns)
 
     output_lines = []
     if selection_algorithm == "leximin":
@@ -1107,6 +1109,28 @@ def _setup_committee_generation(categories: Dict[str, Dict[str, Dict[str, int]]]
                              "https://docs.python-mip.com/en/latest/classes.html#optimizationstatus).")
 
     return model, agent_vars
+
+
+def _find_any_committee(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
+                        columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
+                        check_same_address_columns: List[str]):
+    if check_same_address:
+        households = _compute_households(people, columns_data, check_same_address_columns)
+    else:
+        households = None
+
+    model, agent_vars = _setup_committee_generation(categories, people, number_people_wanted, check_same_address,
+                                                    households)
+    committee = _ilp_results_to_committee(agent_vars)
+
+    people_selected = {agent: people[agent] for agent in committee}
+    for id, person in people_selected.items():
+        for feature in person:
+            value = person[feature]
+            categories[feature][value]["selected"] += 1
+            categories[feature][value]["remaining"] -= 1
+
+    return people_selected, []
 
 
 def _generate_initial_committees(new_committee_model: mip.model.Model, agent_vars: Dict[str, mip.entities.Var],
@@ -1640,7 +1664,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
     tries = 0
     output_lines = []
     if test_selection:
-    	output_lines.append("<b>WARNING</b>: TEST SELECTION ONLY - might not use random selection!!!") 
+    	output_lines.append("<b style='color: red'>WARNING: Panel is not selected at random! Only use for testing!</b><br>")
     output_lines.append("<b>Initial: (selected = 0, remaining = {})</b>".format(len(people.keys())))
     while not success and tries < settings.max_attempts:
         people_selected = {}
