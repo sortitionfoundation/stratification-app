@@ -35,7 +35,12 @@
   <label class="form-check-label" for="gen-rem-tab">Generate remaining tab</label>
   <small id="RemHelp" class="form-text text-muted">If this is checked then the remaining tab WILL be written to your sheet.</small>
 </div>
-
+        <div class="form-group">
+           <label for="generate-remaining-tab">Generate "Remaining" tab:</label>
+           <input type="text" id="generate-remaining-tab" name="generate-remaining-tab" min="0" size="20" maxlength=100 value="True">
+           <small id="RemainingHelp" class="form-text text-muted">This will generate the remaining tab if and only if this box has "True" in it. If you change this, then you should click "Reload Sheet".</small>
+        </div>
+ 
 
 		<div class="container mb-2">
 		  <input type='button' id='reload-g-sheet-btn' class='btn btn-primary' value='Reload Sheet' disabled>

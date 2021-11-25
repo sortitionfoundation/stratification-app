@@ -21,6 +21,7 @@ class FileContents():
 		self.g_sheet_name = ''
 		self.respondents_tab_name = 'Respondents' ###Nick has added an instance attribute
 		self.gen_rem_tab = 'on' ###Nick has added an instance attribute
+		self.generate_remaining_tab = 'True' ###Nick has added an instance attribute
 
 	@property
 	def settings(self):
@@ -61,7 +62,7 @@ class FileContents():
 		# (possibly) new categories settings
 		if self.PeopleAndCats.people_content_loaded:
 			dummy_file_contents=''
-			msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.gen_rem_tab)
+			msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.generate_remaining_tab, self.gen_rem_tab)
 			eel.update_selection_output_area("<br />".join(msg))
 		self.update_run_button()
 
@@ -90,7 +91,7 @@ class FileContents():
 			self.PeopleAndCats = PeopleAndCatsGoogleSheet()
 			self._add_category_content( self.g_sheet_name )
 			dummy_file_contents=''
-			msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.gen_rem_tab)
+			msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.generate_remaining_tab, self.gen_rem_tab)
 			eel.update_selection_output_area("<br />".join(msg))
 			self.update_run_button()
 			eel.enable_reload_g_sheet_btn()
@@ -108,13 +109,20 @@ class FileContents():
 	def update_gen_rem_tab(self, gen_rem_tab_input):
 		self.gen_rem_tab = gen_rem_tab_input
 		if self.g_sheet_name != '':
-			self.update_g_sheet_name(self.g_sheet_name, True)	  
+			self.update_g_sheet_name(self.g_sheet_name, True)
+
+
+	def update_generate_remaining_tab(self, generate_remaining_tab_input):
+		self.generate_remaining_tab = generate_remaining_tab_input
+		if self.g_sheet_name != '':
+			self.update_g_sheet_name(self.g_sheet_name, True)
+	  
 			
 	# 'selection' means people...
 	def add_selection_content(self, file_contents):
 		self._init_settings()
 		# this calls update internally
-		msg = self.PeopleAndCats.load_people(self.settings, file_contents, self.respondents_tab_name, self.gen_rem_tab)
+		msg = self.PeopleAndCats.load_people(self.settings, file_contents, self.respondents_tab_name, self.generate_remaining_tab, self.gen_rem_tab)
 		eel.update_selection_output_area("<br />".join(msg))
 		self.update_run_button()
 
@@ -189,7 +197,18 @@ def update_gen_rem_tab(gen_rem_tab):
 def reload_gen_rem_tab():
 	csv_files.update_gen_rem_tab('')
 
+###Next two exposures added by Nick
+@eel.expose
+def update_generate_remaining_tab(generate_remaining_tab):
+	csv_files.update_generate_remaining_tab(generate_remaining_tab)
 
+@eel.expose
+def reload_generate_remaining_tab():
+	csv_files.update_generate_remaining_tab('')
+
+
+
+	
 @eel.expose
 def update_number_people(number_people):
 	csv_files.update_number_people(number_people)

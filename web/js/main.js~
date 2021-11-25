@@ -76,6 +76,18 @@ $(function(){
     }
 
 
+
+//Nick has added this function
+//    function handle_gen_rem_tab() {
+//    	eel.update_gen_rem_tab(this.value);
+ //   }
+
+
+//Nick has added this function
+    function handle_generate_remaining_tab() {
+    	eel.update_generate_remaining_tab(this.value);
+    }
+
    
     function handle_reload_g_sheet_btn() {
     	eel.reload_g_sheet();
