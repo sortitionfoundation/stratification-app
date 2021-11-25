@@ -47,6 +47,8 @@ class FileContents():
 			msg += [ "Error reading in settings file: {}".format(error) ]
 		try:
 			msg, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self._settings )
+		except gspread.exceptions.APIError:
+			msg = [ "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." ]
 		except Exception as error:
 			self.PeopleAndCats.category_content_loaded = False
 			msg += [ "Error reading in categories file: {}".format(error) ]
@@ -75,35 +77,37 @@ class FileContents():
 	# do cats and people at same time...
     # reload==true means that the user has hit the reload button 
 	def update_g_sheet_name(self, g_sheet_name_input, reload):  
-		if reload:
-			eel.update_categories_output_area( "Number of categories: No input yet" )
-			eel.update_selection_output_area( "Number of people: No input yet" )
-			eel.update_selection_output_messages_area("")
-			eel.set_select_number_people('')
-		else:
-			self.g_sheet_name = g_sheet_name_input
-		if self.g_sheet_name != '':
-			eel.update_categories_output_area( "Number of categories: No input yet" )
-			eel.update_selection_output_area( "Number of people: No input yet" )
-			eel.update_selection_output_messages_area("")
-			eel.set_select_number_people('')
-			self.PeopleAndCats = PeopleAndCatsGoogleSheet()
-			self._add_category_content( self.g_sheet_name )
-			dummy_file_contents=''
-			msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.gen_rem_tab)
-			eel.update_selection_output_area("<br />".join(msg))
-			self.update_run_button()
-			eel.enable_reload_g_sheet_btn()
+		try:
+			if reload:
+				eel.update_categories_output_area( "Number of categories: No input yet" )
+				eel.update_selection_output_area( "Number of people: No input yet" )
+				eel.update_selection_output_messages_area("")
+				eel.set_select_number_people('')
+			else:
+				self.g_sheet_name = g_sheet_name_input
+			if self.g_sheet_name != '':
+				eel.update_categories_output_area( "Number of categories: No input yet" )
+				eel.update_selection_output_area( "Number of people: No input yet" )
+				eel.update_selection_output_messages_area("")
+				eel.set_select_number_people('')
+				self.PeopleAndCats = PeopleAndCatsGoogleSheet()
+				self._add_category_content( self.g_sheet_name )
+				dummy_file_contents=''
+				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.gen_rem_tab)
+				eel.update_selection_output_area("<br />".join(msg))
+				self.update_run_button()
+				eel.enable_reload_g_sheet_btn()
+		except Exception as error:
+			eel.update_categories_output_area( "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." )
 			
 	###The next functions read in extra instance variables	
     #### Can Nick catch this exception? gspread.exceptions.APIError
 	def update_respondents_tab_name(self, respondents_tab_name_input):
 		self.respondents_tab_name = respondents_tab_name_input
-		try:
-			if self.g_sheet_name != '':
-				self.update_g_sheet_name(self.g_sheet_name, True)
-		except Exception as error:
-			msg += [ "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet.".format(error) ]
+		if self.g_sheet_name != '':
+#			if respondents_tab_name_input[-1] == "\n":
+#				print("ended with a CR!")
+			self.update_g_sheet_name(self.g_sheet_name, True)
 
 	def update_gen_rem_tab(self, gen_rem_tab_input):
 		self.gen_rem_tab = gen_rem_tab_input
