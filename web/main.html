@@ -1,88 +1,86 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
   </head>
 
-  <body>
-    <div id="input-elements" class="container">
-      <h1>Sortition Foundation - Stratification & Selection</h1>
-      <div id="user-alerts"></div>
-      <div>
-        <h2>Option A: EITHER CSV file input (and output)</h2>
-        <div class="form-group">
-          <label for="categories-file">Option A / Step 1: Select a CSV file with category information</label>
-          <input type="file" class="form-control" id="categories-file">
-        </div>
-        <div class="form-group">
-          <label for="selection-file">Option A / Step 2: Select a CSV file with people to select from</label>
-          <input type="file" class="form-control" id="selection-file" disabled>
-        </div>
-        <h2>Option B: OR import (and export) from/to a Google Sheet</h2>
-        <div class="form-group">
-           <label for="categories-g-sheet">Google spreadsheet name:</label>
-           <input type="text" id="categories-g-sheet" name="categories-g-sheet" min="0" size="20" maxlength=100>
-           <small id="RespondentsHelp" class="form-text text-muted">This must be entered FIRST.</small>
-        </div>       
-         <!--The next four lines added by Nick.-->
-        <div class="form-group">
-           <label for="categories-respondents-tab">Google spreadsheet respondents tab:</label>
-           <input type="text" id="categories-respondents-tab" name="categories-respondents-tab" min="0" size="20" maxlength=100 value="Respondents">
-           <small id="RespondentsHelp" class="form-text text-muted">The default, as you can see, is to use the "Respondents" tab.</small>
-        </div>
-     <div class="form-check">
-  <input class="form-check-input" type="checkbox" id="gen-rem-tab" name="gen-rem-tab" checked>
-  <label class="form-check-label" for="gen-rem-tab">Generate remaining tab</label>
-  <small id="RemHelp" class="form-text text-muted">If this is checked then the remaining tab WILL be written to your sheet.</small>
-</div>
-
-
-		<div class="container mb-2">
-		  <input type='button' id='reload-g-sheet-btn' class='btn btn-primary' value='Reload Sheet' disabled>
+	<body>
+		<div id="input-elements" class="container">
+			<h1>Sortition Foundation - Stratification & Selection</h1>
+			<div id="user-alerts">
+			</div>
+			<h2>Option A: EITHER CSV file input (and output)</h2>
+			<div class="form-group">
+				<label for="categories-file">Option A / Step 1: Select a CSV file with category information</label>
+				<input type="file" class="form-control" id="categories-file">
+			</div>
+			<div class="form-group">
+				<label for="selection-file">Option A / Step 2: Select a CSV file with people to select from</label>
+				<input type="file" class="form-control" id="selection-file" disabled>
+			</div>
+			<h2>Option B: OR import (and export) from/to a Google Sheet</h2>
+			<div class="form-group">
+				<label for="categories-g-sheet">Google spreadsheet name:</label>
+				<input type="text" id="categories-g-sheet" name="categories-g-sheet" min="0" size="20" maxlength=100>
+				<small id="RespondentsHelp" class="form-text text-muted">This must be entered FIRST.</small>
+			</div>		 
+			<!--The next four lines added by Nick.-->
+			<div class="form-group">
+				<label for="categories-respondents-tab">Google spreadsheet respondents tab:</label>
+				<input type="text" id="categories-respondents-tab" name="categories-respondents-tab" min="0" size="20" maxlength=100 value="Respondents">
+				<small id="RespondentsHelp" class="form-text text-muted">The default, as you can see, is to use the "Respondents" tab.</small>
+			</div>
+			<div class="form-check">
+				<input class="form-check-input" type="checkbox" id="gen-rem-tab" name="gen-rem-tab" checked>
+				<label class="form-check-label" for="gen-rem-tab">Generate remaining tab</label>
+			</div>
+			<small id="RemHelp" class="form-text text-muted">If this is checked then the remaining tab WILL be written to your sheet.</small>
 		</div>
-        <h2>Category and people information:</h2>
-        <div id="output-area-categories">
-          <p id="output-area-categories-target-p">Number of categories: No input yet</p>
-        </div>
-        <div id="output-area-selection">
-          <p id="output-area-selection-target-p">Number of people: No input yet</p>
-        </div>
-        <h2>Set number of people and run selection</h2>
-        <div class="form-group">
-           <label for="selection-number">Specify the number of people to select</label>
-           <input type="text" id="selection-number" name="selection-number" min="0" size="10" maxlength=10>
-        </div>
-      </div>
-    </div>
-    <div class="container mb-2">
-      <input type='button' id='run-btn' class='btn btn-primary btn-lg' value='Run the Random Selection' disabled>
-      <input type='button' id='run-test-btn' class='btn btn-primary btn-sm' value='(Produce a Test Panel)' disabled>
-    </div>
-    <div class="container mb-2">
-      <h2>Option A only (CSV file) ...and download output:</h2>
-      <a href="#" role='button' id='download-selected-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
-      <a href="#" role='button' id='download-remaining-btn' class='btn btn-primary btn-lg disabled'>Download Remaining</a>
-    </div>
-    <div class="container">
-      <a class="btn" data-toggle="collapse" href="#collapse-detailed-log" role="button" aria-expanded="true" aria-controls="collapseExample">
-        Show/hide detailed log
-      </a>
-      <div class="collapse show" id="collapse-detailed-log">
-        <div class="card">
-          <div class="card-block">
-            <h3 class="card-title">Detailed Log</h3>
-            <div id="output-area-selection-messages">
-              <p id="output-area-selection-messages-target-p" class="card-text"></p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="/eel.js"></script>
-    <script type="text/javascript" src="/js/main.js"></script>
-  </body>
+		<p></p>
+		<div class="container mb-2">
+			<input type='button' id='reload-g-sheet-btn' class='btn btn-primary' value='Reload Sheet' disabled>
+		</div>
+		<div id="input-elements" class="container">
+			<h2>Category and people information:</h2>
+			<div id="output-area-categories">
+				<p id="output-area-categories-target-p">Number of categories: No input yet</p>
+			</div>
+			<div id="output-area-selection">
+				<p id="output-area-selection-target-p">Number of people: No input yet</p>
+			</div>
+			<h2>Set number of people and run selection</h2>
+			<div class="form-group">
+				<label for="selection-number">Specify the number of people to select</label>
+				<input type="text" id="selection-number" name="selection-number" min="0" size="10" maxlength=10>
+			</div>
+		</div>
+		<div class="container mb-2">
+			<input type='button' id='run-btn' class='btn btn-primary btn-lg' value='Run the Random Selection' disabled>
+			<input type='button' id='run-test-btn' class='btn btn-primary btn-sm' value='(Produce a Test Panel)' disabled>
+		</div>
+		<div class="container mb-2">
+			<h2>Option A only (CSV file) ...and download output:</h2>
+			<a href="#" role='button' id='download-selected-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
+			<a href="#" role='button' id='download-remaining-btn' class='btn btn-primary btn-lg disabled'>Download Remaining</a>
+		</div>
+		<div class="container">
+			<a class="btn" data-toggle="collapse" href="#collapse-detailed-log" role="button" aria-expanded="true" aria-controls="collapseExample">Show/hide detailed log</a>
+			<div class="collapse show" id="collapse-detailed-log">
+				<div class="card">
+					<div class="card-block">
+						<h3 class="card-title">Detailed Log</h3>
+						<div id="output-area-selection-messages">
+							<p id="output-area-selection-messages-target-p" class="card-text"></p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
+		<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+		<script type="text/javascript" src="/eel.js"></script>
+		<script type="text/javascript" src="/js/main.js"></script>
+	</body>
 </html>
