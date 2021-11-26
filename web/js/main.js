@@ -12,8 +12,8 @@ $(function(){
         categories_respondents_tab_name_input.addEventListener("input", handle_respondents_tab_name, false);//for respondents tab
         const gen_rem_tab_input = document.getElementById("gen-rem-tab");//for generate remaining tab checkbox
         gen_rem_tab_input.addEventListener('change', handle_gen_rem_tab, false);// for generate remaining tab checkbox
-        const reload_g_sheet_btn = document.getElementById('reload-g-sheet-btn');
-        reload_g_sheet_btn.addEventListener('click', handle_reload_g_sheet_btn, false);
+        const load_g_sheet_btn = document.getElementById('load-g-sheet-btn');
+        load_g_sheet_btn.addEventListener('click', handle_load_g_sheet_btn, false);
         const selection_file_input = document.getElementById("selection-file");
         selection_file_input.addEventListener("click", clear_file_value, false);
         selection_file_input.addEventListener("change", handle_selection_file, false);
@@ -69,22 +69,22 @@ $(function(){
 //Nick has added this function
     function handle_gen_rem_tab() {
     	if (this.checked == true) {
-    	eel.update_gen_rem_tab(this.value);
+    		eel.update_gen_rem_tab(this.value);
     	} else {
-    	eel.update_gen_rem_tab("off");
+    		eel.update_gen_rem_tab("off");
     	}
     }
 
 
    
-    function handle_reload_g_sheet_btn() {
-    	eel.reload_g_sheet();
+    function handle_load_g_sheet_btn() {
+    	eel.load_g_sheet();
     }
 
-    eel.expose(enable_reload_g_sheet_btn);
-    function enable_reload_g_sheet_btn() {
-        const reload_button = document.getElementById("reload-g-sheet-btn");
-        reload_button.disabled = false;
+    eel.expose(enable_load_g_sheet_btn);
+    function enable_load_g_sheet_btn() {
+        const load_button = document.getElementById("load-g-sheet-btn");
+        load_button.disabled = false;
     }
 
     function categories_file_loaded(e) {
@@ -159,8 +159,6 @@ $(function(){
 
     eel.expose(disable_run_button);
     function disable_run_button() {
-    	//const select_number_people_input = document.getElementById("selection-number");
-        //select_number_people_input.value = '';
         const run_button = document.getElementById("run-btn");
         run_button.disabled = true;
         const run_test_button = document.getElementById("run-test-btn");
