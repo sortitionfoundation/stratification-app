@@ -448,7 +448,7 @@ class PeopleAndCatsCSV(PeopleAndCats):
         category_reader = csv.DictReader(category_file)
         return self._read_in_cats(list(category_reader.fieldnames), category_reader)
 
-    def load_people(self, settings: Settings, file_contents='', dummy_respondents_tab='', dummy_generate_remaining='', dummy_gen_rem=''):
+    def load_people(self, settings: Settings, file_contents='', dummy_respondents_tab='', dummy_gen_rem=''):
         if file_contents != '':
             self.people_content_loaded = True
         people_file = StringIO(file_contents)
@@ -491,9 +491,8 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
     def __init__(self):
         super(PeopleAndCatsGoogleSheet, self).__init__()
         self.g_sheet_name = ''
-        self.respondents_tab_name = ''##Nick put this in
-        self.generate_remaining_tab = ''##Nick put this in
-        self.gen_rem_tab=''
+        self.respondents_tab_name = ''
+        self.gen_rem_tab='' 
         self.spreadsheet = None
 
     def _tab_exists(self, tab_name):
@@ -555,12 +554,11 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
             self.category_content_loaded = False
         return msg, min_val, max_val
 
-##Nick added respondents_tab_name and generate_remaining_tab as an argument
-    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, generate_remaining_tab, gen_rem_tab):
+##Added respondents_tab_name and gen_rem_tab as an argument
+    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, gen_rem_tab):
         self.people_content_loaded = True
-        self.respondents_tab_name = respondents_tab_name ##Nick added this in
-        self.generate_remaining_tab = generate_remaining_tab ##Nick added this in
-        self.gen_rem_tab = gen_rem_tab ##Nick added this in
+        self.respondents_tab_name = respondents_tab_name ##Added for respondents tab text box.
+        self.gen_rem_tab = gen_rem_tab ##Added for checkbox
         try:
             if self._tab_exists(self.respondents_tab_name):
                 tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
