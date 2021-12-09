@@ -66,8 +66,9 @@ id_column = "nationbuilder_id"
 check_same_address = true
 check_same_address_columns = [
     "primary_address1",
-    "primary_zip"
+    "zip_royal_mail"
 ]
+
 max_attempts = 100
 columns_to_keep = [
     "first_name",
