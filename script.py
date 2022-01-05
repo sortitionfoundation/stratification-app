@@ -20,6 +20,7 @@ class FileContents():
 		self._settings = None
 		self.g_sheet_name = ''
 		self.respondents_tab_name = 'Respondents' ###Nick has added an instance attribute
+		self.category_tab_name = 'Categories' ###Nick has added an instance attribute
 		self.gen_rem_tab = 'on' ###Nick has added an instance attribute
 
 	@property
@@ -46,7 +47,7 @@ class FileContents():
 			self.PeopleAndCats.category_content_loaded = False
 			msg += [ "Error reading in settings file: {}".format(error) ]
 		try:
-			msg, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self._settings )
+			msg, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self.category_tab_name, self._settings )
 		except gspread.exceptions.APIError:
 			msg = [ "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." ]
 		except Exception as error:
@@ -63,7 +64,7 @@ class FileContents():
 		# (possibly) new categories settings
 		if self.PeopleAndCats.people_content_loaded:
 			dummy_file_contents=''
-			msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.gen_rem_tab)
+			msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab)
 			eel.update_selection_output_area("<br />".join(msg))
 		self.update_run_button()
 
@@ -98,7 +99,7 @@ class FileContents():
 				self.PeopleAndCats = PeopleAndCatsGoogleSheet()
 				self._add_category_content( self.g_sheet_name )
 				dummy_file_contents=''
-				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.gen_rem_tab)
+				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab)
 				eel.update_selection_output_area("<br />".join(msg))
 				self.update_run_button()
 				eel.enable_load_g_sheet_btn()
@@ -106,10 +107,14 @@ class FileContents():
 				eel.update_categories_output_area( "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." )
 			
 	###The next functions read in extra instance variables	
-    #### Can Nick catch this exception? gspread.exceptions.APIError
 	def update_respondents_tab_name(self, respondents_tab_name_input):
 		self._clear_messages()
 		self.respondents_tab_name = respondents_tab_name_input
+
+	def update_categories_tab_name(self, categories_tab_name_input):
+		self._clear_messages()
+		self.category_tab_name = categories_tab_name_input
+
 
 	def update_gen_rem_tab(self, gen_rem_tab_input):
 		self.gen_rem_tab = gen_rem_tab_input
@@ -118,7 +123,7 @@ class FileContents():
 	def add_selection_content(self, file_contents):
 		self._init_settings()
 		# this calls update internally
-		msg = self.PeopleAndCats.load_people(self.settings, file_contents, self.respondents_tab_name, self.gen_rem_tab)
+		msg = self.PeopleAndCats.load_people(self.settings, file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab)
 		eel.update_selection_output_area("<br />".join(msg))
 		self.update_run_button()
 
@@ -183,6 +188,16 @@ def update_respondents_tab_name(respondents_tab_name):
 @eel.expose
 def reload_respondents_tab():
 	csv_files.update_respondents_tab_name('')
+
+###Next two exposures added by Nick
+@eel.expose
+def update_categories_tab_name(categories_tab_name):
+	csv_files.update_categories_tab_name(categories_tab_name)
+
+@eel.expose
+def reload_categories_tab():
+	csv_files.update_categories_tab_name('')
+
 
 ###Next two exposures added by Nick
 @eel.expose

@@ -443,13 +443,13 @@ class PeopleAndCatsCSV(PeopleAndCats):
     def get_remaining_file(self):
         return self.remaining_file
 
-    def load_cats(self, file_contents, settings: Settings):
+    def load_cats(self, file_contents, dummy_category_tab, settings: Settings):
         self.category_content_loaded = True
         category_file = StringIO(file_contents)
         category_reader = csv.DictReader(category_file)
         return self._read_in_cats(list(category_reader.fieldnames), category_reader)
 
-    def load_people(self, settings: Settings, file_contents='', dummy_respondents_tab='', dummy_gen_rem=''):
+    def load_people(self, settings: Settings, file_contents='', dummy_respondents_tab='', dummy_category_tab='', dummy_gen_rem=''):
         if file_contents != '':
             self.people_content_loaded = True
         people_file = StringIO(file_contents)
@@ -479,7 +479,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
     scope = None
     creds = None
     client = None
-    category_tab_name = "Categories"
+ #   category_tab_name = "Categories"
  #   respondents_tab_name = "Respondents"##Nick is taking this out
     original_selected_tab_name = "Original Selected - output - "
     selected_tab_name = "Selected"
@@ -493,6 +493,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
         super(PeopleAndCatsGoogleSheet, self).__init__()
         self.g_sheet_name = ''
         self.respondents_tab_name = ''
+        self.category_tab_name = ''
         self.gen_rem_tab='' 
         self.spreadsheet = None
 
@@ -525,9 +526,10 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                                                            cols=self.new_tab_default_size_cols)
         return tab_ready
 
-    def load_cats(self, g_sheet_name, settings: Settings):
+    def load_cats(self, g_sheet_name, category_tab_name, settings: Settings):
         self.category_content_loaded = True
         self.g_sheet_name = g_sheet_name
+        self.category_tab_name = category_tab_name
 
         json_file_name = settings.json_file_path
         min_val = 0
@@ -555,10 +557,11 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
             self.category_content_loaded = False
         return msg, min_val, max_val
 
-##Added respondents_tab_name and gen_rem_tab as an argument
-    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, gen_rem_tab):
+##Added respondents_tab_name, category_tab_name and gen_rem_tab as an argument
+    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, category_tab_name, gen_rem_tab):
         self.people_content_loaded = True
         self.respondents_tab_name = respondents_tab_name ##Added for respondents tab text box.
+        self.category_tab_name = category_tab_name ##Added for category tab text box.
         self.gen_rem_tab = gen_rem_tab ##Added for checkbox
         try:
             if self._tab_exists(self.respondents_tab_name):

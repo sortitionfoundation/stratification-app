@@ -31,13 +31,6 @@
   border: 3px solid #f62;
 }
 
-.card-body {
-  padding: 0 18px;
-  background-color: LightYellow;
-  overflow: hidden;
-  border: 3px solid #f62;
-}
-
 .input-container {
   padding: 0 18px;
   background-color: LightBlue;
@@ -72,21 +65,10 @@
 <!-- HTML body now follows-->
 <body>
 <div id="input-elements" class="container">
-	<img src="logo_sortition-foundation_alt.svg" style="float: right; height:50px"><h1>Sortition Foundation - Stratification & Selection</h1>
-	<p></p>
-	<div id="accordion">
-  <div class="card">
-    <div class="card-header" id="headingOne">
-      <h2 class="mb-0">
-        <button class="btn btn-link" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-          <h2>Option A: CSV file input and output</h2>
-        </button>
-      </h2>
-    </div>
-
-    <div id="collapseOne" class="collapse" aria-labelledby="headingOne" data-parent="#accordion">
-      <div class="card-body">
-		<p>
+	<img src="logo_sortition-foundation_alt.svg" style="float: right; height:70px"><h1>Sortition Foundation - Stratification & Selection</h1>
+			
+	<button class="accordion"><h2>Option A: CSV file input and output</h2></button>
+		<div class="panel"><p>
 			<div class="form-group">
 				<label for="categories-file">Step 1: Select a CSV file with category information</label>
 				<input type="file" class="form-control" id="categories-file">
@@ -100,22 +82,11 @@
 				<a href="#" role='button' id='download-selected-btn' class='btn btn-primary btn-lg disabled'>Download Selected</a>
 				<a href="#" role='button' id='download-remaining-btn' class='btn btn-primary btn-lg disabled'>Download Remaining</a>
 			</div>
-		</p>
-      </div>
-    </div>
-  </div>
-  <p></p>
-  <div class="card">
-    <div class="card-header" id="headingTwo">
-      <h5 class="mb-0">
-        <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-<h2>Option B: Google Sheet input and output</h2
-        </button>
-      </h5>
-    </div>
-    <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordion">
-      <div class="card-body">
-<p>
+		</p></div>
+		
+	<p></p>
+	<button class="accordion"><h2>Option B: Google Sheet input and output</h2></button>
+		<div class="panel"><p>
 			<div class="form-group">
 				<label for="categories-g-sheet">Google spreadsheet name:</label>
 				<input type="text" id="categories-g-sheet" name="categories-g-sheet" min="0" size="20" maxlength=100>
@@ -155,14 +126,7 @@
 			</div>
 
 			
-		</p>
-      </div>
-    </div>
-  </div>
- </div>		
-
-		
-
+		</p></div>
 		
 <p></p>
 <div id="input-elements" class="input-container">
@@ -204,9 +168,31 @@
 				</div>
 			</div>
 		</div>
-<p></p>		
+		
 <!-- Javascript now follows-->		
-				
+				<script>
+var acc = document.getElementsByClassName("accordion");
+var i;
+
+for (i = 0; i < acc.length; i++) {
+  acc[i].addEventListener("click", function() {
+    for (let j = 0; j < acc.length; j++) {
+    acc[j].classList.remove("active");
+      if(j!=i){
+        acc[j].nextElementSibling.style.display = "none";
+      }
+    }
+    this.classList.toggle("active");
+    var panel = this.nextElementSibling;
+    if (panel.style.display === "none") {
+      panel.style.display = "block";
+    } else {
+      panel.style.display = "none";
+    }
+
+  });
+}
+</script>
 		
 		<!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
 		<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
