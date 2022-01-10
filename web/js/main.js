@@ -1,7 +1,6 @@
 $(function(){
 
 
-//Nick has added 4 lines to do with the respondents tab and generate remaining tab.
     function init_page() {
         const categories_file_input = document.getElementById("categories-file");
         categories_file_input.addEventListener("click", clear_file_value, false);
@@ -9,7 +8,9 @@ $(function(){
         const categories_g_sheet_name_input = document.getElementById("categories-g-sheet");
         categories_g_sheet_name_input.addEventListener("input", handle_g_sheet_name, false);
         const categories_respondents_tab_name_input = document.getElementById("categories-respondents-tab");//for respondents tab
-        categories_respondents_tab_name_input.addEventListener("input", handle_respondents_tab_name, false);//for respondents tab
+        categories_respondents_tab_name_input.addEventListener("input", handle_respondents_tab_name, false);//for categories tab
+        const categories_tab_name_input = document.getElementById("categories-tab");//for categories tab
+        categories_tab_name_input.addEventListener("input", handle_categories_tab_name, false);//for categories tab
         const gen_rem_tab_input = document.getElementById("gen-rem-tab");//for generate remaining tab checkbox
         gen_rem_tab_input.addEventListener('change', handle_gen_rem_tab, false);// for generate remaining tab checkbox
         const load_g_sheet_btn = document.getElementById('load-g-sheet-btn');
@@ -65,6 +66,12 @@ $(function(){
     function handle_respondents_tab_name() {
     	eel.update_respondents_tab_name(this.value);
     }
+
+//Nick has added this function
+    function handle_categories_tab_name() {
+    	eel.update_categories_tab_name(this.value);
+    }
+
 
 //Nick has added this function
     function handle_gen_rem_tab() {
