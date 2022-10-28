@@ -192,24 +192,28 @@ class PeopleAndCats():
         return None
 
     # read in categories - a dict of dicts of dicts...
-    def _read_in_cats( self, cat_head, cat_body ):
+    def _read_in_cats( self, cat_head, cat_body):
         self.original_categories = {}
+        msg = []
+        min_val=0
+        max_val=0
         # to keep track of number in cats - number people selected MUST be between these limits in every cat...
         self.min_max_people = {}
         # check that the fieldnames are (at least) what we expect, and only once!
-        for fn in PeopleAndCats.category_file_field_names:
+        try:
+          for fn in PeopleAndCats.category_file_field_names:
             cat_head_fn_count = cat_head.count(fn)
             if cat_head_fn_count == 0:
                 raise Exception(
-                    "Did not find required column name '{}' in the input (found only {}) ".format(fn, cat_head)
+                    "Did not find required column name '{}' in the input ".format(fn)
                 )
             elif cat_head_fn_count > 1:
                 raise Exception(
-                    "Found MORE THAN 1 column named '{}' in the input (found {}) ".format(fn, cat_head)
+                    "Found MORE THAN 1 column named '{}' in the input (found {}) ".format(fn, cat_head_fn_count)
                 )
-        for row in cat_body:
+          for row in cat_body:
             # allow for some dirty data - at least strip white space from cat and name
-            # but only if they are strings! (sometimes people use ints as cat names and then strip produces as exception...)
+            # but only if they are strings! (sometimes people use ints as cat names and then strip produces an exception...)
             cat = row["category"]
             # and skip over any blank lines...
             if cat == '':
@@ -232,7 +236,7 @@ class PeopleAndCats():
                 self.min_max_people[cat]["max"] += cat_max
                 self.original_categories[cat].update(
                     {
-                        cat_value: {
+                        str(cat_value): {
                             "min": cat_min,
                             "max": cat_max,
                             "selected": 0,
@@ -252,7 +256,7 @@ class PeopleAndCats():
                 self.original_categories.update(
                     {
                         cat: {
-                            cat_value: {
+                            str(cat_value): {###forcing this to be a string
                                 "min": cat_min,
                                 "max": cat_max,
                                 "selected": 0,
@@ -262,19 +266,23 @@ class PeopleAndCats():
                     }
                 )
 
-        msg = [ "Number of categories: {}".format(len(self.original_categories.keys())) ]
+          msg += [ "Number of categories: {}".format(len(self.original_categories.keys())) ]
 
-        # work out what the min and max number of people should be,
-        # given these cats
-        max_values = [v['max'] for v in self.min_max_people.values()]
-        max_val = min(max_values)
-        min_values = [v['min'] for v in self.min_max_people.values()]
-        min_val = max(min_values)
-        # if the min is bigger than the max we're in trouble i.e. there's an input error
-        if min_val > max_val:
+          # work out what the min and max number of people should be,
+          # given these cats
+          max_values = [v['max'] for v in self.min_max_people.values()]
+          max_val = min(max_values)
+          min_values = [v['min'] for v in self.min_max_people.values()]
+          min_val = max(min_values)
+          print(self.min_max_people)
+          print(self.original_categories)
+          # if the min is bigger than the max we're in trouble i.e. there's an input error
+          if min_val > max_val:
             raise Exception(
                 "Inconsistent numbers in min and max in the categories input: the sum of the minimum values of a category is larger than the sum of the maximum values of a(nother) category. "
             )
+        except Exception as error:
+            msg += [ "Error loading categories: {}".format(error) ]
         return msg, min_val, max_val
 
     # read in people and calculate how many people in each category in database
@@ -340,6 +348,8 @@ class PeopleAndCats():
                     # allow for some unclean data - at least strip empty space, but only if a str!
                     # (some values will can be numbers)
                     p_value = row[cat_key]
+                    for x in cats:
+                      print(x, isinstance(x, str))
                     if isinstance(row[cat_key], str):
                         p_value = p_value.strip()
                     if p_value not in cats:
@@ -443,7 +453,7 @@ class PeopleAndCatsCSV(PeopleAndCats):
     def get_remaining_file(self):
         return self.remaining_file
 
-    def load_cats(self, file_contents, dummy_category_tab='', settings: Settings):
+    def load_cats(self, file_contents, dummy_category_tab, settings: Settings):
         self.category_content_loaded = True
         category_file = StringIO(file_contents)
         category_reader = csv.DictReader(category_file)

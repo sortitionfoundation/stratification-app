@@ -113,7 +113,7 @@
         </button>
       </h5>
     </div>
-    <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordion">
+    <div id="collapseTwo" class="collapse show" aria-labelledby="headingTwo" data-parent="#accordion">
       <div class="card-body">
 <p>
 			<div class="form-group">
@@ -204,7 +204,7 @@
 				</div>
 			</div>
 		</div>
-		
+<p></p>		
 <!-- Javascript now follows-->		
 				
 		
