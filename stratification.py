@@ -135,8 +135,11 @@ class Settings:
         with open(settings_file_path, "r", encoding='utf-8') as settings_file:
             settings = toml.load(settings_file)
         # you can't check an address if there is no info about which columns to check...
+        if settings['check_same_address'] == False:
+        	message += "<b>WARNING</b>: Settings file is such that we do NOT check if respondents have same address."
+        	settings['check_same_address_columns'] = []
         if len(settings['check_same_address_columns']) == 0 and settings['check_same_address'] == True:
-        	message += "\nWARNING: in sf_stratification_settings.toml file check_same_address is TRUE but there are no columns listed to check! FIX THIS and RESTART this program!"
+        	message += "\n<b>ERROR</b>: in sf_stratification_settings.toml file check_same_address is TRUE but there are no columns listed to check! FIX THIS and RESTART this program!"
         settings['json_file_path'] = Path.home() / "secret_do_not_commit.json"
         return cls(
             settings['id_column'],
@@ -416,22 +419,25 @@ class PeopleAndCats():
             if settings.check_same_address:
                 people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, settings.check_same_address_columns)
                 output_lines += new_output_lines
-                num_same_address_deleted += len(new_output_lines) - 1  # don't include original
+                num_same_address_deleted += len(new_output_lines) # don't include original
                 # then delete this/these people at the same address from the reserve/remaining pool
                 for del_person_key in people_to_delete:
                     del people_working[del_person_key]
             else:
                 del people_working[pkey]
 
-        # add the columns to keep into to remaining people
+        # add the columns to keep into remaining people
         for pkey, person in people_working.items():
             row = [pkey]
             for col in settings.columns_to_keep:
                 row.append(columns_data[pkey][col])
             row += person.values()
             people_remaining_rows += [ row ]
-        output_lines = ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
-        self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
+        dupes = self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
+        if settings.check_same_address and self.gen_rem_tab=='on':
+            output_lines += ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
+            m = min(30, len(dupes))
+            output_lines += ["In the remaining tab there are {} people who share the same address as someone else in the tab. We highlighted the first {} of these. The full list of lines is {}".format(len(dupes), m, dupes)]
         return output_lines
 
 
@@ -591,9 +597,38 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 
         tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
         tab_original_selected.update(people_selected_rows)
+        dupes2=[]
         if self.gen_rem_tab=='on':
             tab_remaining = self._clear_or_create_tab(self.remaining_tab_name, self.original_selected_tab_name,-1)
             tab_remaining.update(people_remaining_rows)
+            tab_remaining.format("A1:U1", { "backgroundColor": {"red": 0.0, "green": 0.0, "blue": 7 }})
+        tab_original_selected.format("A1:U1", { "backgroundColor": {"red": 0.0, "green": 0.0, "blue": 7 }})
+        ### highlight any people in remaining tab at the same address
+        if settings.check_same_address and self.gen_rem_tab=='on':        
+            csa1 = settings.check_same_address_columns[0]
+            col1 = tab_remaining.find(csa1).col
+            csa2 = settings.check_same_address_columns[1]
+            col2=tab_remaining.find(csa2).col
+            dupes = []
+            n = len(people_remaining_rows)
+            for i in range(n):
+                rowrem1 = people_remaining_rows[i]
+                for j in range(i+1,n):
+                    rowrem2 = people_remaining_rows[j]
+                    if rowrem1 != rowrem2 and rowrem1[col1-1]==rowrem2[col1-1] and rowrem1[col2-1]==rowrem2[col2-1]:
+                        #cell = i#tab_remaining.find(rowrem1[0])
+                        dupes.append(i+1)
+                        dupes.append(j+1)
+            dupes4=[]
+            [dupes4.append(x) for x in dupes if x not in dupes4]
+            dupes2=sorted(dupes4)
+            dupes3 = []
+            m = min(30, len(dupes2))
+            for i in range(m):
+                dupes3.append(dupes2[i])
+            for row in dupes3:           
+                tab_remaining.format(str(row), { "backgroundColor": {"red": 5, "green": 2.5, "blue": 0 }})
+        return dupes2
 
 
 ###################################
@@ -677,11 +712,12 @@ def get_people_at_same_address(people, pkey, columns_data, check_same_address_co
                 and primary_zip == columns_data[compare_key][check_same_address_columns[1]]
         ):
             # found same address
-            output_lines += [
-                "Found someone with the same address as a selected person,"
-                " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
-            ]
-            people_to_delete.append(compare_key)
+                if people_to_delete != []:          
+                    output_lines += [
+                    "Found someone with the same address as a selected person,"
+                    " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
+                ]
+                people_to_delete.append(compare_key)
     return people_to_delete, output_lines
 
 
