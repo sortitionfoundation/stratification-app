@@ -135,8 +135,11 @@ class Settings:
         with open(settings_file_path, "r", encoding='utf-8') as settings_file:
             settings = toml.load(settings_file)
         # you can't check an address if there is no info about which columns to check...
+        if settings['check_same_address'] == False:
+        	message += "<b>WARNING</b>: Settings file is such that we do NOT check if respondents have same address."
+        	settings['check_same_address_columns'] = []
         if len(settings['check_same_address_columns']) == 0 and settings['check_same_address'] == True:
-        	message += "\nWARNING: in sf_stratification_settings.toml file check_same_address is TRUE but there are no columns listed to check! FIX THIS and RESTART this program!"
+        	message += "\n<b>ERROR</b>: in sf_stratification_settings.toml file check_same_address is TRUE but there are no columns listed to check! FIX THIS and RESTART this program!"
         settings['json_file_path'] = Path.home() / "secret_do_not_commit.json"
         return cls(
             settings['id_column'],
@@ -192,24 +195,28 @@ class PeopleAndCats():
         return None
 
     # read in categories - a dict of dicts of dicts...
-    def _read_in_cats( self, cat_head, cat_body ):
+    def _read_in_cats( self, cat_head, cat_body):
         self.original_categories = {}
+        msg = []
+        min_val=0
+        max_val=0
         # to keep track of number in cats - number people selected MUST be between these limits in every cat...
         self.min_max_people = {}
         # check that the fieldnames are (at least) what we expect, and only once!
-        for fn in PeopleAndCats.category_file_field_names:
+        try:
+          for fn in PeopleAndCats.category_file_field_names:
             cat_head_fn_count = cat_head.count(fn)
             if cat_head_fn_count == 0:
                 raise Exception(
-                    "Did not find required column name '{}' in the input (found only {}) ".format(fn, cat_head)
+                    "Did not find required column name '{}' in the input ".format(fn)
                 )
             elif cat_head_fn_count > 1:
                 raise Exception(
-                    "Found MORE THAN 1 column named '{}' in the input (found {}) ".format(fn, cat_head)
+                    "Found MORE THAN 1 column named '{}' in the input (found {}) ".format(fn, cat_head_fn_count)
                 )
-        for row in cat_body:
+          for row in cat_body:
             # allow for some dirty data - at least strip white space from cat and name
-            # but only if they are strings! (sometimes people use ints as cat names and then strip produces as exception...)
+            # but only if they are strings! (sometimes people use ints as cat names and then strip produces an exception...)
             cat = row["category"]
             # and skip over any blank lines...
             if cat == '':
@@ -232,7 +239,7 @@ class PeopleAndCats():
                 self.min_max_people[cat]["max"] += cat_max
                 self.original_categories[cat].update(
                     {
-                        cat_value: {
+                        str(cat_value): {###forcing this to be a string
                             "min": cat_min,
                             "max": cat_max,
                             "selected": 0,
@@ -252,7 +259,7 @@ class PeopleAndCats():
                 self.original_categories.update(
                     {
                         cat: {
-                            cat_value: {
+                            str(cat_value): {###forcing this to be a string
                                 "min": cat_min,
                                 "max": cat_max,
                                 "selected": 0,
@@ -262,19 +269,21 @@ class PeopleAndCats():
                     }
                 )
 
-        msg = [ "Number of categories: {}".format(len(self.original_categories.keys())) ]
+          msg += [ "Number of categories: {}".format(len(self.original_categories.keys())) ]
 
-        # work out what the min and max number of people should be,
-        # given these cats
-        max_values = [v['max'] for v in self.min_max_people.values()]
-        max_val = min(max_values)
-        min_values = [v['min'] for v in self.min_max_people.values()]
-        min_val = max(min_values)
-        # if the min is bigger than the max we're in trouble i.e. there's an input error
-        if min_val > max_val:
+          # work out what the min and max number of people should be,
+          # given these cats
+          max_values = [v['max'] for v in self.min_max_people.values()]
+          max_val = min(max_values)
+          min_values = [v['min'] for v in self.min_max_people.values()]
+          min_val = max(min_values)
+          # if the min is bigger than the max we're in trouble i.e. there's an input error
+          if min_val > max_val:
             raise Exception(
                 "Inconsistent numbers in min and max in the categories input: the sum of the minimum values of a category is larger than the sum of the maximum values of a(nother) category. "
             )
+        except Exception as error:
+            msg += [ "Error loading categories: {}".format(error) ]
         return msg, min_val, max_val
 
     # read in people and calculate how many people in each category in database
@@ -410,22 +419,25 @@ class PeopleAndCats():
             if settings.check_same_address:
                 people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, settings.check_same_address_columns)
                 output_lines += new_output_lines
-                num_same_address_deleted += len(new_output_lines) - 1  # don't include original
+                num_same_address_deleted += len(new_output_lines) # don't include original
                 # then delete this/these people at the same address from the reserve/remaining pool
                 for del_person_key in people_to_delete:
                     del people_working[del_person_key]
             else:
                 del people_working[pkey]
 
-        # add the columns to keep into to remaining people
+        # add the columns to keep into remaining people
         for pkey, person in people_working.items():
             row = [pkey]
             for col in settings.columns_to_keep:
                 row.append(columns_data[pkey][col])
             row += person.values()
             people_remaining_rows += [ row ]
-        output_lines = ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
-        self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
+        dupes = self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
+        if settings.check_same_address and self.gen_rem_tab=='on':
+            output_lines += ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
+            m = min(30, len(dupes))
+            output_lines += ["In the remaining tab there are {} people who share the same address as someone else in the tab. We highlighted the first {} of these. The full list of lines is {}".format(len(dupes), m, dupes)]
         return output_lines
 
 
@@ -585,9 +597,38 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 
         tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
         tab_original_selected.update(people_selected_rows)
+        dupes2=[]
         if self.gen_rem_tab=='on':
             tab_remaining = self._clear_or_create_tab(self.remaining_tab_name, self.original_selected_tab_name,-1)
             tab_remaining.update(people_remaining_rows)
+            tab_remaining.format("A1:U1", { "backgroundColor": {"red": 0.0, "green": 0.0, "blue": 7 }})
+        tab_original_selected.format("A1:U1", { "backgroundColor": {"red": 0.0, "green": 0.0, "blue": 7 }})
+        ### highlight any people in remaining tab at the same address
+        if settings.check_same_address and self.gen_rem_tab=='on':        
+            csa1 = settings.check_same_address_columns[0]
+            col1 = tab_remaining.find(csa1).col
+            csa2 = settings.check_same_address_columns[1]
+            col2=tab_remaining.find(csa2).col
+            dupes = []
+            n = len(people_remaining_rows)
+            for i in range(n):
+                rowrem1 = people_remaining_rows[i]
+                for j in range(i+1,n):
+                    rowrem2 = people_remaining_rows[j]
+                    if rowrem1 != rowrem2 and rowrem1[col1-1]==rowrem2[col1-1] and rowrem1[col2-1]==rowrem2[col2-1]:
+                        #cell = i#tab_remaining.find(rowrem1[0])
+                        dupes.append(i+1)
+                        dupes.append(j+1)
+            dupes4=[]
+            [dupes4.append(x) for x in dupes if x not in dupes4]
+            dupes2=sorted(dupes4)
+            dupes3 = []
+            m = min(30, len(dupes2))
+            for i in range(m):
+                dupes3.append(dupes2[i])
+            for row in dupes3:           
+                tab_remaining.format(str(row), { "backgroundColor": {"red": 5, "green": 2.5, "blue": 0 }})
+        return dupes2
 
 
 ###################################
@@ -671,11 +712,12 @@ def get_people_at_same_address(people, pkey, columns_data, check_same_address_co
                 and primary_zip == columns_data[compare_key][check_same_address_columns[1]]
         ):
             # found same address
-            output_lines += [
-                "Found someone with the same address as a selected person,"
-                " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
-            ]
-            people_to_delete.append(compare_key)
+                if people_to_delete != []:          
+                    output_lines += [
+                    "Found someone with the same address as a selected person,"
+                    " so deleting him/her. Address: {} , {}".format(primary_address1, primary_zip)
+                ]
+                people_to_delete.append(compare_key)
     return people_to_delete, output_lines
 
 
