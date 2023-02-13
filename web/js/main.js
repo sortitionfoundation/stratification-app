@@ -13,6 +13,8 @@ $(function(){
         categories_tab_name_input.addEventListener("input", handle_categories_tab_name, false);//for categories tab
         const gen_rem_tab_input = document.getElementById("gen-rem-tab");//for generate remaining tab checkbox
         gen_rem_tab_input.addEventListener('change', handle_gen_rem_tab, false);// for generate remaining tab checkbox
+        const number_selections_input = document.getElementById("number-selections");//for categories tab
+        number_selections_input.addEventListener("input", handle_number_selections, false);//for categories tab
         const load_g_sheet_btn = document.getElementById('load-g-sheet-btn');
         load_g_sheet_btn.addEventListener('click', handle_load_g_sheet_btn, false);
         const selection_file_input = document.getElementById("selection-file");
@@ -61,19 +63,19 @@ $(function(){
     function handle_g_sheet_name() {
     	eel.update_g_sheet_name(this.value);
     }
-   
-//Nick has added this function
+
+////////////////////////////////////////   
+//Some functions for Advanced settings//
+////////////////////////////////////////
+
     function handle_respondents_tab_name() {
     	eel.update_respondents_tab_name(this.value);
     }
 
-//Nick has added this function
     function handle_categories_tab_name() {
     	eel.update_categories_tab_name(this.value);
     }
 
-
-//Nick has added this function
     function handle_gen_rem_tab() {
     	if (this.checked == true) {
     		eel.update_gen_rem_tab(this.value);
@@ -81,6 +83,13 @@ $(function(){
     		eel.update_gen_rem_tab("off");
     	}
     }
+
+    function handle_number_selections() {
+    	eel.update_number_selections(this.value);
+    }
+//////////////////////////////////////////   
+//End of functions for Advanced settings//
+//////////////////////////////////////////
 
 
    
