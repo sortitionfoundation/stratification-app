@@ -570,11 +570,12 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
         return msg, min_val, max_val
 
 ##Added respondents_tab_name, category_tab_name and gen_rem_tab as an argument
-    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, category_tab_name, gen_rem_tab):
+    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, category_tab_name, gen_rem_tab, number_selections):
         self.people_content_loaded = True
         self.respondents_tab_name = respondents_tab_name ##Added for respondents tab text box.
         self.category_tab_name = category_tab_name ##Added for category tab text box.
-        self.gen_rem_tab = gen_rem_tab ##Added for checkbox
+        self.gen_rem_tab = gen_rem_tab ##Added for checkbox.
+        self.number_selections = int(number_selections) ##Added for multiple selections.
         try:
             if self._tab_exists(self.respondents_tab_name):
                 tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
@@ -587,6 +588,9 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
             else:
                 msg = ["Error in Google sheet: no tab called '{}' found. ".format(self.respondents_tab_name)]
                 self.people_content_loaded = False
+            if self.number_selections > 1:
+            	 ns = str(self.number_selections)
+            	 msg += ["<b>WARNING</b>: You've asked for {} selections! This is not yet enabled. When it is, programme will only print IDs. Note too that you cannot use the <i>Produce a Test Selection</i> button if you want more than 1 selection.".format(ns)]
         except gspread.SpreadsheetNotFound:
             msg += ["Google spreadsheet not found: {}. ".format(self.g_sheet_name)]
             self.people_content_loaded = False
@@ -595,39 +599,45 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 ## The if statement is new.
     def _output_selected_remaining(self, settings: Settings, people_selected_rows, people_remaining_rows):
 
-        tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
-        tab_original_selected.update(people_selected_rows)
-        dupes2=[]
-        if self.gen_rem_tab=='on':
-            tab_remaining = self._clear_or_create_tab(self.remaining_tab_name, self.original_selected_tab_name,-1)
-            tab_remaining.update(people_remaining_rows)
-            tab_remaining.format("A1:U1", { "backgroundColor": {"red": 0.0, "green": 0.0, "blue": 7 }})
-        tab_original_selected.format("A1:U1", { "backgroundColor": {"red": 0.0, "green": 0.0, "blue": 7 }})
+        if self.number_selections == 1:
+            tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
+            tab_original_selected.update(people_selected_rows)
+            dupes2=[]
+            if self.gen_rem_tab=='on':
+                tab_remaining = self._clear_or_create_tab(self.remaining_tab_name, self.original_selected_tab_name,-1)
+                tab_remaining.update(people_remaining_rows)
+                tab_remaining.format("A1:U1", { "backgroundColor": {"red": 153/255, "green": 204/255, "blue": 255/255 }})
+            tab_original_selected.format("A1:U1", { "backgroundColor": {"red": 153/255, "green": 204/255, "blue": 255/255 }})
         ### highlight any people in remaining tab at the same address
-        if settings.check_same_address and self.gen_rem_tab=='on':        
-            csa1 = settings.check_same_address_columns[0]
-            col1 = tab_remaining.find(csa1).col
-            csa2 = settings.check_same_address_columns[1]
-            col2=tab_remaining.find(csa2).col
-            dupes = []
-            n = len(people_remaining_rows)
-            for i in range(n):
-                rowrem1 = people_remaining_rows[i]
-                for j in range(i+1,n):
-                    rowrem2 = people_remaining_rows[j]
-                    if rowrem1 != rowrem2 and rowrem1[col1-1]==rowrem2[col1-1] and rowrem1[col2-1]==rowrem2[col2-1]:
-                        #cell = i#tab_remaining.find(rowrem1[0])
-                        dupes.append(i+1)
-                        dupes.append(j+1)
-            dupes4=[]
-            [dupes4.append(x) for x in dupes if x not in dupes4]
-            dupes2=sorted(dupes4)
-            dupes3 = []
-            m = min(30, len(dupes2))
-            for i in range(m):
-                dupes3.append(dupes2[i])
-            for row in dupes3:           
-                tab_remaining.format(str(row), { "backgroundColor": {"red": 5, "green": 2.5, "blue": 0 }})
+            if settings.check_same_address and self.gen_rem_tab=='on':        
+                csa1 = settings.check_same_address_columns[0]
+                col1 = tab_remaining.find(csa1).col
+                csa2 = settings.check_same_address_columns[1]
+                col2=tab_remaining.find(csa2).col
+                dupes = []
+                n = len(people_remaining_rows)
+                for i in range(n):
+                    rowrem1 = people_remaining_rows[i]
+                    for j in range(i+1,n):
+                        rowrem2 = people_remaining_rows[j]
+                        if rowrem1 != rowrem2 and rowrem1[col1-1]==rowrem2[col1-1] and rowrem1[col2-1]==rowrem2[col2-1]:
+                            #cell = i#tab_remaining.find(rowrem1[0])
+                            dupes.append(i+1)
+                            dupes.append(j+1)
+                dupes4=[]
+                [dupes4.append(x) for x in dupes if x not in dupes4]
+                dupes2=sorted(dupes4)
+                dupes3 = []
+                m = min(30, len(dupes2))
+                for i in range(m):
+                    dupes3.append(dupes2[i])
+                for row in dupes3:           
+                    tab_remaining.format(str(row), { "backgroundColor": {"red": 5, "green": 2.5, "blue": 0 }})
+        else:
+            dupes2=[]
+            tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
+            dummy=[["This needs to be written!"]]
+            tab_original_selected.update(dummy)
         return dupes2
 
 

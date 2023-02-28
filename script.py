@@ -19,9 +19,10 @@ class FileContents():
 		self.PeopleAndCats = None
 		self._settings = None
 		self.g_sheet_name = ''
-		self.respondents_tab_name = 'Respondents' ###Nick has added an instance attribute
-		self.category_tab_name = 'Categories' ###Nick has added an instance attribute
-		self.gen_rem_tab = 'on' ###Nick has added an instance attribute
+		self.respondents_tab_name = 'Respondents' ###Instance attribute for Advanced Settings
+		self.category_tab_name = 'Categories' ###Instance attribute for Advanced Settings
+		self.gen_rem_tab = 'on' ###Instance attribute for Advanced Settings
+		self.number_selections='1' ###Instance attribute for Advanced Settings
 
 	@property
 	def settings(self):
@@ -32,27 +33,32 @@ class FileContents():
 		"""
 		Call from lots of places to report the error early
 		"""
+		message = ""
 		if self._settings is None:
 			self._settings, message = Settings.load_from_file()
-			if message:
-				eel.alert_user(message, False)
+		return message	
 
 	def _add_category_content(self, input_content):
 		min_selection = 0
 		max_selection = 0
 		msg = []
 		try:
-			self._init_settings()
+			message = self._init_settings()
+			if message != "":
+				msg += [ message ]
 		except Exception as error:
 			self.PeopleAndCats.category_content_loaded = False
 			msg += [ "Error reading in settings file: {}".format(error) ]
 		try:
-			msg, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self.category_tab_name, self._settings )
+			msg2, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self.category_tab_name, self._settings )
+			msg += msg2
 		except gspread.exceptions.APIError:
-			msg = [ "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." ]
+			msg3 = [ "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." ]
+			msg += msg3
 		except Exception as error:
 			self.PeopleAndCats.category_content_loaded = False
 			msg += [ "Error reading in categories file: {}".format(error) ]
+			print(msg)
 		eel.update_categories_output_area("<br />".join(msg))
 		self.update_selection_content()
 		eel.update_selection_range(min_selection, max_selection)
@@ -99,14 +105,15 @@ class FileContents():
 				self.PeopleAndCats = PeopleAndCatsGoogleSheet()
 				self._add_category_content( self.g_sheet_name )
 				dummy_file_contents=''
-				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab)
+				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab, self.number_selections)
 				eel.update_selection_output_area("<br />".join(msg))
 				self.update_run_button()
 				eel.enable_load_g_sheet_btn()
 			except Exception as error:
 				eel.update_categories_output_area( "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." )
-			
-	###The next functions read in extra instance variables	
+	###############################################################################		
+	###The next functions read in extra instance variables for advanced settings###	
+	###############################################################################
 	def update_respondents_tab_name(self, respondents_tab_name_input):
 		self._clear_messages()
 		self.respondents_tab_name = respondents_tab_name_input
@@ -115,11 +122,16 @@ class FileContents():
 		self._clear_messages()
 		self.category_tab_name = categories_tab_name_input
 
-
 	def update_gen_rem_tab(self, gen_rem_tab_input):
 		self.gen_rem_tab = gen_rem_tab_input
-			
-	# 'selection' means people...
+
+	def update_number_selections(self, number_selections_input):
+		self._clear_messages()
+		self.number_selections = number_selections_input
+	########################################
+	###End of Advanced Settings variables###
+	########################################
+	### From here 'selection' means people...
 	def add_selection_content(self, file_contents):
 		self._init_settings()
 		# this calls update internally
@@ -180,7 +192,9 @@ def update_g_sheet_name(g_sheet_name):
 def load_g_sheet():
 	csv_files.load_g_sheet()
 
-###Next two exposures added by Nick
+#############################
+###Start Advanced Settings###
+#############################
 @eel.expose
 def update_respondents_tab_name(respondents_tab_name):
 	csv_files.update_respondents_tab_name(respondents_tab_name)
@@ -189,7 +203,6 @@ def update_respondents_tab_name(respondents_tab_name):
 def reload_respondents_tab():
 	csv_files.update_respondents_tab_name('')
 
-###Next two exposures added by Nick
 @eel.expose
 def update_categories_tab_name(categories_tab_name):
 	csv_files.update_categories_tab_name(categories_tab_name)
@@ -198,8 +211,6 @@ def update_categories_tab_name(categories_tab_name):
 def reload_categories_tab():
 	csv_files.update_categories_tab_name('')
 
-
-###Next two exposures added by Nick
 @eel.expose
 def update_gen_rem_tab(gen_rem_tab):
 	csv_files.update_gen_rem_tab(gen_rem_tab)
@@ -208,6 +219,17 @@ def update_gen_rem_tab(gen_rem_tab):
 def reload_gen_rem_tab():
 	csv_files.update_gen_rem_tab('')
 
+@eel.expose
+def update_number_selections(number_selections):
+	csv_files.update_number_selections(number_selections)
+
+@eel.expose
+def reload_number_selections():
+	csv_files.update_number_selections('')
+
+###########################
+###End Advanced Settings###
+###########################
 
 @eel.expose
 def update_number_people(number_people):
