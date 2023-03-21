@@ -948,7 +948,8 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     """Main algorithm to try to find a random sample.
 
     Args:
-        categories: categories["feature"]["value"] is a dictionary with keys "min", "max", "selected", "remaining".
+        categories: categories["feature"]["value"] is a dictionary with keys "min", "max", "min_flex", "max_flex",
+            "selected", "remaining".
         people: people["nationbuilder_id"] is dictionary mapping "feature" to "value" for a person.
         columns_data: columns_data["nationbuilder_id"] is dictionary mapping "contact_field" to "value" for a person.
         number_people_wanted:
@@ -967,6 +968,19 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     Side Effects:
         Existing callers assume the "selected" and "remaining" fields in `categories` to be changed.
     """
+    if not all("min_flex" in categories[feature][value] and "max_flex" in categories[feature][value]
+               for feature in categories for value in categories[feature]):
+        raise ValueError("By the time they're fed into `find_random_sample`, the `categories` argument should always "
+                         "contain the new fields 'min_flex' and 'max_flex'. If they're not in the categories file, the "
+                         "code should set default values before calling this function.")
+    for feature in categories:
+        for value in categories[feature]:
+            info = categories[feature][value]
+            if not (info["min_flex"] <= info["min"] <= info["max"] <= info["max_flex"]):
+                raise ValueError(f"For feature ({feature}: {value}), the different quotas have incompatible values. "
+                                 f"It must hold that min_flex ({info['min_flex']}) <= min ({info['min']}) <= max "
+                                 f"({info['max']}) <= max_flex ({info['max_flex']}).")
+
     if check_same_address and len(check_same_address_columns) == 0:
         raise ValueError("Since the algorithm is configured to prevent multiple house members to appear on the same "
                          "panel (check_same_address = true), check_same_address_columns must not be empty.")
@@ -1101,6 +1115,11 @@ class InfeasibleQuotasError(Exception):
         return "\n".join(self.output)
 
 
+class InfeasibleQuotasCantRelaxError(Exception):
+    def __init__(self, message: str):
+        self.message = message
+
+
 def _relax_infeasible_quotas(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                              number_people_wanted: int, check_same_address: bool,
                              households: Optional[Dict[str, int]] = None,
@@ -1130,6 +1149,13 @@ def _relax_infeasible_quotas(categories: Dict[str, Dict[str, Dict[str, int]]], p
     min_vars = {fv: model.add_var(var_type=mip.INTEGER, lb=0.) for fv in feature_values}
     max_vars = {fv: model.add_var(var_type=mip.INTEGER, lb=0.) for fv in feature_values}
 
+    # relaxations cannot drop lower quotas below min_flex or upper quotas beyond max_flex
+    for feature, value in feature_values:
+        model.add_constr(
+            categories[feature][value]["min"] - min_vars[(feature, value)] >= categories[feature][value]["min_flex"])
+        model.add_constr(
+            categories[feature][value]["max"] + max_vars[(feature, value)] <= categories[feature][value]["max_flex"])
+
     # we might not be able to select multiple persons from the same household
     if check_same_address:
         assert households is not None
@@ -1149,7 +1175,7 @@ def _relax_infeasible_quotas(categories: Dict[str, Dict[str, Dict[str, int]]], p
         # we have to select exactly `number_people_wanted` many persons
         model.add_constr(mip.xsum(agent_vars.values()) == number_people_wanted)
 
-        # we have to respect the relaxed quotas quotas
+        # we have to respect the relaxed quotas
         for feature, value in feature_values:
             number_feature_value_agents = mip.xsum(agent_vars[id] for id, person in people.items()
                                                    if person[feature] == value)
@@ -1179,7 +1205,11 @@ def _relax_infeasible_quotas(categories: Dict[str, Dict[str, Dict[str, int]]], p
 
     # Optimize once without any constraints to check if no feasible committees exist at all.
     status = model.optimize()
-    if status != mip.OptimizationStatus.OPTIMAL:
+    if status == mip.OptimizationStatus.INFEASIBLE:
+        raise InfeasibleQuotasCantRelaxError("No feasible committees found, even with relaxing the quotas. Most "
+                                             "likely, quotas would have to be relaxed beyond what the 'min_flex' and "
+                                             "'max_flex' columns allow.")
+    elif status != mip.OptimizationStatus.OPTIMAL:
         raise SelectionError(f"No feasible committees found, solver returns code {status} (see "
                              f"https://docs.python-mip.com/en/latest/classes.html#optimizationstatus). Either the pool "
                              f"is very bad or something is wrong with the solver.")
@@ -1830,6 +1860,9 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                 output_lines += new_output_lines
         except InfeasibleQuotasError as err:
             output_lines += err.output
+            break
+        except InfeasibleQuotasCantRelaxError as err:
+            output_lines.append(err.message)
             break
         except SelectionError as serr:
             output_lines.append("Failed: Selection Error thrown: " + serr.msg)
