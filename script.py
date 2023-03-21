@@ -18,11 +18,12 @@ class FileContents():
 	def __init__(self):
 		self.PeopleAndCats = None
 		self._settings = None
+		# All of these below are only used in the Google Sheet version
 		self.g_sheet_name = ''
-		self.respondents_tab_name = 'Respondents' ###Instance attribute for Advanced Settings
-		self.category_tab_name = 'Categories' ###Instance attribute for Advanced Settings
-		self.gen_rem_tab = 'on' ###Instance attribute for Advanced Settings
-		self.number_selections='1' ###Instance attribute for Advanced Settings
+		self.respondents_tab_name = 'Respondents' # Instance attribute for Advanced Settings
+		self.category_tab_name = 'Categories' # Instance attribute for Advanced Settings
+		self.gen_rem_tab = 'on' # Instance attribute for Advanced Settings
+		self.number_selections = 1 # Instance attribute for Advanced Settings (then later stored in PeopleAndCats)
 
 	@property
 	def settings(self):
@@ -103,9 +104,11 @@ class FileContents():
 			self._clear_messages( "Requesting data from sheet..." )
 			try:
 				self.PeopleAndCats = PeopleAndCatsGoogleSheet()
+				# tell this object what this currently is...
+				self.PeopleAndCats.number_selections = self.number_selections
 				self._add_category_content( self.g_sheet_name )
 				dummy_file_contents=''
-				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab, self.number_selections)
+				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab )
 				eel.update_selection_output_area("<br />".join(msg))
 				self.update_run_button()
 				eel.enable_load_g_sheet_btn()
@@ -124,10 +127,19 @@ class FileContents():
 
 	def update_gen_rem_tab(self, gen_rem_tab_input):
 		self.gen_rem_tab = gen_rem_tab_input
+		# never generate a remaining tab if doing a multiple selection
+		if self.number_selections > 1:
+			self.gen_rem_tab = 'off'
 
 	def update_number_selections(self, number_selections_input):
 		self._clear_messages()
-		self.number_selections = number_selections_input
+		if number_selections_input == '':
+			self.number_selections = 1
+		else:
+			self.number_selections = int(number_selections_input)
+		# never generate a remaining tab if doing a multiple selection
+		if self.number_selections > 1:
+			self.gen_rem_tab = 'off'
 	########################################
 	###End of Advanced Settings variables###
 	########################################

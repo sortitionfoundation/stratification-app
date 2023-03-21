@@ -173,10 +173,11 @@ class SelectionError(Exception):
 
 class PeopleAndCats():
     # Warning: "name" value is hardcoded somewhere below :-)
-    category_file_field_names = ["category", "name", "min", "max"]
+    category_file_field_names = ["category", "name", "min", "max", "min_flex", "max_flex"]
 
     def __init__(self):
         # mins and maxs (from category data) for number of people one can select
+        # min_flex and max_flex are how much we are happy for this to "stretch"...
         self.min_max_people = {}
         self.original_categories = None
         self.categories_after_people = None
@@ -186,6 +187,7 @@ class PeopleAndCats():
         self.columns_data = None
         self.people_selected = None
         self.number_people_to_select = 0
+        self.number_selections = 1 # default to 1 - why not?
         # this, and the two functions below, are the only annoying things needed to distinguish CSV in GUI..
         self.enable_file_download = False
 
@@ -202,11 +204,15 @@ class PeopleAndCats():
         max_val=0
         # to keep track of number in cats - number people selected MUST be between these limits in every cat...
         self.min_max_people = {}
-        # check that the fieldnames are (at least) what we expect, and only once!
+        # check that the fieldnames are (at least) what we expect, and only once,
+        # BUT (for reverse compatibility) let min_flex and max_flex be optional
+        cat_flex = False
         try:
+          if cat_head.count("min_flex") == 1 and cat_head.count("max_flex") == 1:
+              cat_flex = True
           for fn in PeopleAndCats.category_file_field_names:
             cat_head_fn_count = cat_head.count(fn)
-            if cat_head_fn_count == 0:
+            if cat_head_fn_count == 0 and (fn != "min_flex" and fn != "max_flex"):
                 raise Exception(
                     "Did not find required column name '{}' in the input ".format(fn)
                 )
@@ -216,7 +222,7 @@ class PeopleAndCats():
                 )
           for row in cat_body:
             # allow for some dirty data - at least strip white space from cat and name
-            # but only if they are strings! (sometimes people use ints as cat names and then strip produces an exception...)
+            # but only if they are strings! (sometimes people use ints as cat names or values and then strip produces an exception...)
             cat = row["category"]
             # and skip over any blank lines...
             if cat == '':
@@ -234,6 +240,22 @@ class PeopleAndCats():
             # must convert min/max to ints
             cat_min = int(row["min"])
             cat_max = int(row["max"])
+            if cat_flex:
+                if row["min_flex"] == '' or row["max_flex"] == '':
+                    raise Exception(
+                        "ERROR reading in category file: found a blank min_flex or max_flex cell in a category value: {}. ".format(cat_value)
+                    )
+                cat_min_flex = int(row["min_flex"])
+                cat_max_flex = int(row["max_flex"])
+                # if these values exist they must be at least this...
+                if cat_min_flex > cat_min or cat_max_flex < cat_max:
+                    raise Exception(
+                        "Inconsistent numbers in min_flex and max_flex in the categories input for {}: the flex values must be equal or outside the max and min values. ".format(cat_value)
+                    )
+            else:
+                cat_min_flex = 0
+                # since we don't know self.number_people_to_select yet! We correct this below
+                cat_max_flex = -1
             if cat in self.original_categories:
                 self.min_max_people[cat]["min"] += cat_min
                 self.min_max_people[cat]["max"] += cat_max
@@ -244,6 +266,8 @@ class PeopleAndCats():
                             "max": cat_max,
                             "selected": 0,
                             "remaining": 0,
+                            "min_flex" : cat_min_flex,
+                            "max_flex" : cat_max_flex,
                         }
                     }
                 )
@@ -264,6 +288,8 @@ class PeopleAndCats():
                                 "max": cat_max,
                                 "selected": 0,
                                 "remaining": 0,
+                                "min_flex": cat_min_flex,
+                                "max_flex": cat_max_flex,
                             }
                         }
                     }
@@ -282,6 +308,14 @@ class PeopleAndCats():
             raise Exception(
                 "Inconsistent numbers in min and max in the categories input: the sum of the minimum values of a category is larger than the sum of the maximum values of a(nother) category. "
             )
+
+          # check cat_flex to see if we need to set the max here
+          # this is only used if these (optional) flex values are NOT given
+          for cat_values in self.original_categories.values():
+              for cat_value in cat_values.values():
+                  if cat_value["max_flex"] == -1:
+                      cat_value["max_flex"] = max_val #this should be bigger than the number of people to be selected
+
         except Exception as error:
             msg += [ "Error loading categories: {}".format(error) ]
         return msg, min_val, max_val
@@ -390,7 +424,7 @@ class PeopleAndCats():
         # but the function called here makes deep copies of categories_after_people and people
         self.people_selected = None
         success, self.people_selected, output_lines = run_stratification(
-            self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, settings, test_selection
+            self.categories_after_people, self.people, self.columns_data, self.number_people_to_select, self.min_max_people, settings, test_selection, self.number_selections
         )
         if success:
             # this also outputs them...
@@ -398,46 +432,66 @@ class PeopleAndCats():
         return success, output_lines
 
     # this also outputs them by calling the appropriate derived class method...
+    # currently this DOES NOT WORK if self.number_selections > 1 ...
     def _get_selected_people_lists( self, settings: Settings):
         people_working = copy.deepcopy(self.people)
         people_selected = self.people_selected
-        categories = self.categories_after_people
-        columns_data = self.columns_data
+        output_lines = []
 
-        people_selected_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
-        people_remaining_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
+        # if we are doing a multiple selection (only possible from G-sheet at the moment) just spit out selected as is
+        # and no remaining tab
+        if self.number_selections > 1:
+            ns = str(self.number_selections)
+            output_lines += ["<b>WARNING</b>: You've asked for {} selections! This is not yet enabled, so we just did 1".format(ns)]
+            #"When it is, programme will only print IDs. Note too that you cannot use the <i>Produce a Test Selection</i> button if you want more than 1 selection.
+            #people_selected_rows = [] - the below assumes people_selected is just list of lists...
+            people_selected_header_row = []
+            for index in range(self.number_selections):
+                people_selected_header_row += [ "Assembly {}".format(index + 1) ]
+            people_selected_rows = [ people_selected_header_row ]
+            people_remaining_rows = [ [ ] ]
+            # this part will have to be changed as it assumed the same output as from N=1
+            for pkey in people_selected.keys():
+                people_selected_rows += [[pkey]]
+            self._output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
+        else:
+            categories = self.categories_after_people
+            columns_data = self.columns_data
 
-        output_lines = []  # do we want to output same address info? Nah, this overwritten at the end of this function...
-        num_same_address_deleted = 0
-        for pkey, person in people_selected.items():
-            row = [pkey]
-            for col in settings.columns_to_keep:
-                row.append(columns_data[pkey][col])
-            row += person.values()
-            people_selected_rows += [ row ]
-            # if check address then delete all those at this address (will delete the one we want as well)
-            if settings.check_same_address:
-                people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, settings.check_same_address_columns)
-                output_lines += new_output_lines
-                num_same_address_deleted += len(new_output_lines) # don't include original
-                # then delete this/these people at the same address from the reserve/remaining pool
-                for del_person_key in people_to_delete:
-                    del people_working[del_person_key]
-            else:
-                del people_working[pkey]
+            people_selected_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
+            people_remaining_rows = [ [settings.id_column] + settings.columns_to_keep + list(categories.keys()) ]
 
-        # add the columns to keep into remaining people
-        for pkey, person in people_working.items():
-            row = [pkey]
-            for col in settings.columns_to_keep:
-                row.append(columns_data[pkey][col])
-            row += person.values()
-            people_remaining_rows += [ row ]
-        dupes = self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
-        if settings.check_same_address and self.gen_rem_tab=='on':
-            output_lines += ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
-            m = min(30, len(dupes))
-            output_lines += ["In the remaining tab there are {} people who share the same address as someone else in the tab. We highlighted the first {} of these. The full list of lines is {}".format(len(dupes), m, dupes)]
+
+            num_same_address_deleted = 0
+            for pkey, person in people_selected.items():
+                row = [pkey]
+                for col in settings.columns_to_keep:
+                    row.append(columns_data[pkey][col])
+                row += person.values()
+                people_selected_rows += [ row ]
+                # if check address then delete all those at this address (will delete the one we want as well)
+                if settings.check_same_address:
+                    people_to_delete, new_output_lines = get_people_at_same_address(people_working, pkey, columns_data, settings.check_same_address_columns)
+                    output_lines += new_output_lines
+                    num_same_address_deleted += len(new_output_lines) # don't include original
+                    # then delete this/these people at the same address from the reserve/remaining pool
+                    for del_person_key in people_to_delete:
+                        del people_working[del_person_key]
+                else:
+                    del people_working[pkey]
+
+            # add the columns to keep into remaining people
+            for pkey, person in people_working.items():
+                row = [pkey]
+                for col in settings.columns_to_keep:
+                    row.append(columns_data[pkey][col])
+                row += person.values()
+                people_remaining_rows += [ row ]
+            dupes = self._output_selected_remaining( settings, people_selected_rows, people_remaining_rows )
+            if settings.check_same_address and self.gen_rem_tab=='on':
+                output_lines += ["Deleted {} people from remaining file who had the same address as selected people.".format(num_same_address_deleted)]
+                m = min(30, len(dupes))
+                output_lines += ["In the remaining tab there are {} people who share the same address as someone else in the tab. We highlighted the first {} of these. The full list of lines is {}".format(len(dupes), m, dupes)]
         return output_lines
 
 
@@ -570,12 +624,12 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
         return msg, min_val, max_val
 
 ##Added respondents_tab_name, category_tab_name and gen_rem_tab as an argument
-    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, category_tab_name, gen_rem_tab, number_selections):
+    def load_people(self, settings: Settings, dummy_file_contents, respondents_tab_name, category_tab_name, gen_rem_tab ):
         self.people_content_loaded = True
         self.respondents_tab_name = respondents_tab_name ##Added for respondents tab text box.
         self.category_tab_name = category_tab_name ##Added for category tab text box.
         self.gen_rem_tab = gen_rem_tab ##Added for checkbox.
-        self.number_selections = int(number_selections) ##Added for multiple selections.
+        #self.number_selections = int(number_selections) ##Added for multiple selections. Brett removed - now in base class
         try:
             if self._tab_exists(self.respondents_tab_name):
                 tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
@@ -588,9 +642,6 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
             else:
                 msg = ["Error in Google sheet: no tab called '{}' found. ".format(self.respondents_tab_name)]
                 self.people_content_loaded = False
-            if self.number_selections > 1:
-            	 ns = str(self.number_selections)
-            	 msg += ["<b>WARNING</b>: You've asked for {} selections! This is not yet enabled. When it is, programme will only print IDs. Note too that you cannot use the <i>Produce a Test Selection</i> button if you want more than 1 selection.".format(ns)]
         except gspread.SpreadsheetNotFound:
             msg += ["Google spreadsheet not found: {}. ".format(self.g_sheet_name)]
             self.people_content_loaded = False
@@ -599,17 +650,18 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 ## The if statement is new.
     def _output_selected_remaining(self, settings: Settings, people_selected_rows, people_remaining_rows):
 
-        if self.number_selections == 1:
-            tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
-            tab_original_selected.update(people_selected_rows)
-            dupes2=[]
-            if self.gen_rem_tab=='on':
-                tab_remaining = self._clear_or_create_tab(self.remaining_tab_name, self.original_selected_tab_name,-1)
-                tab_remaining.update(people_remaining_rows)
-                tab_remaining.format("A1:U1", { "backgroundColor": {"red": 153/255, "green": 204/255, "blue": 255/255 }})
-            tab_original_selected.format("A1:U1", { "backgroundColor": {"red": 153/255, "green": 204/255, "blue": 255/255 }})
-        ### highlight any people in remaining tab at the same address
-            if settings.check_same_address and self.gen_rem_tab=='on':        
+        # if self.number_selections > 1 then self.gen_rem_tab=='off'
+        assert( self.number_selections == 1 or (self.number_selections > 1 and self.gen_rem_tab == 'off') )
+        tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
+        tab_original_selected.update(people_selected_rows)
+        tab_original_selected.format("A1:U1", { "backgroundColor": {"red": 153/255, "green": 204/255, "blue": 255/255 }})
+        dupes2=[]
+        if self.gen_rem_tab == 'on':
+            tab_remaining = self._clear_or_create_tab(self.remaining_tab_name, self.original_selected_tab_name,-1)
+            tab_remaining.update(people_remaining_rows)
+            tab_remaining.format("A1:U1", { "backgroundColor": {"red": 153/255, "green": 204/255, "blue": 255/255 }})
+            ### highlight any people in remaining tab at the same address
+            if settings.check_same_address:
                 csa1 = settings.check_same_address_columns[0]
                 col1 = tab_remaining.find(csa1).col
                 csa2 = settings.check_same_address_columns[1]
@@ -631,13 +683,8 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                 m = min(30, len(dupes2))
                 for i in range(m):
                     dupes3.append(dupes2[i])
-                for row in dupes3:           
+                for row in dupes3:
                     tab_remaining.format(str(row), { "backgroundColor": {"red": 5, "green": 2.5, "blue": 0 }})
-        else:
-            dupes2=[]
-            tab_original_selected = self._clear_or_create_tab(self.original_selected_tab_name, self.remaining_tab_name,0)
-            dummy=[["This needs to be written!"]]
-            tab_original_selected.update(dummy)
         return dupes2
 
 
@@ -878,7 +925,7 @@ def _output_panel_table(panels: List[FrozenSet[str]], probs: List[float]):
 
 def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                        columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
-                       check_same_address_columns: List[str], selection_algorithm: str, test_selection: bool) \
+                       check_same_address_columns: List[str], selection_algorithm: str, test_selection: bool, number_selections: int) \
         -> Tuple[Dict[str, Dict[str, str]], List[str]]:
     """Main algorithm to try to find a random sample.
 
@@ -1720,7 +1767,7 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings, test_selection ):
+def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings, test_selection, number_selections ):
     # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people.items():
         if settings.selection_algorithm == "legacy" and (  # For other algorithms, quotas are analyzed later
@@ -1751,7 +1798,8 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                                                                    number_people_wanted, settings.check_same_address,
                                                                    settings.check_same_address_columns,
                                                                    settings.selection_algorithm,
-                                                                   test_selection)
+                                                                   test_selection,
+                                                                   number_selections)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
             check_min_cat, new_output_lines = check_min_cats(categories_working)
