@@ -862,22 +862,44 @@ def find_max_ratio_cat(categories):
     }
 
 
-def print_category_selected(categories, number_people_wanted):
+def print_category_selected(categories, people, number_people_wanted, people_selected, number_selections):
+    if number_selections > 1:
+        return ["<p>We do not specifiy the details of multiple selections - please see your output files.</p>"]
+    #else:
+    # create a local version of this to count stuff in, as this might be called from places that don't track this info
+    # and reset the info just in case it has been used
+    # it's not clear that the remaining value is useful anyway - SO IT'S BEEN REMOVED!
+    categories_working = copy.deepcopy(categories)
+    for cat_key, cats in categories_working.items():
+        for cat, cat_item in cats.items():
+            cat_item["selected"] = 0
+            #cat_item["remaining"] = 0
+    # now count and print
     report_msg = "<table border='1' cellpadding='5'>"
-    report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th><th>Remaining</th></tr>"
-    for cat_key, cats in categories.items():  # print out how many in each
+    #report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th><th>Remaining</th></tr>"
+    report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th></tr>"
+    # count those selected
+    for id, person in people_selected.items():
+        for feature in categories.keys():
+            value = person[feature]
+            categories_working[feature][value]["selected"] += 1
+            #categories_working[feature][value]["remaining"] -= 1
+
+    for cat_key, cats in categories_working.items():  # print out how many in each
         for cat, cat_item in cats.items():
             percent_selected = round(
                 cat_item["selected"] * 100 / float(number_people_wanted), 2
             )
-            report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td><td>{}</td></tr>".format(
+            #report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td><td>{}</td></tr>".format(
+            report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td></tr>".format(
+
                 cat_key,
                 cat,
                 cat_item["selected"],
                 percent_selected,
                 cat_item["min"],
                 cat_item["max"],
-                cat_item["remaining"],
+                #cat_item["remaining"],
             )
     report_msg += "</table>"
     return [report_msg]
@@ -1844,7 +1866,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
     if test_selection:
         output_lines.append(
             "<b style='color: red'>WARNING: Panel is not selected at random! Only use for testing!</b><br>")
-    output_lines.append("<b>Initial: (selected = 0, remaining = {})</b>".format(len(people.keys())))
+    output_lines.append("<b>Initial: (selected = 0)</b>")
     categories_working = {}
     people_selected = {}
     while not success and tries < settings.max_attempts:
@@ -1852,7 +1874,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
         people_working = copy.deepcopy(people)
         categories_working = copy.deepcopy(categories)
         if tries == 0:
-            output_lines += print_category_selected(categories_working, number_people_wanted)
+            output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)
         output_lines.append("<b>Trial number: {}</b>".format(tries))
         try:
             people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data,
@@ -1881,9 +1903,8 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             output_lines.append("Failed: Selection Error thrown: " + serr.msg)
         tries += 1
     output_lines.append("Final:")
-    output_lines += print_category_selected(categories_working, number_people_wanted)
+    output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)
     if success:
-        output_lines.append("We tried {} time(s).".format(tries))
         output_lines.append("Count = {} people selected".format(len(people_selected)))  # , people_selected
     else:
         output_lines.append("Failed {} times... gave up.".format(tries))
