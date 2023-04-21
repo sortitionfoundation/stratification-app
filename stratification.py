@@ -1,7 +1,7 @@
 """
 Python (3) script to do a stratified, random selection from respondents to random mail out
 
-Copyright (C) 2019-2021 Brett Hennig bsh [AT] sortitionfoundation.org & Paul Gölz pgoelz (AT) cs.cmu.edu
+Copyright (C) 2019-2023 Brett Hennig bsh [AT] sortitionfoundation.org & Paul Gölz goelz (AT) seas.harvard.edu
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public
 License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later
@@ -28,7 +28,7 @@ from copy import deepcopy
 from io import StringIO
 from math import log
 from pathlib import Path
-from typing import Dict, List, Tuple, FrozenSet, Iterable, Optional, Set
+from typing import Any, Dict, List, Tuple, FrozenSet, Iterable, Optional, Set
 
 import cvxpy as cp
 # For how to use gspread see:
@@ -970,12 +970,97 @@ def _output_panel_table(panels: List[FrozenSet[str]], probs: List[float]):
                 file.write("\n")
 
 
+def pipage_rounding(marginals: List[Tuple[Any, float]]) -> List[Any]:
+    assert all(0. <= p <= 1. for _, p in marginals)
+
+    outcomes = []
+    while True:
+        if len(marginals) == 0:
+            return outcomes
+        elif len(marginals) == 1:
+            obj, prob = marginals[0]
+            if random.random() < prob:
+                outcomes.append(obj)
+            marginals = []
+        else:
+            obj0, prob0 = marginals[0]
+            if prob0 > 1. - EPS2:
+                outcomes.append(obj0)
+                marginals = marginals[1:]
+                continue
+            elif prob0 < EPS2:
+                marginals = marginals[1:]
+                continue
+
+            obj1, prob1 = marginals[1]
+            if prob1 > 1. - EPS2:
+                outcomes.append(obj1)
+                marginals = [marginals[0]] + marginals[2:]
+                continue
+            elif prob1 < EPS2:
+                marginals = [marginals[0]] + marginals[2:]
+                continue
+
+            inc0_dec1_amount = min(1. - prob0, prob1)  # maximal amount that prob0 can be increased and prob1 can be
+                                                       # decreased before they drop below 0 or above 1
+            dec0_inc1_amount = min(prob0, 1. - prob1)
+            choice_probability = dec0_inc1_amount / (inc0_dec1_amount + dec0_inc1_amount)
+
+            if random.random() < choice_probability:  # increase prob0 and decrease prob1
+                prob0 += inc0_dec1_amount
+                prob1 -= inc0_dec1_amount
+            else:
+                prob0 -= dec0_inc1_amount
+                prob1 += dec0_inc1_amount
+            marginals = [(obj0, prob0), (obj1, prob1)] + marginals[2:]
+
+
+def standardize_distribution(committees: List[FrozenSet[str]], probabilities: List[float]) \
+        -> Tuple[List[FrozenSet[str]], List[float]]:
+    assert len(committees) == len(probabilities)
+    new_committees = []
+    new_probabilities = []
+    for committee, prob in zip(committees, probabilities):
+        if prob >= EPS2:
+            new_committees.append(committee)
+            new_probabilities.append(prob)
+    prob_sum = sum(new_probabilities)
+    new_probabilities = [prob / prob_sum for prob in new_probabilities]
+    return new_committees, new_probabilities
+
+
+def lottery_rounding(committees: List[FrozenSet[str]], probabilities: List[float], number_selections: int) \
+        -> List[FrozenSet[str]]:
+    assert len(committees) == len(probabilities)
+    assert number_selections >= 1
+
+    num_copies = []
+    residuals = []
+    for committee, prob in zip(committees, probabilities):
+        scaled_prob = prob * number_selections
+        num_copies.append(int(scaled_prob))  # give lower quotas
+        residuals.append(scaled_prob - int(scaled_prob))
+    assert abs(sum(residuals) - round(sum(residuals))) <= .0001
+
+    rounded_up_indices = pipage_rounding(list(enumerate(residuals)))
+    assert round(sum(residuals)) == len(rounded_up_indices)
+    for committee_index in rounded_up_indices:
+        num_copies[committee_index] += 1
+
+    committee_lottery = []
+    for committee, committee_copies in zip(committees, num_copies):
+        for _ in range(committee_copies):
+            committee_lottery.append(committee)
+
+    return committee_lottery
+
+
 def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                        columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
                        check_same_address_columns: List[str], selection_algorithm: str, test_selection: bool,
                        number_selections: int) \
-        -> Tuple[Dict[str, Dict[str, str]], List[str]]:
-    """Main algorithm to try to find a random sample.
+        -> Tuple[List[FrozenSet[str]], List[str]]:
+    """Main algorithm to try to find one or multiple random committees.
 
     Args:
         categories: categories["feature"]["value"] is a dictionary with keys "min", "max", "min_flex", "max_flex",
@@ -987,10 +1072,16 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
         check_same_address_columns: list of contact fields of columns that have to be equal for being
             counted as residing at the same address
         selection_algorithm: one out of "legacy", "maximin", "leximin", or "nash"
+        test_selection: if set, do not do a random selection, but just return some valid panel. Useful for quickly
+            testing whether quotas are satisfiable, but should always be false for the actual selection!
+        number_selections: how many panels to return. Most of the time, this should be set to `1`, which means that
+            a single panel is chosen. When specifying a value n ≥ 2, the function will return a list of length n,
+            containing multiple panels (some panels might be repeated in the list). In this case the eventual panel
+            should be drawn uniformly at random from the returned list.
     Returns:
-        (people_selected, output_lines)
-        `people_selected` is a subdictionary of `people` with `number_people_wanted` many entries, guaranteed to satisfy
-            the constraints on a feasible committee.
+        (committee_lottery, output_lines)
+        `committee_lottery` is a list of committees, where each committee is a frozen set of pool member ids guaranteed
+            to satisfy the constraints on a feasible committee.
         `output_lines` is a list of debug strings.
     Raises:
         InfeasibleQuotasError if the quotas cannot be satisfied, which includes a suggestion for how to modify them.
@@ -1018,6 +1109,9 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     # just go quick and nasty so we can hook up our charts ands tables :-)
     if test_selection:
         print("Running test selection.")
+        if number_selections != 1:
+            raise ValueError("Running the test selection does not supporting generating a transparent lottery, so, if "
+                             "`test_selection` is true, `number_selections` must be 1.")
         return _find_any_committee(categories, people, columns_data, number_people_wanted, check_same_address,
                                    check_same_address_columns)
 
@@ -1032,6 +1126,9 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
             selection_algorithm = "maximin"
 
     if selection_algorithm == "legacy":
+        if number_selections != 1:
+            raise ValueError("Currently, the legacy algorithm does not supporting generating a transparent lottery, "
+                             "so `number_selections` must be set to 1.")
         return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address,
                                          check_same_address_columns)
     elif selection_algorithm == "leximin":
@@ -1049,34 +1146,32 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
                                                                              number_people_wanted, check_same_address,
                                                                              check_same_address_columns)
     else:
-        # selection_algorithm not in ["legacy", "leximin", "maximin", "nash"]:
-        raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}.")
+        raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}, must be either 'legacy', 'leximin',"
+                         f" 'maximin', or 'nash'.")
+
+    committees, probabilities = standardize_distribution(committees, probabilities)
+    if len(committees) > len(people):
+        print("INFO: The distribution over panels what is known as a 'basic solution'. There is no reason for concern "
+              "about the correctness of your output, but we'd appreciate if you could reach out to panelot"
+              f"@paulgoelz.de with the following information: algorithm={selection_algorithm}, "
+              f"num_panels={len(committees)}, num_agents={len(people)}, min_probs={min(probabilities)}.")
 
     assert len(set(committees)) == len(committees)
-    # _output_panel_table(committees, probabilities)
+
     output_lines += new_output_lines
     output_lines += _distribution_stats(people, committees, probabilities)
 
-    # choose a concrete committee from the distribution
-    committee: FrozenSet[str] = np.random.choice(list(committees), 1, p=probabilities)[0]
-    people_selected = {id: people[id] for id in committee}
+    committee_lottery = lottery_rounding(committees, probabilities, number_selections)
 
-    # update categories for the algorithms other than legacy
-    for id, person in people_selected.items():
-        # BRETT CHANGED: for feature in person:
-        for feature in categories.keys():
-            value = person[feature]
-            categories[feature][value]["selected"] += 1
-            categories[feature][value]["remaining"] -= 1
-    return people_selected, output_lines
+    return committee_lottery, output_lines
 
 
 def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                               columns_data: Dict[str, Dict[str, str]], number_people_wanted: int,
                               check_same_address: bool, check_same_address_columns: List[str]) \
-        -> Tuple[Dict[str, Dict[str, str]], List[str]]:
+        -> Tuple[List[FrozenSet[str]], List[str]]:
     output_lines = ["Using legacy algorithm."]
-    people_selected = {}
+    people_selected = set()
     for count in range(number_people_wanted):
         ratio = find_max_ratio_cat(categories)
         # find randomly selected person with the category value
@@ -1087,13 +1182,14 @@ def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], 
                 if ratio["ratio_random"] == 0:  # means they are the random one we want
                     if debug > 0:
                         print("Found random person in this cat... adding them")
-                    people_selected.update({pkey: pvalue})
+                    assert pkey not in people_selected
+                    people_selected.add(pkey)
                     output_lines += delete_person(categories, people, pkey, check_same_address,
                                                   check_same_address_columns)
                     break
         if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
-    return people_selected, output_lines
+    return [frozenset(people_selected)], output_lines
 
 
 def _ilp_results_to_committee(variables: Dict[str, mip.entities.Var]) -> FrozenSet[str]:
@@ -1311,7 +1407,7 @@ def _setup_committee_generation(categories: Dict[str, Dict[str, Dict[str, int]]]
 
 def _find_any_committee(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                         columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
-                        check_same_address_columns: List[str]):
+                        check_same_address_columns: List[str]) -> Tuple[List[FrozenSet[str]], List[str]]:
     if check_same_address:
         households = _compute_households(people, columns_data, check_same_address_columns)
     else:
@@ -1320,16 +1416,7 @@ def _find_any_committee(categories: Dict[str, Dict[str, Dict[str, int]]], people
     model, agent_vars = _setup_committee_generation(categories, people, number_people_wanted, check_same_address,
                                                     households)
     committee = _ilp_results_to_committee(agent_vars)
-
-    people_selected = {agent: people[agent] for agent in committee}
-    for id, person in people_selected.items():
-        # BRETT CHANGED: for feature in person:
-        for feature in categories.keys():
-            value = person[feature]
-            categories[feature][value]["selected"] += 1
-            categories[feature][value]["remaining"] -= 1
-
-    return people_selected, []
+    return [committee], []
 
 
 def _generate_initial_committees(new_committee_model: mip.model.Model, agent_vars: Dict[str, mip.entities.Var],
