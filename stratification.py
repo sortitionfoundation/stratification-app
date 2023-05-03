@@ -2010,7 +2010,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
     output_lines.append("Final:")
     output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)
     if success:
-        output_lines.append("Count = {} people selected".format(len(people_selected)))  # , people_selected
+        output_lines.append("<b>SUCCESS!!</b>")
     else:
         output_lines.append("Failed {} times... gave up.".format(tries))
     return success, people_selected, output_lines
