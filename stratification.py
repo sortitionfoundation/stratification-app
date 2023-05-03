@@ -447,22 +447,29 @@ class PeopleAndCats():
 
         # if we are doing a multiple selection (only possible from G-sheet at the moment) just spit out selected as is
         # and no remaining tab
+        assert (len(people_selected) == self.number_selections)
         if self.number_selections > 1:
             #ns = str(self.number_selections)
             output_lines += [
-                "<b>WARNING</b>: You've asked for {} selections! This is not yet enabled, so we just did 1".format(self.number_selections)]
-            # "When it is, programme will only print IDs. Note too that you cannot use the <i>Produce a Test Selection</i> button if you want more than 1 selection.
-            # people_selected_rows = [] - the below assumes people_selected is just list of lists...
+                "<b>WARNING</b>: You've asked for {} selections. You cannot use the <i>Produce a Test Selection</i> button if you want more than 1 selection.".format(self.number_selections)]
+            # people_selected should be list of frozensets...
             people_selected_header_row = []
             for index in range(self.number_selections):
                 people_selected_header_row += ["Assembly {}".format(index + 1)]
-            people_selected_rows = [people_selected_header_row]
+            #people_selected_rows = [people_selected_header_row]
+            # initialise an empty 2d list - yes, not pythonic...
+            people_selected_rows = [[''] * self.number_selections for i in range(self.number_people_to_select)]
             people_remaining_rows = [[]]
-            # this part will have to be changed as it assumed the same output as from N=1
-            for pkey in people_selected.keys():
-                people_selected_rows += [[pkey]]
+            # put all the assemblies in columns of the output
+            for set_count, fset in enumerate(people_selected):
+                for p_count, pkey in enumerate(fset):
+                    people_selected_rows[p_count][set_count] = pkey
+            # there must be some pythonic way to do this but i don't know it...
+            #people_selected_rows = [[people_selected[i][j] for i in range(self.number_selections)] for j in range(self.number_people_to_select)]
+            # prepend the header row afterwards
+            people_selected_rows.insert(0, people_selected_header_row )
             self._output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
-        else:
+        else: # self.number_selections == 1
             categories = self.categories_after_people
             #columns_data = self.columns_data
 
@@ -471,7 +478,7 @@ class PeopleAndCats():
             people_remaining_rows = [[settings.id_column] + settings.columns_to_keep + list(categories.keys())]
 
             num_same_address_deleted = 0
-            for pkey in people_selected.keys():
+            for pkey in people_selected[0]:
                 row = [pkey]
                 # this is also just all in here, but in an unordered mess...
                 # row += people_working[pkey].values()
@@ -878,12 +885,13 @@ def print_category_selected(categories, people, number_people_wanted, people_sel
     report_msg = "<table border='1' cellpadding='5'>"
     #report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th><th>Remaining</th></tr>"
     report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th></tr>"
-    # count those selected
-    for id, person in people_selected.items():
-        for feature in categories.keys():
-            value = person[feature]
-            categories_working[feature][value]["selected"] += 1
-            #categories_working[feature][value]["remaining"] -= 1
+    # count those selected - but not at the start when people_selected is empty (the initial values should be zero)
+    if len(people_selected) == 1:
+        for person in people_selected[0]:
+            for feature in categories.keys():
+                value = people[person][feature]
+                categories_working[feature][value]["selected"] += 1
+                #categories_working[feature][value]["remaining"] -= 1
 
     for cat_key, cats in categories_working.items():  # print out how many in each
         for cat, cat_item in cats.items():
@@ -905,6 +913,8 @@ def print_category_selected(categories, people, number_people_wanted, people_sel
     return [report_msg]
 
 
+# this function no longer works as we don't track this info in the algorithm...
+'''
 def check_min_cats(categories):
     output_msg = []
     got_min = True
@@ -914,7 +924,7 @@ def check_min_cats(categories):
                 got_min = False
                 output_msg = ["Failed to get minimum in category: {}".format(cat)]
     return got_min, output_msg
-
+'''
 
 def _distribution_stats(people: Dict[str, Dict[str, str]], committees: List[FrozenSet[str]],
                         probabilities: List[float]) -> List[str]:
@@ -1947,8 +1957,8 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                 )
             )
             return False, 0, {}, [error_msg]
-    success = False
     tries = 0
+    success = False
     output_lines = []
     if test_selection:
         output_lines.append(
@@ -1972,14 +1982,21 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                                                                    number_selections)
             output_lines += new_output_lines
             # check we have reached minimum needed in all cats
+            # this function no longer works as we no longer track the info needed to check as it should be
+            # automatically satisfied
+            '''
             check_min_cat, new_output_lines = check_min_cats(categories_working)
             if check_min_cat:
                 output_lines.append("<b>SUCCESS!!</b>")
                 success = True
             else:
-                output_lines += new_output_lines
+            '''
+            # assume if it gets to here without throwing an exception then success...
+            success = True
+            output_lines += new_output_lines
         except ValueError as err:
             output_lines += err
+            break
         except InfeasibleQuotasError as err:
             output_lines += err.output
             break
@@ -1988,6 +2005,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             break
         except SelectionError as serr:
             output_lines.append("Failed: Selection Error thrown: " + serr.msg)
+            break
         tries += 1
     output_lines.append("Final:")
     output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)

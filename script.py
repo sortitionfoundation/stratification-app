@@ -140,6 +140,8 @@ class FileContents():
 		# never generate a remaining tab if doing a multiple selection
 		if self.number_selections > 1:
 			self.gen_rem_tab = 'off'
+		else: # but turn it on if = 1 (this could be wrong if the person wants it off!) if this has changed back to 1...
+			self.gen_rem_tab = 'on'
 	########################################
 	###End of Advanced Settings variables###
 	########################################
