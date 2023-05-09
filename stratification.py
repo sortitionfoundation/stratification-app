@@ -459,7 +459,7 @@ class PeopleAndCats():
             # people_selected should be list of frozensets...
             people_selected_header_row = []
             for index in range(self.number_selections):
-                people_selected_header_row += ["Assembly {}".format(index + 1)]
+                people_selected_header_row += ["Assembly {}".format(index)]
             #people_selected_rows = [people_selected_header_row]
             # initialise an empty 2d list - yes, not pythonic...
             people_selected_rows = [[''] * self.number_selections for i in range(self.number_people_to_select)]
