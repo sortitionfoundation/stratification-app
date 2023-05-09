@@ -59,10 +59,11 @@ DEFAULT_SETTINGS = """
 
 # this is written in TOML - https://github.com/toml-lang/toml
 
+# this is the name of the (unique) field for each person
 id_column = "nationbuilder_id"
 
 # if check_same_address is true, then no 2 people from the same address will be selected
-# the comparison is between TWO fields listed here (if they are both the same it will assume it's the same address)
+# the comparison checks if the TWO fields listed here are the same for any person
 check_same_address = true
 check_same_address_columns = [
     "primary_address1",
@@ -86,6 +87,9 @@ columns_to_keep = [
 
 # selection_algorithm can either be "legacy", "maximin", "leximin", or "nash"
 selection_algorithm = "leximin"
+
+# random number seed - if this is NOT zero then it is used to set the random number generator seed
+random_number_seed = 0
 """
 
 
@@ -95,7 +99,7 @@ class NoSettingsFile(Exception):
 
 class Settings:
     def __init__(self, id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts,
-                 selection_algorithm, json_file_path):
+                 selection_algorithm, random_number_seed, json_file_path):
         try:
             assert (isinstance(id_column, str))
             assert (isinstance(columns_to_keep, list))
@@ -110,6 +114,7 @@ class Settings:
             for column in check_same_address_columns:
                 assert (isinstance(column, str))
             assert (isinstance(max_attempts, int))
+            assert (isinstance(random_number_seed, int))
             assert (selection_algorithm in ["legacy", "maximin", "nash"])
         except AssertionError as error:
             print(error)
@@ -120,6 +125,7 @@ class Settings:
         self.check_same_address_columns = check_same_address_columns
         self.max_attempts = max_attempts
         self.selection_algorithm = selection_algorithm
+        self.random_number_seed = random_number_seed
         self.json_file_path = json_file_path
 
     @classmethod
@@ -148,6 +154,7 @@ class Settings:
             settings['check_same_address_columns'],
             settings['max_attempts'],
             settings['selection_algorithm'],
+            settings['random_number_seed'],
             settings['json_file_path']
         ), message
 
@@ -449,9 +456,6 @@ class PeopleAndCats():
         # and no remaining tab
         assert (len(people_selected) == self.number_selections)
         if self.number_selections > 1:
-            #ns = str(self.number_selections)
-            output_lines += [
-                "<b>WARNING</b>: You've asked for {} selections. You cannot use the <i>Produce a Test Selection</i> button if you want more than 1 selection.".format(self.number_selections)]
             # people_selected should be list of frozensets...
             people_selected_header_row = []
             for index in range(self.number_selections):
@@ -869,62 +873,94 @@ def find_max_ratio_cat(categories):
     }
 
 
-def print_category_selected(categories, people, number_people_wanted, people_selected, number_selections):
-    if number_selections > 1:
-        return ["<p>We do not specifiy the details of multiple selections - please see your output files.</p>"]
-    #else:
+# First return is True if selection has been successful, second return are messages
+# Print category info - if people_selected is empty it is assumed the output should be how many people initially
+def print_category_info(categories, people, people_selected, number_people_wanted):
+    if len(people_selected) > 1:
+        return ["<p>We do not calculate target details for multiple selections - please see your output files.</p>"]
+    initial_print = True if len(people_selected) == 0 else False
+    # count and print
+    report_msg = "<table border='1' cellpadding='5'>"
+    if initial_print:
+        report_msg += "<tr><th colspan='2'>Category</th><th>Initially</th><th>Want</th></tr>"
+    else:
+        report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th></tr>"
     # create a local version of this to count stuff in, as this might be called from places that don't track this info
     # and reset the info just in case it has been used
-    # it's not clear that the remaining value is useful anyway - SO IT'S BEEN REMOVED!
     categories_working = copy.deepcopy(categories)
     for cat_key, cats in categories_working.items():
         for cat, cat_item in cats.items():
             cat_item["selected"] = 0
-            #cat_item["remaining"] = 0
-    # now count and print
-    report_msg = "<table border='1' cellpadding='5'>"
-    #report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th><th>Remaining</th></tr>"
-    report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th></tr>"
+    # count those either initially or selected, but use the same data item...
+    if initial_print:
+        for pkey, person in people.items():
+            for feature in categories.keys():
+                value = person[feature]
+                categories_working[feature][value]["selected"] += 1
+    else:
+        assert(len(people_selected) == 1)
+        for person in people_selected[0]:
+            for feature in categories.keys():
+                value = people[person][feature]
+                categories_working[feature][value]["selected"] += 1
+
+    # print out how many in each
+    for cat_key, cats in categories_working.items():
+        for cat, cat_item in cats.items():
+            if initial_print: # don't bother about percents...
+                report_msg += "<tr><td>{}</td><td>{}</td><td>{}</td><td>[{},{}]</td></tr>".format(
+                    cat_key,
+                    cat,
+                    cat_item["selected"],
+                    cat_item["min"],
+                    cat_item["max"],
+                )
+            else:
+                percent_selected = round(
+                    cat_item["selected"] * 100 / float(number_people_wanted), 2
+                )
+                report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td></tr>".format(
+                    cat_key,
+                    cat,
+                    cat_item["selected"],
+                    percent_selected,
+                    cat_item["min"],
+                    cat_item["max"],
+                )
+    report_msg += "</table>"
+    return [report_msg]
+
+
+def check_category_selected(categories, people, people_selected, number_selections):
+    hit_targets = True
+    last_cat_fail = ''
+    if number_selections > 1:
+        return hit_targets, ["<p>No target checks done for multiple selections - please see your output files.</p>"]
+    #else:
+    # count and print
+    # create a local version of this to count stuff in, as this might be called from places that don't track this info
+    # and reset the info just in case it has been used
+    categories_working = copy.deepcopy(categories)
+    for cat_key, cats in categories_working.items():
+        for cat, cat_item in cats.items():
+            cat_item["selected"] = 0
     # count those selected - but not at the start when people_selected is empty (the initial values should be zero)
     if len(people_selected) == 1:
         for person in people_selected[0]:
             for feature in categories.keys():
                 value = people[person][feature]
                 categories_working[feature][value]["selected"] += 1
-                #categories_working[feature][value]["remaining"] -= 1
-
-    for cat_key, cats in categories_working.items():  # print out how many in each
+    # check if quotas have been met or not
+    for cat_key, cats in categories_working.items():
         for cat, cat_item in cats.items():
-            percent_selected = round(
-                cat_item["selected"] * 100 / float(number_people_wanted), 2
-            )
-            #report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td><td>{}</td></tr>".format(
-            report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td></tr>".format(
+            if cat_item["selected"] < cat_item["min"] or cat_item["selected"] > cat_item["max"]:
+                hit_targets = False
+                last_cat_fail = cat
+    report_msg = "<p>Failed to get minimum or got more than maximum in (at least) category: {}</p>".format(
+        last_cat_fail)
+    report_msg = '' if hit_targets == True else "<p>Failed to get minimum or got more than maximum in (at least) category: {}</p>".format(last_cat_fail)
+    return hit_targets, [report_msg]
 
-                cat_key,
-                cat,
-                cat_item["selected"],
-                percent_selected,
-                cat_item["min"],
-                cat_item["max"],
-                #cat_item["remaining"],
-            )
-    report_msg += "</table>"
-    return [report_msg]
-
-
-# this function no longer works as we don't track this info in the algorithm...
-'''
-def check_min_cats(categories):
-    output_msg = []
-    got_min = True
-    for cat_key, cats in categories.items():
-        for cat, cat_item in cats.items():
-            if cat_item["selected"] < cat_item["min"]:
-                got_min = False
-                output_msg = ["Failed to get minimum in category: {}".format(cat)]
-    return got_min, output_msg
-'''
 
 def _distribution_stats(people: Dict[str, Dict[str, str]], committees: List[FrozenSet[str]],
                         probabilities: List[float]) -> List[str]:
@@ -1120,7 +1156,7 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     if test_selection:
         print("Running test selection.")
         if number_selections != 1:
-            raise ValueError("Running the test selection does not supporting generating a transparent lottery, so, if "
+            raise ValueError("Running the test selection does not support generating a transparent lottery, so, if "
                              "`test_selection` is true, `number_selections` must be 1.")
         return _find_any_committee(categories, people, columns_data, number_people_wanted, check_same_address,
                                    check_same_address_columns)
@@ -1137,7 +1173,7 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
 
     if selection_algorithm == "legacy":
         if number_selections != 1:
-            raise ValueError("Currently, the legacy algorithm does not supporting generating a transparent lottery, "
+            raise ValueError("Currently, the legacy algorithm does not support generating a transparent lottery, "
                              "so `number_selections` must be set to 1.")
         return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address,
                                          check_same_address_columns)
@@ -1957,6 +1993,10 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                 )
             )
             return False, 0, {}, [error_msg]
+    # set the random seed if it is NOT zero
+    if settings.random_number_seed:
+        random.seed(settings.random_number_seed)
+
     tries = 0
     success = False
     output_lines = []
@@ -1971,7 +2011,9 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
         people_working = copy.deepcopy(people)
         categories_working = copy.deepcopy(categories)
         if tries == 0:
-            output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)
+            new_output_lines = print_category_info(categories_working, people, people_selected, number_people_wanted)
+            output_lines += new_output_lines
+
         output_lines.append("<b>Trial number: {}</b>".format(tries))
         try:
             people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data,
@@ -1981,21 +2023,15 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                                                                    test_selection,
                                                                    number_selections)
             output_lines += new_output_lines
-            # check we have reached minimum needed in all cats
-            # this function no longer works as we no longer track the info needed to check as it should be
-            # automatically satisfied
-            '''
-            check_min_cat, new_output_lines = check_min_cats(categories_working)
-            if check_min_cat:
-                output_lines.append("<b>SUCCESS!!</b>")
-                success = True
-            else:
-            '''
-            # assume if it gets to here without throwing an exception then success...
-            success = True
-            output_lines += new_output_lines
+            # check we have met targets needed in all cats
+            # note this only works for number_selections = 1
+            new_output_lines = print_category_info(categories_working, people, people_selected, number_people_wanted)
+            success, check_output_lines = check_category_selected(categories_working, people, people_selected, number_selections)
+            if success:
+                output_lines.append("<b>SUCCESS!!</b> Final:")
+                output_lines += (new_output_lines + check_output_lines)
         except ValueError as err:
-            output_lines += err
+            output_lines.append(str(err))
             break
         except InfeasibleQuotasError as err:
             output_lines += err.output
@@ -2005,12 +2041,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             break
         except SelectionError as serr:
             output_lines.append("Failed: Selection Error thrown: " + serr.msg)
-            break
         tries += 1
-    output_lines.append("Final:")
-    output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)
-    if success:
-        output_lines.append("<b>SUCCESS!!</b>")
-    else:
+    if not success:
         output_lines.append("Failed {} times... gave up.".format(tries))
     return success, people_selected, output_lines
