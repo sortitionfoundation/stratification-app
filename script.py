@@ -106,9 +106,13 @@ class FileContents():
 				self.PeopleAndCats = PeopleAndCatsGoogleSheet()
 				# tell this object what this currently is...
 				self.PeopleAndCats.number_selections = self.number_selections
+				msg = []
+				if self.number_selections > 1:
+					msg += ["<b>WARNING</b>: You've asked for {} selections. You cannot use the <i>Produce a Test Panel</i> button if you want more than 1 selection and no Remaining tab will be created.".format(
+						self.number_selections)]
 				self._add_category_content( self.g_sheet_name )
 				dummy_file_contents=''
-				msg = self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab )
+				msg += self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab )
 				eel.update_selection_output_area("<br />".join(msg))
 				self.update_run_button()
 				eel.enable_load_g_sheet_btn()
@@ -140,6 +144,8 @@ class FileContents():
 		# never generate a remaining tab if doing a multiple selection
 		if self.number_selections > 1:
 			self.gen_rem_tab = 'off'
+		else: # but turn it on if = 1 (this could be wrong if the person wants it off!) if this has changed back to 1...
+			self.gen_rem_tab = 'on'
 	########################################
 	###End of Advanced Settings variables###
 	########################################

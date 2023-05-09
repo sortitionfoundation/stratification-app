@@ -1,7 +1,7 @@
 """
 Python (3) script to do a stratified, random selection from respondents to random mail out
 
-Copyright (C) 2019-2021 Brett Hennig bsh [AT] sortitionfoundation.org & Paul Gölz pgoelz (AT) cs.cmu.edu
+Copyright (C) 2019-2023 Brett Hennig bsh [AT] sortitionfoundation.org & Paul Gölz goelz (AT) seas.harvard.edu
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public
 License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later
@@ -28,7 +28,7 @@ from copy import deepcopy
 from io import StringIO
 from math import log
 from pathlib import Path
-from typing import Dict, List, Tuple, FrozenSet, Iterable, Optional, Set
+from typing import Any, Dict, List, Tuple, FrozenSet, Iterable, Optional, Set
 
 import cvxpy as cp
 # For how to use gspread see:
@@ -59,10 +59,11 @@ DEFAULT_SETTINGS = """
 
 # this is written in TOML - https://github.com/toml-lang/toml
 
+# this is the name of the (unique) field for each person
 id_column = "nationbuilder_id"
 
 # if check_same_address is true, then no 2 people from the same address will be selected
-# the comparison is between TWO fields listed here (if they are both the same it will assume it's the same address)
+# the comparison checks if the TWO fields listed here are the same for any person
 check_same_address = true
 check_same_address_columns = [
     "primary_address1",
@@ -86,6 +87,9 @@ columns_to_keep = [
 
 # selection_algorithm can either be "legacy", "maximin", "leximin", or "nash"
 selection_algorithm = "leximin"
+
+# random number seed - if this is NOT zero then it is used to set the random number generator seed
+random_number_seed = 0
 """
 
 
@@ -95,7 +99,7 @@ class NoSettingsFile(Exception):
 
 class Settings:
     def __init__(self, id_column, columns_to_keep, check_same_address, check_same_address_columns, max_attempts,
-                 selection_algorithm, json_file_path):
+                 selection_algorithm, random_number_seed, json_file_path):
         try:
             assert (isinstance(id_column, str))
             assert (isinstance(columns_to_keep, list))
@@ -110,6 +114,7 @@ class Settings:
             for column in check_same_address_columns:
                 assert (isinstance(column, str))
             assert (isinstance(max_attempts, int))
+            assert (isinstance(random_number_seed, int))
             assert (selection_algorithm in ["legacy", "maximin", "nash"])
         except AssertionError as error:
             print(error)
@@ -120,6 +125,7 @@ class Settings:
         self.check_same_address_columns = check_same_address_columns
         self.max_attempts = max_attempts
         self.selection_algorithm = selection_algorithm
+        self.random_number_seed = random_number_seed
         self.json_file_path = json_file_path
 
     @classmethod
@@ -148,6 +154,7 @@ class Settings:
             settings['check_same_address_columns'],
             settings['max_attempts'],
             settings['selection_algorithm'],
+            settings['random_number_seed'],
             settings['json_file_path']
         ), message
 
@@ -447,22 +454,26 @@ class PeopleAndCats():
 
         # if we are doing a multiple selection (only possible from G-sheet at the moment) just spit out selected as is
         # and no remaining tab
+        assert (len(people_selected) == self.number_selections)
         if self.number_selections > 1:
-            #ns = str(self.number_selections)
-            output_lines += [
-                "<b>WARNING</b>: You've asked for {} selections! This is not yet enabled, so we just did 1".format(self.number_selections)]
-            # "When it is, programme will only print IDs. Note too that you cannot use the <i>Produce a Test Selection</i> button if you want more than 1 selection.
-            # people_selected_rows = [] - the below assumes people_selected is just list of lists...
+            # people_selected should be list of frozensets...
             people_selected_header_row = []
             for index in range(self.number_selections):
                 people_selected_header_row += ["Assembly {}".format(index + 1)]
-            people_selected_rows = [people_selected_header_row]
+            #people_selected_rows = [people_selected_header_row]
+            # initialise an empty 2d list - yes, not pythonic...
+            people_selected_rows = [[''] * self.number_selections for i in range(self.number_people_to_select)]
             people_remaining_rows = [[]]
-            # this part will have to be changed as it assumed the same output as from N=1
-            for pkey in people_selected.keys():
-                people_selected_rows += [[pkey]]
+            # put all the assemblies in columns of the output
+            for set_count, fset in enumerate(people_selected):
+                for p_count, pkey in enumerate(fset):
+                    people_selected_rows[p_count][set_count] = pkey
+            # there must be some pythonic way to do this but i don't know it...
+            #people_selected_rows = [[people_selected[i][j] for i in range(self.number_selections)] for j in range(self.number_people_to_select)]
+            # prepend the header row afterwards
+            people_selected_rows.insert(0, people_selected_header_row )
             self._output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
-        else:
+        else: # self.number_selections == 1
             categories = self.categories_after_people
             #columns_data = self.columns_data
 
@@ -471,7 +482,7 @@ class PeopleAndCats():
             people_remaining_rows = [[settings.id_column] + settings.columns_to_keep + list(categories.keys())]
 
             num_same_address_deleted = 0
-            for pkey in people_selected.keys():
+            for pkey in people_selected[0]:
                 row = [pkey]
                 # this is also just all in here, but in an unordered mess...
                 # row += people_working[pkey].values()
@@ -862,58 +873,93 @@ def find_max_ratio_cat(categories):
     }
 
 
-def print_category_selected(categories, people, number_people_wanted, people_selected, number_selections):
-    if number_selections > 1:
-        return ["<p>We do not specifiy the details of multiple selections - please see your output files.</p>"]
-    #else:
+# First return is True if selection has been successful, second return are messages
+# Print category info - if people_selected is empty it is assumed the output should be how many people initially
+def print_category_info(categories, people, people_selected, number_people_wanted):
+    if len(people_selected) > 1:
+        return ["<p>We do not calculate target details for multiple selections - please see your output files.</p>"]
+    initial_print = True if len(people_selected) == 0 else False
+    # count and print
+    report_msg = "<table border='1' cellpadding='5'>"
+    if initial_print:
+        report_msg += "<tr><th colspan='2'>Category</th><th>Initially</th><th>Want</th></tr>"
+    else:
+        report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th></tr>"
     # create a local version of this to count stuff in, as this might be called from places that don't track this info
     # and reset the info just in case it has been used
-    # it's not clear that the remaining value is useful anyway - SO IT'S BEEN REMOVED!
     categories_working = copy.deepcopy(categories)
     for cat_key, cats in categories_working.items():
         for cat, cat_item in cats.items():
             cat_item["selected"] = 0
-            #cat_item["remaining"] = 0
-    # now count and print
-    report_msg = "<table border='1' cellpadding='5'>"
-    #report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th><th>Remaining</th></tr>"
-    report_msg += "<tr><th colspan='2'>Category</th><th>Selected</th><th>Want</th></tr>"
-    # count those selected
-    for id, person in people_selected.items():
-        for feature in categories.keys():
-            value = person[feature]
-            categories_working[feature][value]["selected"] += 1
-            #categories_working[feature][value]["remaining"] -= 1
+    # count those either initially or selected, but use the same data item...
+    if initial_print:
+        for pkey, person in people.items():
+            for feature in categories.keys():
+                value = person[feature]
+                categories_working[feature][value]["selected"] += 1
+    else:
+        assert(len(people_selected) == 1)
+        for person in people_selected[0]:
+            for feature in categories.keys():
+                value = people[person][feature]
+                categories_working[feature][value]["selected"] += 1
 
-    for cat_key, cats in categories_working.items():  # print out how many in each
+    # print out how many in each
+    for cat_key, cats in categories_working.items():
         for cat, cat_item in cats.items():
-            percent_selected = round(
-                cat_item["selected"] * 100 / float(number_people_wanted), 2
-            )
-            #report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td><td>{}</td></tr>".format(
-            report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td></tr>".format(
-
-                cat_key,
-                cat,
-                cat_item["selected"],
-                percent_selected,
-                cat_item["min"],
-                cat_item["max"],
-                #cat_item["remaining"],
-            )
+            if initial_print: # don't bother about percents...
+                report_msg += "<tr><td>{}</td><td>{}</td><td>{}</td><td>[{},{}]</td></tr>".format(
+                    cat_key,
+                    cat,
+                    cat_item["selected"],
+                    cat_item["min"],
+                    cat_item["max"],
+                )
+            else:
+                percent_selected = round(
+                    cat_item["selected"] * 100 / float(number_people_wanted), 2
+                )
+                report_msg += "<tr><td>{}</td><td>{}</td><td>{} ({}%)</td><td>[{},{}]</td></tr>".format(
+                    cat_key,
+                    cat,
+                    cat_item["selected"],
+                    percent_selected,
+                    cat_item["min"],
+                    cat_item["max"],
+                )
     report_msg += "</table>"
     return [report_msg]
 
 
-def check_min_cats(categories):
-    output_msg = []
-    got_min = True
-    for cat_key, cats in categories.items():
+def check_category_selected(categories, people, people_selected, number_selections):
+    hit_targets = True
+    last_cat_fail = ''
+    if number_selections > 1:
+        return hit_targets, ["<p>No target checks done for multiple selections - please see your output files.</p>"]
+    #else:
+    # count and print
+    # create a local version of this to count stuff in, as this might be called from places that don't track this info
+    # and reset the info just in case it has been used
+    categories_working = copy.deepcopy(categories)
+    for cat_key, cats in categories_working.items():
         for cat, cat_item in cats.items():
-            if cat_item["selected"] < cat_item["min"]:
-                got_min = False
-                output_msg = ["Failed to get minimum in category: {}".format(cat)]
-    return got_min, output_msg
+            cat_item["selected"] = 0
+    # count those selected - but not at the start when people_selected is empty (the initial values should be zero)
+    if len(people_selected) == 1:
+        for person in people_selected[0]:
+            for feature in categories.keys():
+                value = people[person][feature]
+                categories_working[feature][value]["selected"] += 1
+    # check if quotas have been met or not
+    for cat_key, cats in categories_working.items():
+        for cat, cat_item in cats.items():
+            if cat_item["selected"] < cat_item["min"] or cat_item["selected"] > cat_item["max"]:
+                hit_targets = False
+                last_cat_fail = cat
+    report_msg = "<p>Failed to get minimum or got more than maximum in (at least) category: {}</p>".format(
+        last_cat_fail)
+    report_msg = '' if hit_targets == True else "<p>Failed to get minimum or got more than maximum in (at least) category: {}</p>".format(last_cat_fail)
+    return hit_targets, [report_msg]
 
 
 def _distribution_stats(people: Dict[str, Dict[str, str]], committees: List[FrozenSet[str]],
@@ -970,12 +1016,97 @@ def _output_panel_table(panels: List[FrozenSet[str]], probs: List[float]):
                 file.write("\n")
 
 
+def pipage_rounding(marginals: List[Tuple[Any, float]]) -> List[Any]:
+    assert all(0. <= p <= 1. for _, p in marginals)
+
+    outcomes = []
+    while True:
+        if len(marginals) == 0:
+            return outcomes
+        elif len(marginals) == 1:
+            obj, prob = marginals[0]
+            if random.random() < prob:
+                outcomes.append(obj)
+            marginals = []
+        else:
+            obj0, prob0 = marginals[0]
+            if prob0 > 1. - EPS2:
+                outcomes.append(obj0)
+                marginals = marginals[1:]
+                continue
+            elif prob0 < EPS2:
+                marginals = marginals[1:]
+                continue
+
+            obj1, prob1 = marginals[1]
+            if prob1 > 1. - EPS2:
+                outcomes.append(obj1)
+                marginals = [marginals[0]] + marginals[2:]
+                continue
+            elif prob1 < EPS2:
+                marginals = [marginals[0]] + marginals[2:]
+                continue
+
+            inc0_dec1_amount = min(1. - prob0, prob1)  # maximal amount that prob0 can be increased and prob1 can be
+                                                       # decreased before they drop below 0 or above 1
+            dec0_inc1_amount = min(prob0, 1. - prob1)
+            choice_probability = dec0_inc1_amount / (inc0_dec1_amount + dec0_inc1_amount)
+
+            if random.random() < choice_probability:  # increase prob0 and decrease prob1
+                prob0 += inc0_dec1_amount
+                prob1 -= inc0_dec1_amount
+            else:
+                prob0 -= dec0_inc1_amount
+                prob1 += dec0_inc1_amount
+            marginals = [(obj0, prob0), (obj1, prob1)] + marginals[2:]
+
+
+def standardize_distribution(committees: List[FrozenSet[str]], probabilities: List[float]) \
+        -> Tuple[List[FrozenSet[str]], List[float]]:
+    assert len(committees) == len(probabilities)
+    new_committees = []
+    new_probabilities = []
+    for committee, prob in zip(committees, probabilities):
+        if prob >= EPS2:
+            new_committees.append(committee)
+            new_probabilities.append(prob)
+    prob_sum = sum(new_probabilities)
+    new_probabilities = [prob / prob_sum for prob in new_probabilities]
+    return new_committees, new_probabilities
+
+
+def lottery_rounding(committees: List[FrozenSet[str]], probabilities: List[float], number_selections: int) \
+        -> List[FrozenSet[str]]:
+    assert len(committees) == len(probabilities)
+    assert number_selections >= 1
+
+    num_copies = []
+    residuals = []
+    for committee, prob in zip(committees, probabilities):
+        scaled_prob = prob * number_selections
+        num_copies.append(int(scaled_prob))  # give lower quotas
+        residuals.append(scaled_prob - int(scaled_prob))
+    assert abs(sum(residuals) - round(sum(residuals))) <= .0001
+
+    rounded_up_indices = pipage_rounding(list(enumerate(residuals)))
+    assert round(sum(residuals)) == len(rounded_up_indices)
+    for committee_index in rounded_up_indices:
+        num_copies[committee_index] += 1
+
+    committee_lottery = []
+    for committee, committee_copies in zip(committees, num_copies):
+        for _ in range(committee_copies):
+            committee_lottery.append(committee)
+
+    return committee_lottery
+
+
 def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                        columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
                        check_same_address_columns: List[str], selection_algorithm: str, test_selection: bool,
                        number_selections: int) \
-        -> Tuple[Dict[str, Dict[str, str]], List[str]]:
-    """Main algorithm to try to find a random sample.
+        -> Tuple[List[FrozenSet[str]], List[str]]:
+    """Main algorithm to try to find one or multiple random committees.
 
     Args:
         categories: categories["feature"]["value"] is a dictionary with keys "min", "max", "min_flex", "max_flex",
@@ -987,10 +1118,16 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
         check_same_address_columns: list of contact fields of columns that have to be equal for being
             counted as residing at the same address
         selection_algorithm: one out of "legacy", "maximin", "leximin", or "nash"
+        test_selection: if set, do not do a random selection, but just return some valid panel. Useful for quickly
+            testing whether quotas are satisfiable, but should always be false for the actual selection!
+        number_selections: how many panels to return. Most of the time, this should be set to `1`, which means that
+            a single panel is chosen. When specifying a value n ≥ 2, the function will return a list of length n,
+            containing multiple panels (some panels might be repeated in the list). In this case the eventual panel
+            should be drawn uniformly at random from the returned list.
     Returns:
-        (people_selected, output_lines)
-        `people_selected` is a subdictionary of `people` with `number_people_wanted` many entries, guaranteed to satisfy
-            the constraints on a feasible committee.
+        (committee_lottery, output_lines)
+        `committee_lottery` is a list of committees, where each committee is a frozen set of pool member ids guaranteed
+            to satisfy the constraints on a feasible committee.
         `output_lines` is a list of debug strings.
     Raises:
         InfeasibleQuotasError if the quotas cannot be satisfied, which includes a suggestion for how to modify them.
@@ -1018,6 +1155,9 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     # just go quick and nasty so we can hook up our charts ands tables :-)
     if test_selection:
         print("Running test selection.")
+        if number_selections != 1:
+            raise ValueError("Running the test selection does not support generating a transparent lottery, so, if "
+                             "`test_selection` is true, `number_selections` must be 1.")
         return _find_any_committee(categories, people, columns_data, number_people_wanted, check_same_address,
                                    check_same_address_columns)
 
@@ -1032,6 +1172,9 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
             selection_algorithm = "maximin"
 
     if selection_algorithm == "legacy":
+        if number_selections != 1:
+            raise ValueError("Currently, the legacy algorithm does not support generating a transparent lottery, "
+                             "so `number_selections` must be set to 1.")
         return find_random_sample_legacy(categories, people, columns_data, number_people_wanted, check_same_address,
                                          check_same_address_columns)
     elif selection_algorithm == "leximin":
@@ -1049,34 +1192,32 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
                                                                              number_people_wanted, check_same_address,
                                                                              check_same_address_columns)
     else:
-        # selection_algorithm not in ["legacy", "leximin", "maximin", "nash"]:
-        raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}.")
+        raise ValueError(f"Unknown selection algorithm {repr(selection_algorithm)}, must be either 'legacy', 'leximin',"
+                         f" 'maximin', or 'nash'.")
+
+    committees, probabilities = standardize_distribution(committees, probabilities)
+    if len(committees) > len(people):
+        print("INFO: The distribution over panels what is known as a 'basic solution'. There is no reason for concern "
+              "about the correctness of your output, but we'd appreciate if you could reach out to panelot"
+              f"@paulgoelz.de with the following information: algorithm={selection_algorithm}, "
+              f"num_panels={len(committees)}, num_agents={len(people)}, min_probs={min(probabilities)}.")
 
     assert len(set(committees)) == len(committees)
-    # _output_panel_table(committees, probabilities)
+
     output_lines += new_output_lines
     output_lines += _distribution_stats(people, committees, probabilities)
 
-    # choose a concrete committee from the distribution
-    committee: FrozenSet[str] = np.random.choice(list(committees), 1, p=probabilities)[0]
-    people_selected = {id: people[id] for id in committee}
+    committee_lottery = lottery_rounding(committees, probabilities, number_selections)
 
-    # update categories for the algorithms other than legacy
-    for id, person in people_selected.items():
-        # BRETT CHANGED: for feature in person:
-        for feature in categories.keys():
-            value = person[feature]
-            categories[feature][value]["selected"] += 1
-            categories[feature][value]["remaining"] -= 1
-    return people_selected, output_lines
+    return committee_lottery, output_lines
 
 
 def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                               columns_data: Dict[str, Dict[str, str]], number_people_wanted: int,
                               check_same_address: bool, check_same_address_columns: List[str]) \
-        -> Tuple[Dict[str, Dict[str, str]], List[str]]:
+        -> Tuple[List[FrozenSet[str]], List[str]]:
     output_lines = ["Using legacy algorithm."]
-    people_selected = {}
+    people_selected = set()
     for count in range(number_people_wanted):
         ratio = find_max_ratio_cat(categories)
         # find randomly selected person with the category value
@@ -1087,13 +1228,14 @@ def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], 
                 if ratio["ratio_random"] == 0:  # means they are the random one we want
                     if debug > 0:
                         print("Found random person in this cat... adding them")
-                    people_selected.update({pkey: pvalue})
+                    assert pkey not in people_selected
+                    people_selected.add(pkey)
                     output_lines += delete_person(categories, people, pkey, check_same_address,
                                                   check_same_address_columns)
                     break
         if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
-    return people_selected, output_lines
+    return [frozenset(people_selected)], output_lines
 
 
 def _ilp_results_to_committee(variables: Dict[str, mip.entities.Var]) -> FrozenSet[str]:
@@ -1311,7 +1453,7 @@ def _setup_committee_generation(categories: Dict[str, Dict[str, Dict[str, int]]]
 
 def _find_any_committee(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
                         columns_data: Dict[str, Dict[str, str]], number_people_wanted: int, check_same_address: bool,
-                        check_same_address_columns: List[str]):
+                        check_same_address_columns: List[str]) -> Tuple[List[FrozenSet[str]], List[str]]:
     if check_same_address:
         households = _compute_households(people, columns_data, check_same_address_columns)
     else:
@@ -1320,16 +1462,7 @@ def _find_any_committee(categories: Dict[str, Dict[str, Dict[str, int]]], people
     model, agent_vars = _setup_committee_generation(categories, people, number_people_wanted, check_same_address,
                                                     households)
     committee = _ilp_results_to_committee(agent_vars)
-
-    people_selected = {agent: people[agent] for agent in committee}
-    for id, person in people_selected.items():
-        # BRETT CHANGED: for feature in person:
-        for feature in categories.keys():
-            value = person[feature]
-            categories[feature][value]["selected"] += 1
-            categories[feature][value]["remaining"] -= 1
-
-    return people_selected, []
+    return [committee], []
 
 
 def _generate_initial_committees(new_committee_model: mip.model.Model, agent_vars: Dict[str, mip.entities.Var],
@@ -1860,8 +1993,12 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                 )
             )
             return False, 0, {}, [error_msg]
-    success = False
+    # set the random seed if it is NOT zero
+    if settings.random_number_seed:
+        random.seed(settings.random_number_seed)
+
     tries = 0
+    success = False
     output_lines = []
     if test_selection:
         output_lines.append(
@@ -1874,7 +2011,9 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
         people_working = copy.deepcopy(people)
         categories_working = copy.deepcopy(categories)
         if tries == 0:
-            output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)
+            new_output_lines = print_category_info(categories_working, people, people_selected, number_people_wanted)
+            output_lines += new_output_lines
+
         output_lines.append("<b>Trial number: {}</b>".format(tries))
         try:
             people_selected, new_output_lines = find_random_sample(categories_working, people_working, columns_data,
@@ -1884,15 +2023,16 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                                                                    test_selection,
                                                                    number_selections)
             output_lines += new_output_lines
-            # check we have reached minimum needed in all cats
-            check_min_cat, new_output_lines = check_min_cats(categories_working)
-            if check_min_cat:
-                output_lines.append("<b>SUCCESS!!</b>")
-                success = True
-            else:
-                output_lines += new_output_lines
+            # check we have met targets needed in all cats
+            # note this only works for number_selections = 1
+            new_output_lines = print_category_info(categories_working, people, people_selected, number_people_wanted)
+            success, check_output_lines = check_category_selected(categories_working, people, people_selected, number_selections)
+            if success:
+                output_lines.append("<b>SUCCESS!!</b> Final:")
+                output_lines += (new_output_lines + check_output_lines)
         except ValueError as err:
-            output_lines += err
+            output_lines.append(str(err))
+            break
         except InfeasibleQuotasError as err:
             output_lines += err.output
             break
@@ -1902,10 +2042,6 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
         except SelectionError as serr:
             output_lines.append("Failed: Selection Error thrown: " + serr.msg)
         tries += 1
-    output_lines.append("Final:")
-    output_lines += print_category_selected(categories_working, people, number_people_wanted, people_selected, number_selections)
-    if success:
-        output_lines.append("Count = {} people selected".format(len(people_selected)))  # , people_selected
-    else:
+    if not success:
         output_lines.append("Failed {} times... gave up.".format(tries))
     return success, people_selected, output_lines
