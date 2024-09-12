@@ -768,8 +768,9 @@ def delete_all_in_cat(categories, people, cat_check_key, cat_check_value):
                 cat_item = categories[cat_key][person[cat_key]]
                 cat_item["remaining"] -= 1
                 if cat_item["remaining"] == 0 and cat_item["selected"] < cat_item["min"]:
+                    lpd = len(people_to_delete)
                     raise SelectionError(
-                        "SELECTION IMPOSSIBLE: FAIL in delete_all_in_cat as after previous deletion no one/not enough left in " + cat_key
+                        "SELECTION IMPOSSIBLE: FAIL in delete_all_in_cat as after previous deletion no one/not enough left in " + cat_key + " " + person[cat_key] + ". Tried to delete: " + str(lpd)
                     )
     for p in people_to_delete:
         del people[p]
