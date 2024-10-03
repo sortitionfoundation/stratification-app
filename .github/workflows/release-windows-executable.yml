@@ -1,5 +1,4 @@
 name: Release Windows Executable
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on:
   push:
     tags:
@@ -24,7 +23,6 @@ jobs:
           pip install pyyaml
           pip install argparse
           pip install pyinstaller
-          pip install pathlib
           pyinstaller --onefile script.py
           mkdir -p target/release
           mv dist/script.exe target/release
