@@ -1,0 +1,46 @@
+name: Release Windows Executable
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build-windows-exe:
+    name: 'nicks-script.exe creation using Python V3.7 on Windows'
+    runs-on: 'windows-latest'
+    steps:
+      - uses: actions/checkout@v2
+      # https://github.com/actions/setup-python
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      # https://hynek.me/articles/python-github-actions/
+      - name: "Install dependencies"
+        run: |
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip
+          pip install pyyaml
+          pip install argparse
+          pip install pyinstaller
+          pip install copy
+          pip install io
+          pip install math
+          pip install pathlib
+          pip install typing
+          pip install oauth2client.service_account
+          pyinstaller --onefile script.py
+          mkdir -p target/release
+          mv dist/script.exe target/release
+      # copy nicks-script.exe to the release
+      #
+      # https://github.com/marketplace/actions/upload-files-to-a-github-release
+      - name: upload nicks-script.exe to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/script.exe
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "script release text"
