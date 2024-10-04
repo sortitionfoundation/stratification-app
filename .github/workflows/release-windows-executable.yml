@@ -23,7 +23,9 @@ jobs:
           pip install pyyaml
           pip install argparse
           pip install pyinstaller
-          pyinstaller --onefile script.py
+          pipx install eel
+          python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
+      # pyinstaller --onefile script.py
           mkdir -p target/release
           mv dist/script.exe target/release
       # copy nicks-script.exe to the release

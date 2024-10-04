@@ -668,8 +668,8 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                 tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
                 # if we don't read this in here we can't check if there are 2 columns with the same name
                 people_head_input = tab_people.row_values(1)
-                # the numericise_ignore doesn't convert the phone numbers to ints...
-                people_input = tab_people.get_all_records(numericise_ignore=['all'])
+                # the numericise_ignore doesn't convert the phone numbers to ints... 1 Oct 2024: the final argument with expected_headers is to deal with the fact that updated versions of gspread can't cope with duplicate headers
+                people_input = tab_people.get_all_records(numericise_ignore=['all'], expected_headers=[])
                 msg = ["Reading in '{}' tab in above Google sheet.".format(self.respondents_tab_name)]
                 msg += self._init_categories_people(people_head_input, people_input, settings)
             else:
