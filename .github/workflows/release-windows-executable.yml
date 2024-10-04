@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-windows-exe:
-    name: 'nicks-script.exe creation using Python V3.7 on Windows'
+    name: 'nicks-script.exe creation using latest python (3.12.6) on Windows'
     runs-on: 'windows-latest'
     steps:
       - uses: actions/checkout@v2
@@ -29,7 +29,7 @@ jobs:
           pip install mip
           pip install oauth2client
           pip install toml
-          python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
+          python -m eel script.py web --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/script.exe target/release
       # copy nicks-script.exe to the release
