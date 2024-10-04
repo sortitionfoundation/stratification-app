@@ -25,7 +25,6 @@ jobs:
           pip install pyinstaller
           pipx install eel
           python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
-      # pyinstaller --onefile script.py
           mkdir -p target/release
           mv dist/script.exe target/release
       # copy nicks-script.exe to the release
