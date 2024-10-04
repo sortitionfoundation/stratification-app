@@ -5,15 +5,18 @@ on:
       - '*'
 
 jobs:
+  #
+  # 1. Build Windows Executable
+  #
   build-windows-exe:
-    name: 'nicks-script.exe creation using Python V3.7 on Windows'
+    name: 'nicks-script.exe creation using latest python (3.12.6) on Windows'
     runs-on: 'windows-latest'
     steps:
       - uses: actions/checkout@v2
       # https://github.com/actions/setup-python
       - uses: actions/setup-python@v2
-      # with:
-      #   python-version: '3.7'
+        with:
+          python-version: '3.11'
       # https://hynek.me/articles/python-github-actions/
       - name: "Install dependencies"
         run: |
@@ -22,8 +25,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyyaml
           pip install argparse
-          pip install pyinstaller
-          pyinstaller --onefile script.py
+          pip install pyinstaller==6.10.0
+          pip install eel==0.17.0
+          pip install cvxpy==1.5.3
+          pip install gspread==6.1.2
+          pip install mip
+          pip install oauth2client==4.1.3
+          pip install toml==0.10.2
+          python -m eel script.py web --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/script.exe target/release
       # copy nicks-script.exe to the release

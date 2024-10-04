@@ -53,8 +53,8 @@ class FileContents():
 		try:
 			msg2, min_selection, max_selection = self.PeopleAndCats.load_cats( input_content, self.category_tab_name, self._settings )
 			msg += msg2
-		except gspread.exceptions.APIError:
-			msg3 = [ "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." ]
+		except gspread.exceptions.APIError as e:
+			msg3 = [ "API error causing delay. Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet. For the record, the API error is {} ".format(e) ]
 			msg += msg3
 		except Exception as error:
 			self.PeopleAndCats.category_content_loaded = False
@@ -108,16 +108,17 @@ class FileContents():
 				self.PeopleAndCats.number_selections = self.number_selections
 				msg = []
 				if self.number_selections > 1:
-					msg += ["<b>WARNING</b>: You've asked for {} selections. You cannot use the <i>Produce a Test Panel</i> button if you want more than 1 selection and no Remaining tab will be created.".format(
-						self.number_selections)]
+					msg += ["<b>WARNING</b>: You've asked for {} selections. You cannot use the <i>Produce a Test Panel</i> button if you want more than 1 selection and no Remaining tab will be created.".format(self.number_selections)]
 				self._add_category_content( self.g_sheet_name )
 				dummy_file_contents=''
+				print("here!")
 				msg += self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab )
+				print("there!")
 				eel.update_selection_output_area("<br />".join(msg))
 				self.update_run_button()
 				eel.enable_load_g_sheet_btn()
 			except Exception as error:
-				eel.update_categories_output_area( "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet." )
+				eel.update_categories_output_area( "Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet. Current error is: {}".format(error))
 	###############################################################################		
 	###The next functions read in extra instance variables for advanced settings###	
 	###############################################################################
