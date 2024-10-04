@@ -24,6 +24,11 @@ jobs:
           pip install argparse
           pip install pyinstaller
           pip install eel
+          pip install cvxpy
+          pip install gspread
+          pip install mip
+          pip install oauth2client
+          pip install toml
           python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
           mkdir -p target/release
           mv dist/script.exe target/release
