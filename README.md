@@ -20,41 +20,55 @@ The app is built using [eel](https://github.com/ChrisKnott/Eel) - a framework th
 First you need to have the following installed:
 
 - git
-- python 3.6
-- [pipenv](https://docs.pipenv.org/en/latest/)
+- python 3.11 or 3.12
 - a recent version of Chrome or Chromium
+- poetry
 
 ### Running in development
 
 After cloning this repo, open a terminal in the root of the repo and run:
 
 ```
-pipenv install --dev
-pipenv shell
+pip install eel
+pip install cvxpy
+pip install gspread
+pip install mip
+pip install toml
+pip install oauth2client
+poetry shell
 python script.py
 ```
 
-At which point you should have a window pop up and be able to interact with it.
+At this point you should have a window pop up and be able to interact with it, either via uploading .csv files or else by reading directly from a google sheet. You will only need to do those *pip install* commands once -- after that, you can just fire up the poetry shell and run *python script.py*
 
-Releasing
+### Key files
+
+The python command *python script.py* requires only:
+ - script.py
+ - stratification.py
+ - all of the files in the folder *web*
+ 
+ To use poetry (as we suggest above) to control dependencies, you need *pyproject.toml*
+ 
+ To create exectuables using pyinstaller (as we describe below), you need *hook-mip.py*
+ 
+Executables
 ---------
 
-To make a single file executable, we use [PyInstaller](https://pyinstaller.readthedocs.io/en/stable/).  The following command, run in the root of the repo, creates a single file executable at `dist/script` - you can rename it to whatever you want. You can then give it to someone running on the same **platform** as you, and they can run it immediately
+You can download executables from the latest releases page.
+
+If you want to make an executable yourself, use [PyInstaller](https://pyinstaller.readthedocs.io/en/stable/).  The following command, run in the root of the repo, creates a single file executable at `dist/script` - you can rename it to whatever you want. You can then give it to someone running on the same **platform** as you, and they can run it immediately
 
 The command is:
 
 ```
 git pull
-pipenv shell
+poetry shell
 python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
 ```
 
-**Platform** means Windows, Mac OS X or Linux.  So if you run the above command on Linux, you can give the file to someone else running Linux.  So if the person who wants the app is running Windows, you need to run the above command on Windows.
+**Platform** means Windows, Mac OS X or Linux.  So if you run the above command on Linux, you can give the file to someone else running Linux.  If the person who wants the app is running Windows, you need to run the above command on Windows.
 
-Note that on Windows you need to install an extra package:
 
-```
-pip install pypiwin32
-```
 
-This should be done by `pipenv install` but I may have got the syntax wrong.
+
