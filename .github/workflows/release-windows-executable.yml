@@ -49,8 +49,8 @@ jobs:
   #
   # 2. Build MacOS Executable
   #
-  build-windows-exe:
-    name: 'script.exe creation using python 3.11.9 on MacOS'
+  build-macos-exe:
+    name: 'script.app creation using python 3.11.9 on MacOS'
     runs-on: 'macos-latest'
     steps:
       - uses: actions/checkout@v2
