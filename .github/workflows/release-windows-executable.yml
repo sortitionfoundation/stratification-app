@@ -38,7 +38,7 @@ jobs:
       # copy nicks-script.exe to the release
       #
       # https://github.com/marketplace/actions/upload-files-to-a-github-release
-      - name: upload nicks-script.exe to release
+      - name: upload executable to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -75,11 +75,11 @@ jobs:
           pip install toml==0.10.2
           python -m eel script.py web --additional-hooks-dir=. --onefile --noconsole
           mkdir -p target/release
-          mv dist/script.app target/release
+          mv dist/. target/release
       # copy script.app to the release
       #
       # https://github.com/marketplace/actions/upload-files-to-a-github-release
-      - name: upload nicks-script.app to release
+      - name: upload exectuable to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
