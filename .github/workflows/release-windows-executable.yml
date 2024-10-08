@@ -92,7 +92,7 @@ jobs:
   #
   build-linux-executable:
     name: 'executable creation using python 3.11 on Linux'
-    runs-on: 'ubuntu-latest'
+    runs-on: 'ubuntu-22.04'
     steps:
       - uses: actions/checkout@v2
       # https://github.com/actions/setup-python
