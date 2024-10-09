@@ -111,9 +111,7 @@ class FileContents():
 					msg += ["<b>WARNING</b>: You've asked for {} selections. You cannot use the <i>Produce a Test Panel</i> button if you want more than 1 selection and no Remaining tab will be created.".format(self.number_selections)]
 				self._add_category_content( self.g_sheet_name )
 				dummy_file_contents=''
-				print("here!")
 				msg += self.PeopleAndCats.load_people(self.settings, dummy_file_contents, self.respondents_tab_name, self.category_tab_name, self.gen_rem_tab )
-				print("there!")
 				eel.update_selection_output_area("<br />".join(msg))
 				self.update_run_button()
 				eel.enable_load_g_sheet_btn()
