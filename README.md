@@ -21,6 +21,7 @@ First you need to have the following installed:
 
 - git
 - python 3.11 or 3.12
+- pip
 - a recent version of Chrome or Chromium
 - poetry
 
@@ -29,13 +30,13 @@ First you need to have the following installed:
 When you first set up a development version, you need to clone this repo, open a terminal in the root of the repo and run:
 
 ```
+poetry shell
 pip install eel
 pip install cvxpy
 pip install gspread
 pip install mip
 pip install toml
 pip install oauth2client
-poetry shell
 python script.py
 ```
 
