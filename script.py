@@ -3,6 +3,7 @@ import sys
 from io import StringIO
 
 import eel
+import gspread
 
 from stratification import (
 	PeopleAndCatsCSV,

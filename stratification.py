@@ -642,7 +642,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
             if self._tab_exists(self.category_tab_name):
                 tab_cats = self.spreadsheet.worksheet(self.category_tab_name)
                 cat_head_input = tab_cats.row_values(1)
-                cat_input = tab_cats.get_all_records()
+                cat_input = tab_cats.get_all_records(expected_headers=[])
                 new_msg, min_val, max_val = self._read_in_cats(cat_head_input, cat_input)
                 msg += ["Read in '{}' tab in above Google sheet.".format(self.category_tab_name)]
                 msg += new_msg
