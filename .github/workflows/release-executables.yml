@@ -32,7 +32,7 @@ jobs:
           pip install mip
           pip install oauth2client==4.1.3
           pip install toml==0.10.2
-          python -m eel script.py web -n strat-select-win.exe --additional-hooks-dir=. --onefile --noconsole
+          python -m eel script.py web -n strat-select-win.exe --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/strat-select-win.exe target/release
       # copy nicks-script.exe to the release
@@ -73,7 +73,7 @@ jobs:
           pip install mip
           pip install oauth2client==4.1.3
           pip install toml==0.10.2
-          python -m eel script.py web -n strat-select-macos --additional-hooks-dir=. --onefile --noconsole
+          python -m eel script.py web -n strat-select-macos --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/strat-select-macos target/release
       # copy script.app to the release
@@ -114,7 +114,7 @@ jobs:
           pip install mip
           pip install oauth2client==4.1.3
           pip install toml==0.10.2
-          python -m eel script.py web -n strat-select-linux --additional-hooks-dir=. --onefile --noconsole
+          python -m eel script.py web -n strat-select-linux --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/strat-select-linux target/release
       # copy script.app to the release
