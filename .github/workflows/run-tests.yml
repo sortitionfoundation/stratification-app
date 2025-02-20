@@ -35,6 +35,9 @@ jobs:
         run: |
           pip install ruff
           ruff check --output-format=github --target-version=py312
+        continue-on-error: true
+      - name: Reformat with Ruff (diff only)
+        run: |
           ruff format --diff --line-length=120 --target-version=py312
         continue-on-error: true
       - name: Upload pytest test results
