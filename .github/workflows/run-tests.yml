@@ -9,28 +9,34 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
 
-    steps:  
-      - uses: actions/checkout@v3  
-      - name: Set up Python ${{ matrix.python-version }}  
-        uses: actions/setup-python@v4  
-        with:  
-          python-version: ${{ matrix.python-version }}  
-      - name: Install dependencies  
-        run: |  
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - name: Install dependencies
+        run: |
           python -VV
           python -m site
-          python -m pip install --upgrade pip  
+          python -m pip install --upgrade pip
           pip install pyyaml pyinstaller==6.10.0 eel==0.17.0 cvxpy==1.5.3 gspread==6.1.2 mip oauth2client==4.1.3 toml==0.10.2
-          pip install pytest pytest-cov
-          # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi  
-      - name: Lint with Ruff  
+          # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Test with pytest
         run: |
-          pip install ruff  
-          ruff --format=github --target-version=py312 .
-        continue-on-error: true  
-      - name: Test with pytest  
-        run: |  
-          pytest -v --cov
-      - name: Generate Coverage Report  
-        run: |  
-          coverage report -m
+          pip install pytest pytest-cov
+          pytest -v --cov --cov-report=xml --cov-report=html --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+      - name: Lint with Ruff
+        run: |
+          pip install ruff
+          ruff check --format=github --target-version=py312
+          ruff format --diff --target-version=py312
+        continue-on-error: true
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-${{ matrix.python-version }}
+          path: junit/test-results-${{ matrix.python-version }}.xml
+        # Use always() to always run this step to publish test results when there are test failures
+        if: ${{ always() }}
