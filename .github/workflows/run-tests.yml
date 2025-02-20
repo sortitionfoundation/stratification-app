@@ -1,5 +1,9 @@
 name: Run Unit Test via Pytest
 
+permissions:
+  contents: read
+  pull-requests: write
+
 on: [push]
 
 jobs:
@@ -30,8 +34,8 @@ jobs:
       - name: Lint with Ruff
         run: |
           pip install ruff
-          ruff check --format=github --target-version=py312
-          ruff format --diff --target-version=py312
+          ruff check --output-format=github --target-version=py312
+          ruff format --diff --line-length=120 --target-version=py312
         continue-on-error: true
       - name: Upload pytest test results
         uses: actions/upload-artifact@v4
