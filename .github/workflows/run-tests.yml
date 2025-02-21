@@ -1,5 +1,5 @@
 ---
-name: Run Unit Test via Pytest
+name: tests
 
 permissions:
   contents: read

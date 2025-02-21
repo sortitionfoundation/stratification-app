@@ -1,7 +1,7 @@
 Strat App
 =========
 
-[Build Status](https://github.com/sortitionfoundation/stratification-app/actions)
+[![Test Status](https://github.com/sortitionfoundation/stratification-app/workflows/tests/badge.svg?branch=master)](https://github.com/sortitionfoundation/stratification-app/actions?workflow=tests)
 
 A simple GUI for stratification for sortition/citizens' assemblies.
 
