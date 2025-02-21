@@ -1,3 +1,4 @@
+---
 name: Release Executables
 
 permissions:
@@ -33,7 +34,7 @@ jobs:
           uv sync
       - name: "Build windows package"
         run: |
-          python -m eel script.py web -n strat-select-win.exe --additional-hooks-dir=. --onefile
+          uv run python -m eel script.py web -n strat-select-win.exe --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/strat-select-win.exe target/release
       # copy nicks-script.exe to the release
@@ -68,7 +69,7 @@ jobs:
           uv sync
       - name: "Build MacOS package"
         run: |
-          python -m eel script.py web -n strat-select-macos --additional-hooks-dir=. --onefile
+          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/strat-select-macos target/release
       # copy script.app to the release
@@ -103,7 +104,7 @@ jobs:
           uv sync
       - name: "Build Linux package"
         run: |
-          python -m eel script.py web -n strat-select-linux --additional-hooks-dir=. --onefile
+          uv run python -m eel script.py web -n strat-select-linux --additional-hooks-dir=. --onefile
           mkdir -p target/release
           mv dist/strat-select-linux target/release
       # copy script.app to the release
