@@ -18,3 +18,9 @@ dependencies = [
     "pyinstaller==6.11.1",
     "toml==0.10.2",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+]
