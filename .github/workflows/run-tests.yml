@@ -15,30 +15,28 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
+          version: "0.6.2"
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      - name: Install dependencies
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Report versions etc dependencies
         run: |
-          python -VV
-          python -m site
-          python -m pip install --upgrade pip
-          pip install pyyaml pyinstaller==6.10.0 eel==0.17.0 cvxpy==1.5.3 gspread==6.1.2 mip oauth2client==4.1.3 toml==0.10.2
-          # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          uv run python -VV
+          uv run python -m site
+          uv sync --dev
       - name: Test with pytest
         run: |
-          pip install pytest pytest-cov
-          pytest -v --cov --cov-report=xml --cov-report=html --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+          uv run pytest -v --cov --cov-report=xml --cov-report=html --junitxml=junit/test-results-${{ matrix.python-version }}.xml
       - name: Lint with Ruff
         run: |
-          pip install ruff
-          ruff check --output-format=github --target-version=py312
+          uv run ruff check --output-format=github --target-version=py312
         continue-on-error: true
       - name: Reformat with Ruff (diff only)
         run: |
-          ruff format --diff --line-length=120 --target-version=py312
+          uv run ruff format --diff --line-length=120 --target-version=py312
         continue-on-error: true
       - name: Upload pytest test results
         uses: actions/upload-artifact@v4
