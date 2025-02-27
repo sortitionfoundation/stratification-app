@@ -1,10 +1,15 @@
 from pathlib import Path
 
+import pytest
+
 from stratification import (
 	PeopleAndCatsCSV,
 	Settings,
 )
 
+# legacy is broken, so exclude that for now
+# ALGORITHMS = ("legacy", "maximin", "leximin", "nash")
+ALGORITHMS = ("maximin", "leximin", "nash")
 
 categories_content = Path("fixtures/categories.csv").read_text("utf8")
 candidates_content = Path("fixtures/candidates.csv").read_text("utf8")
@@ -43,13 +48,14 @@ def get_settings(algorithm="leximin"):
 
 
 # TODO parametrize - each of the 4 algorithms - check coverage after that!
-def test_csv_selection_happy_path_defaults():
+@pytest.mark.parametrize("algorithm", ALGORITHMS)
+def test_csv_selection_happy_path_defaults(algorithm):
     """
     Objective: Check the happy path completes.
     Context: This test is meant to do what the use will do via the GUI when using a CSV file.
     Expectations: Given default settings and an easy selection, we should get selected and remaining.
     """
-    settings = get_settings()
+    settings = get_settings(algorithm)
     people_cats = PeopleAndCatsCSV()
     people_cats.load_cats(categories_content, "Categories", settings)
     people_cats.number_people_to_select = 22
