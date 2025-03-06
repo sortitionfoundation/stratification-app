@@ -1477,8 +1477,11 @@ def _generate_initial_committees(new_committee_model: mip.model.Model, agent_var
     committees: Set[FrozenSet[str]] = set()  # Committees discovered so far
     covered_agents: Set[str] = set()  # All agents included in some committee
 
-    # We begin using a multiplicative-weight stage. Each agent has a weight starting at 1.
-    weights = {id: 1 for id in agent_vars}
+    # We begin using a multiplicative-weight stage. Each agent has a weight between 0.8 and 1
+    # Note that if all start with the same weight then we can end up with some committees
+    # having the wrong number of results.
+    # Further investigation of this to happen under https://github.com/sortitionfoundation/stratification-app/issues/23
+    weights = {id: random.uniform(0.8, 1.0) for id in agent_vars}
     for i in range(multiplicative_weights_rounds):
         # In each round, we find a
         # feasible committee such that the sum of weights of its members is maximal.
