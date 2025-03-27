@@ -16,7 +16,7 @@ jobs:
   # 1. Release Windows Executable
   #
   release-windows-exe:
-    name: 'script.exe creation using python 3.11 on Windows'
+    name: 'script.exe release for Windows'
     needs: build-windows-exe
     runs-on: 'windows-latest'
     steps:
@@ -38,7 +38,7 @@ jobs:
   # 2. Release MacOS Executable
   #
   release-macos-executable:
-    name: 'script.app creation using python 3.11 on MacOS'
+    name: 'script.app release for MacOS'
     needs: build-macos-executable
     runs-on: 'macos-latest'
     steps:
@@ -60,7 +60,7 @@ jobs:
   # 3. Release Linux Executable
   #
   release-linux-executable:
-    name: 'executable creation using python 3.11 on Linux'
+    name: 'executable release for Linux'
     needs: build-linux-executable
     runs-on: 'ubuntu-24.04'
     steps:

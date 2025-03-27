@@ -1,5 +1,5 @@
 ---
-name: Release Executables
+name: Build Executables
 
 permissions:
   contents: read
@@ -40,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: strat-select-win.exe
-          path: dist/strat-select-win.exe
+          path: target/release/strat-select-win.exe
           # default retention is 90
           retention-days: 30
 
@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: strat-select-macos
-          path: dist/strat-select-macos
+          path: target/release/strat-select-macos
           # default retention is 90
           retention-days: 30
 
@@ -106,6 +106,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: strat-select-linux
-          path: dist/strat-select-linux
+          path: target/release/strat-select-linux
           # default retention is 90
           retention-days: 30
