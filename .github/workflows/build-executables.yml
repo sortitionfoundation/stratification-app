@@ -1,0 +1,111 @@
+---
+name: Release Executables
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+
+# https://hynek.me/articles/python-github-actions/
+jobs:
+  #
+  # 1. Build Windows Executable
+  #
+  build-windows-exe:
+    name: 'script.exe creation using python 3.11 on Windows'
+    runs-on: 'windows-latest'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.2"
+          python-version: '3.11'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: "Install dependencies"
+        run: |
+          uv run python -VV
+          uv run python -m site
+          uv sync
+      - name: "Build windows package"
+        run: |
+          uv run python -m eel script.py web -n strat-select-win.exe --additional-hooks-dir=. --onefile
+          mkdir -p target/release
+          mv dist/strat-select-win.exe target/release
+      # copy script exe to build artifacts so we can test it
+      - name: Upload executable to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: strat-select-win.exe
+          path: dist/strat-select-win.exe
+          # default retention is 90
+          retention-days: 30
+
+  # 2. Build MacOS Executable
+  #
+  build-macos-executable:
+    name: 'script.app creation using python 3.11 on MacOS'
+    runs-on: 'macos-latest'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.2"
+          python-version: '3.11'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: "Install dependencies"
+        run: |
+          uv run python -VV
+          uv run python -m site
+          uv sync
+      - name: "Build MacOS package"
+        run: |
+          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=. --onefile
+          mkdir -p target/release
+          mv dist/strat-select-macos target/release
+      # copy script app to build artifacts so we can test it
+      - name: Upload executable to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: strat-select-macos
+          path: dist/strat-select-macos
+          # default retention is 90
+          retention-days: 30
+
+  # 3. Build Linux Executable
+  #
+  build-linux-executable:
+    name: 'executable creation using python 3.11 on Linux'
+    runs-on: 'ubuntu-24.04'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.2"
+          python-version: '3.11'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: "Install dependencies"
+        run: |
+          uv run python -VV
+          uv run python -m site
+          uv sync
+      - name: "Build Linux package"
+        run: |
+          uv run python -m eel script.py web -n strat-select-linux --additional-hooks-dir=. --onefile
+          mkdir -p target/release
+          mv dist/strat-select-linux target/release
+      # copy script app to build artifacts so we can test it
+      - name: Upload executable to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: strat-select-linux
+          path: dist/strat-select-linux
+          # default retention is 90
+          retention-days: 30
