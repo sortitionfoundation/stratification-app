@@ -1,21 +1,21 @@
 category,name,min,max,min_flex,max_flex
-gender,Female,11,12,0,0
-gender,Male,10,11,0,0
-gender,Non-binary or other,0,1,0,0
-age_bucket,0-15,0,0,0,0
-age_bucket,16-29,5,7,0,0
-age_bucket,30-44,5,7,0,0
-age_bucket,45-59,5,6,0,0
-age_bucket,60+,5,6,0,0
-edu_level,No qualifications,5,7,0,0
-edu_level,Level 1,5,7,0,0
-edu_level,Level 2 or 3,5,6,0,0
-edu_level,Level 4 and above,5,6,0,0
-geo_bucket,Central Scotland,3,5,0,0
-geo_bucket,Glasgow,3,5,0,0
-geo_bucket,Highlands and Islands,3,5,0,0
-geo_bucket,Lothian,3,5,0,0
-geo_bucket,Mid Scotland and Fife,3,5,0,0
-geo_bucket,North East Scotland,3,5,0,0
-geo_bucket,South Scotland,3,5,0,0
-geo_bucket,West Scotland,3,5,0,0
+gender,Female,11,12,0,12
+gender,Male,10,11,0,12
+gender,Non-binary or other,0,1,0,1
+age_bracket,0-15,0,0,0,0
+age_bracket,16-29,5,7,0,7
+age_bracket,30-44,5,7,0,7
+age_bracket,45-59,5,6,0,6
+age_bracket,60+,5,6,0,6
+edu_level,No qualifications,5,7,0,7
+edu_level,Level 1,5,7,0,7
+edu_level,Level 2 or 3,5,6,0,6
+edu_level,Level 4 and above,5,6,0,6
+geo_bucket,Central Scotland,3,5,0,5
+geo_bucket,Glasgow,3,5,0,5
+geo_bucket,Highlands and Islands,2,5,0,5
+geo_bucket,Lothian,3,5,0,5
+geo_bucket,Mid Scotland and Fife,3,5,0,5
+geo_bucket,North East Scotland,2,5,0,5
+geo_bucket,South Scotland,3,5,0,5
+geo_bucket,West Scotland,3,5,0,5
