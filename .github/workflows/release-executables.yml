@@ -12,101 +12,62 @@ on:
 
 # https://hynek.me/articles/python-github-actions/
 jobs:
+
+  # 1. Release Windows Executable
   #
-  # 1. Build Windows Executable
-  #
-  build-windows-exe:
-    name: 'script.exe creation using python 3.11 on Windows'
+  release-windows-exe:
+    name: 'script.exe release for Windows'
+    needs: build-windows-exe
     runs-on: 'windows-latest'
     steps:
-      - uses: actions/checkout@v2
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Download a single artifact
+        uses: actions/download-artifact@v4
         with:
-          version: "0.6.2"
-          python-version: '3.11'
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: "Install dependencies"
-        run: |
-          uv run python -VV
-          uv run python -m site
-          uv sync
-      - name: "Build windows package"
-        run: |
-          uv run python -m eel script.py web -n strat-select-win.exe --additional-hooks-dir=. --onefile
-          mkdir -p target/release
-          mv dist/strat-select-win.exe target/release
+          name: strat-select-win.exe
       # copy nicks-script.exe to the release
       # https://github.com/marketplace/actions/upload-files-to-a-github-release
       - name: upload executable to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/strat-select-win.exe
+          file: strat-select-win.exe
           tag: ${{ github.ref }}
           overwrite: true
           body: "script release text"
+
+  # 2. Release MacOS Executable
   #
-  # 2. Build MacOS Executable
-  #
-  build-macos-executable:
-    name: 'script.app creation using python 3.11 on MacOS'
+  release-macos-executable:
+    name: 'script.app release for MacOS'
+    needs: build-macos-executable
     runs-on: 'macos-latest'
     steps:
-      - uses: actions/checkout@v2
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Download a single artifact
+        uses: actions/download-artifact@v4
         with:
-          version: "0.6.2"
-          python-version: '3.11'
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: "Install dependencies"
-        run: |
-          uv run python -VV
-          uv run python -m site
-          uv sync
-      - name: "Build MacOS package"
-        run: |
-          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=. --onefile
-          mkdir -p target/release
-          mv dist/strat-select-macos target/release
+          name: strat-select-macos
       # copy script.app to the release
       # https://github.com/marketplace/actions/upload-files-to-a-github-release
       - name: upload exectuable to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/strat-select-macos
+          file: strat-select-macos
           tag: ${{ github.ref }}
           overwrite: true
           body: "script release text"
+
+  # 3. Release Linux Executable
   #
-  # 3. Build Linux Executable
-  #
-  build-linux-executable:
-    name: 'executable creation using python 3.11 on Linux'
+  release-linux-executable:
+    name: 'executable release for Linux'
+    needs: build-linux-executable
     runs-on: 'ubuntu-24.04'
     steps:
-      - uses: actions/checkout@v2
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Download a single artifact
+        uses: actions/download-artifact@v4
         with:
-          version: "0.6.2"
-          python-version: '3.11'
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: "Install dependencies"
-        run: |
-          uv run python -VV
-          uv run python -m site
-          uv sync
-      - name: "Build Linux package"
-        run: |
-          uv run python -m eel script.py web -n strat-select-linux --additional-hooks-dir=. --onefile
-          mkdir -p target/release
-          mv dist/strat-select-linux target/release
+          name: strat-select-linux
       # copy script.app to the release
       #
       # https://github.com/marketplace/actions/upload-files-to-a-github-release
@@ -114,7 +75,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/strat-select-linux
+          file: strat-select-linux
           tag: ${{ github.ref }}
           overwrite: true
           body: "script release text"
