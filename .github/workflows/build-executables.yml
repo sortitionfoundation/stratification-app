@@ -46,6 +46,8 @@ jobs:
 
   # 2. Build MacOS Executable
   #
+  # Note that this produces an ARM based build, so won't work on older
+  # intel based Macs.
   build-macos-executable:
     name: 'script.app creation using python 3.11 on MacOS'
     runs-on: 'macos-latest'
@@ -65,11 +67,11 @@ jobs:
           uv sync
       - name: "Build MacOS package"
         run: |
-          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile
+          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile --latest --windowed
           echo "dist/"
           ls -l dist/
-          echo "build/"
-          ls -l build/
+          echo "build/*"
+          ls -l build/*
           mkdir -p target/release
           mv dist/strat-select-macos target/release
       # copy script app to build artifacts so we can test it
