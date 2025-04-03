@@ -198,7 +198,7 @@ class PeopleAndCats():
         self.people = None
         self.columns_data = None
         # after selection, this is just "number_selections" lists of people IDs
-        self.people_selected = None
+        self.people_selected: list[FrozenSet[str]] = []
         self.number_people_to_select = 0
         self.number_selections = 1  # default to 1 - why not?
         # these, and the two functions below, are the only annoying things needed to distinguish CSV in GUI..
@@ -435,7 +435,7 @@ class PeopleAndCats():
     def people_cats_run_stratification(self, settings: Settings, test_selection):
         # if this is being called again (the user hit the button again!) we want to make sure all data is cleared etc
         # but the function called here makes deep copies of categories_after_people and people
-        self.people_selected = None
+        self.people_selected = []
         success, self.people_selected, output_lines = run_stratification(
             self.categories_after_people, self.people, self.columns_data, self.number_people_to_select,
             self.min_max_people, settings, test_selection, self.number_selections
@@ -1984,8 +1984,16 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings,
-                       test_selection, number_selections):
+def run_stratification(
+    categories,
+    people,
+    columns_data,
+    number_people_wanted: int,
+    min_max_people: dict[str, dict[str, int]], 
+    settings: Settings,
+    test_selection: bool,
+    number_selections: int,
+) -> tuple[bool, list[FrozenSet[str]], list[str]]:
     # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people.items():
         if settings.selection_algorithm == "legacy" and (  # For other algorithms, quotas are analyzed later
@@ -1996,7 +2004,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                     number_people_wanted, mkey, mvalue["min"], mvalue["max"]
                 )
             )
-            return False, 0, {}, [error_msg]
+            return False, [], [error_msg]
     # set the random seed if it is NOT zero
     if settings.random_number_seed:
         random.seed(settings.random_number_seed)
@@ -2009,9 +2017,9 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             "<b style='color: red'>WARNING: Panel is not selected at random! Only use for testing!</b><br>")
     output_lines.append("<b>Initial: (selected = 0)</b>")
     categories_working = {}
-    people_selected = {}
+    people_selected = []
     while not success and tries < settings.max_attempts:
-        people_selected = {}
+        people_selected = []
         people_working = copy.deepcopy(people)
         categories_working = copy.deepcopy(categories)
         if tries == 0:
