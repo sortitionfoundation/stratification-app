@@ -42,7 +42,7 @@ jobs:
           name: strat-select-win.exe
           path: target/release/strat-select-win.exe
           # default retention is 90
-          retention-days: 30
+          retention-days: 15
 
   # 2. Build MacOS Executable
   #
@@ -70,18 +70,19 @@ jobs:
           uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile --windowed
           echo "dist/"
           ls -l dist/
-          echo "build/*"
-          ls -l build/*
           mkdir -p target/release
           mv dist/strat-select-macos target/release
+          cd dist  && zip -r ../target/release/strat-select-macos.app.zip strat-select-macos.app
+          ls -l ../target/release/
+          ls -l target/release/
       # copy script app to build artifacts so we can test it
       - name: Upload executable to artifacts
         uses: actions/upload-artifact@v4
         with:
           name: strat-select-macos
-          path: target/release/strat-select-macos
+          path: target/release/
           # default retention is 90
-          retention-days: 30
+          retention-days: 15
 
   # 3. Build Linux Executable
   #
@@ -114,4 +115,4 @@ jobs:
           name: strat-select-linux
           path: target/release/strat-select-linux
           # default retention is 90
-          retention-days: 30
+          retention-days: 15
