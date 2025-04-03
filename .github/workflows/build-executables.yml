@@ -66,7 +66,10 @@ jobs:
       - name: "Build MacOS package"
         run: |
           uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile
+          echo "dist/"
           ls -l dist/
+          echo "build/"
+          ls -l build/
           mkdir -p target/release
           mv dist/strat-select-macos target/release
       # copy script app to build artifacts so we can test it
