@@ -67,7 +67,7 @@ jobs:
           uv sync
       - name: "Build MacOS package"
         run: |
-          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile --latest --windowed
+          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile --windowed
           echo "dist/"
           ls -l dist/
           echo "build/*"
