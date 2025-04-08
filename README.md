@@ -8,7 +8,9 @@ A simple GUI for stratification for sortition/citizens' assemblies.
 About
 -----
 
-Random stratified selection software
+Random stratified selection software.
+
+The algorithms are described in [this paper (open access)](https://www.nature.com/articles/s41586-021-03788-6).
 
 Development
 -----------
