@@ -198,7 +198,7 @@ class PeopleAndCats():
         self.people = None
         self.columns_data = None
         # after selection, this is just "number_selections" lists of people IDs
-        self.people_selected = None
+        self.people_selected: list[FrozenSet[str]] = []
         self.number_people_to_select = 0
         self.number_selections = 1  # default to 1 - why not?
         # these, and the two functions below, are the only annoying things needed to distinguish CSV in GUI..
@@ -435,7 +435,7 @@ class PeopleAndCats():
     def people_cats_run_stratification(self, settings: Settings, test_selection):
         # if this is being called again (the user hit the button again!) we want to make sure all data is cleared etc
         # but the function called here makes deep copies of categories_after_people and people
-        self.people_selected = None
+        self.people_selected = []
         success, self.people_selected, output_lines = run_stratification(
             self.categories_after_people, self.people, self.columns_data, self.number_people_to_select,
             self.min_max_people, settings, test_selection, self.number_selections
@@ -780,8 +780,12 @@ def delete_all_in_cat(categories, people, cat_check_key, cat_check_value):
 
 # selected = True means we are deleting because they have been chosen,
 # otherwise they are being deleted because they live at same address as someone selected
-def really_delete_person(categories, people, pkey, selected):
+def really_delete_person(categories, people, pkey: str, selected: bool) -> None:
     for pcat, pval in people[pkey].items():
+        if pcat not in categories:
+            # some categories are just first_name etc - so will
+            # not be in the target categories
+            continue
         cat_item = categories[pcat][pval]
         if selected:
             cat_item["selected"] += 1
@@ -828,12 +832,13 @@ def delete_person(categories, people, pkey, check_same_address, check_same_addre
     # delete the actual person after checking for people at the same address
     really_delete_person(categories, people, pkey, True)
     # then check if any cats of selected person is (was) in are full
-    for (pcat, pval) in person.items():
-        cat_item = categories[pcat][pval]
-        if cat_item["selected"] == cat_item["max"]:
-            output_lines += ["Category {} full - deleting people...".format(pval)]
-            num_deleted, num_left = delete_all_in_cat(categories, people, pcat, pval)
-            output_lines[-1] += " Deleted {}, {} left.".format(num_deleted, num_left)
+    for pcat, pval in person.items():
+        if pcat in categories:
+            cat_item = categories[pcat][pval]
+            if cat_item["selected"] == cat_item["max"]:
+                output_lines += ["Category {} full - deleting people...".format(pval)]
+                num_deleted, num_left = delete_all_in_cat(categories, people, pcat, pval)
+                output_lines[-1] += " Deleted {}, {} left.".format(num_deleted, num_left)
     return output_lines
 
 
@@ -1213,10 +1218,14 @@ def find_random_sample(categories: Dict[str, Dict[str, Dict[str, int]]], people:
     return committee_lottery, output_lines
 
 
-def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], people: Dict[str, Dict[str, str]],
-                              columns_data: Dict[str, Dict[str, str]], number_people_wanted: int,
-                              check_same_address: bool, check_same_address_columns: List[str]) \
-        -> Tuple[List[FrozenSet[str]], List[str]]:
+def find_random_sample_legacy(
+    categories: Dict[str, Dict[str, Dict[str, int]]],
+    people: Dict[str, Dict[str, str]],
+    columns_data: Dict[str, Dict[str, str]],
+    number_people_wanted: int,
+    check_same_address: bool,
+    check_same_address_columns: List[str],
+) -> Tuple[List[FrozenSet[str]], List[str]]:
     output_lines = ["Using legacy algorithm."]
     people_selected = set()
     for count in range(number_people_wanted):
@@ -1231,8 +1240,9 @@ def find_random_sample_legacy(categories: Dict[str, Dict[str, Dict[str, int]]], 
                         print("Found random person in this cat... adding them")
                     assert pkey not in people_selected
                     people_selected.add(pkey)
-                    output_lines += delete_person(categories, people, pkey, check_same_address,
-                                                  check_same_address_columns)
+                    output_lines += delete_person(
+                        categories, people, pkey, check_same_address, check_same_address_columns
+                    )
                     break
         if count < (number_people_wanted - 1) and len(people) == 0:
             raise SelectionError("Fail! We've run out of people...")
@@ -1620,14 +1630,14 @@ def find_distribution_leximin(categories: Dict[str, Dict[str, Dict[str, int]]], 
         # In the inner loop, there is a column generation for maximizing the minimum of all unfixed probabilities
         while True:
             """The primal LP being solved by column generation, with a variable x_P for each feasible panel P:
-            
+
             maximize z
             s.t.     Σ_{P : i ∈ P} x_P ≥ z                         ∀ i not in fixed_probabilities
                      Σ_{P : i ∈ P} x_P ≥ fixed_probabilities[i]    ∀ i in fixed_probabilities
                      Σ_P x_P ≤ 1                                   (This should be thought of as equality, and wlog.
                                                                    optimal solutions have equality, but simplifies dual)
                      x_P ≥ 0                                       ∀ P
-                     
+
             We instead solve its dual linear program:
             minimize ŷ - Σ_{i in fixed_probabilities} fixed_probabilities[i] * yᵢ
             s.t.     Σ_{i ∈ P} yᵢ ≤ ŷ                              ∀ P
@@ -1984,8 +1994,16 @@ def find_distribution_nash(categories: Dict[str, Dict[str, Dict[str, int]]], peo
 ###################################
 
 
-def run_stratification(categories, people, columns_data, number_people_wanted, min_max_people, settings: Settings,
-                       test_selection, number_selections):
+def run_stratification(
+    categories,
+    people,
+    columns_data,
+    number_people_wanted: int,
+    min_max_people: dict[str, dict[str, int]],
+    settings: Settings,
+    test_selection: bool,
+    number_selections: int,
+) -> tuple[bool, list[FrozenSet[str]], list[str]]:
     # First check if numbers in cat file and to select make sense
     for mkey, mvalue in min_max_people.items():
         if settings.selection_algorithm == "legacy" and (  # For other algorithms, quotas are analyzed later
@@ -1996,7 +2014,7 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
                     number_people_wanted, mkey, mvalue["min"], mvalue["max"]
                 )
             )
-            return False, 0, {}, [error_msg]
+            return False, [], [error_msg]
     # set the random seed if it is NOT zero
     if settings.random_number_seed:
         random.seed(settings.random_number_seed)
@@ -2009,9 +2027,9 @@ def run_stratification(categories, people, columns_data, number_people_wanted, m
             "<b style='color: red'>WARNING: Panel is not selected at random! Only use for testing!</b><br>")
     output_lines.append("<b>Initial: (selected = 0)</b>")
     categories_working = {}
-    people_selected = {}
+    people_selected = []
     while not success and tries < settings.max_attempts:
-        people_selected = {}
+        people_selected = []
         people_working = copy.deepcopy(people)
         categories_working = copy.deepcopy(categories)
         if tries == 0:
