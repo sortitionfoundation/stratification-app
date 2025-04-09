@@ -8,8 +8,7 @@ from stratification import (
 )
 
 # legacy is broken, so exclude that for now
-# ALGORITHMS = ("legacy", "maximin", "leximin", "nash")
-ALGORITHMS = ("maximin", "leximin", "nash")
+ALGORITHMS = ("legacy", "maximin", "leximin", "nash")
 
 categories_content = Path("fixtures/categories.csv").read_text("utf8")
 candidates_content = Path("fixtures/candidates.csv").read_text("utf8")
