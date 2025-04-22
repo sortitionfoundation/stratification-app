@@ -64,7 +64,7 @@ $(function(){
     	eel.update_g_sheet_name(this.value);
     }
 
-////////////////////////////////////////   
+////////////////////////////////////////
 //Some functions for Advanced settings//
 ////////////////////////////////////////
 
@@ -87,12 +87,12 @@ $(function(){
     function handle_number_selections() {
     	eel.update_number_selections(this.value);
     }
-//////////////////////////////////////////   
+//////////////////////////////////////////
 //End of functions for Advanced settings//
 //////////////////////////////////////////
 
 
-   
+
     function handle_load_g_sheet_btn() {
     	eel.load_g_sheet();
     }
@@ -134,7 +134,7 @@ $(function(){
         const output_area = document.getElementById("output-area-selection-target-p");
         output_area.innerHTML = output_html;
     }
-    
+
     function handle_number_people() {
         eel.update_number_people(this.value);
     }
@@ -158,13 +158,13 @@ $(function(){
         const selection_content = document.getElementById("selection-file");
         selection_content.disabled = false;
     }
-	
+
     eel.expose(set_select_number_people);
     function set_select_number_people(number_people) {
     	const select_number_people_input = document.getElementById("selection-number");
         select_number_people_input.value = number_people;
 	}
-	
+
     eel.expose(enable_run_button);
     function enable_run_button() {
         const run_button = document.getElementById("run-btn");
