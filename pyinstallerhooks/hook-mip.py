@@ -1,3 +1,4 @@
+# noqa: INP001
 from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs
 
 
@@ -7,7 +8,7 @@ def hook(hook_api):
     packages = ["mip"]
     for package in packages:
         datas, binaries, hiddenimports = collect_all(package)
-        binary_paths = set(b[0] for b in binaries)
+        binary_paths = {b[0] for b in binaries}
         # find any xyz.so libraries that don't start with "lib"
         binaries += [
             b
