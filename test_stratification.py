@@ -89,7 +89,7 @@ example4.categories = {
 # Categories: gender (female/male) and political leaning (liberal/conservative)
 # Quotas: must include exactly 4 males, 1 female, 4 liberals, and 1 conservative.
 # Pool: 4 liberal men, 1 liberal female, 1 conservative male, 1 conservative female.
-# k = 5
+# with: k = 5
 example5 = Example(
     {
         "gender": {"female": {"min": 1, "max": 1}, "male": {"min": 4, "max": 4}},
@@ -140,15 +140,15 @@ for i in range(1, 11):
     example6_people["p" + str(i + 40)] = {"f1": "v2", "f2": "v3", "f3": "v2"}  # 10 people of kind E
     example6_people["p" + str(i + 50)] = {"f1": "v3", "f2": "v2", "f3": "v2"}  # 10 people of kind F
 example6_people["p61"] = {"f1": "v3", "f2": "v3", "f3": "v3"}  # 1 extra person
-example6_columns_data = {id: {} for id in example6_people}
+example6_columns_data = {pid: {} for pid in example6_people}
 example6 = Example(example6_categories, example6_people, example6_columns_data, 46)
 
 
 def _calculate_marginals(people, committees, probabilities):
-    marginals = {id: 0 for id in people}
+    marginals = {pid: 0 for pid in people}
     for committee, prob in zip(committees, probabilities, strict=False):
-        for id in committee:
-            marginals[id] += prob
+        for pid in committee:
+            marginals[pid] += prob
     return marginals
 
 
@@ -163,7 +163,7 @@ class FindDistributionTests(TestCase):
         prob_sum = sum(probabilities)
         self.assertAlmostEqual(prob_sum, 1, places=self.PRECISION)
 
-    def _allocation_feasible(
+    def _allocation_feasible(  # noqa: PLR0913
         self,
         committee,
         categories,
@@ -175,11 +175,11 @@ class FindDistributionTests(TestCase):
     ):
         self.assertEqual(len(committee), len(set(committee)))
         self.assertEqual(len(committee), number_people_wanted)
-        for id in committee:
-            self.assertIn(id, people)
+        for pid in committee:
+            self.assertIn(pid, people)
         for feature in categories:
             for value in categories[feature]:
-                num_value = sum(1 for id in committee if people[id][feature] == value)
+                num_value = sum(1 for pid in committee if people[pid][feature] == value)
                 self.assertGreaterEqual(num_value, categories[feature][value]["min"])
                 self.assertLessEqual(num_value, categories[feature][value]["max"])
         if check_same_address:
@@ -189,7 +189,7 @@ class FindDistributionTests(TestCase):
                     [columns_data[id2][col] for col in check_same_address_columns],
                 )
 
-    def _distribution_okay(
+    def _distribution_okay(  # noqa: PLR0913
         self,
         committees,
         probabilities,
