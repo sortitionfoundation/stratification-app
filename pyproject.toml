@@ -100,6 +100,7 @@ ignore = [
     "B017", #assertRaises(Exception)
     "S101", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
+    "T201", # `print` found - fine to use it for now
     "SIM102", # sometimes it's better to nest
     "UP038", # Checks for uses of isinstance/issubclass that take a tuple
     # of types for comparison.
