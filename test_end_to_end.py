@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from stratification import (
-	PeopleAndCatsCSV,
-	Settings,
+    PeopleAndCatsCSV,
+    Settings,
 )
 
 # legacy is broken, so exclude that for now
@@ -18,6 +18,7 @@ candidates_lines = [l.strip() for l in candidates_content.split("\n") if l.strip
 The header line of candidates.csv is:
 nationbuilder_id,first_name,last_name,email,mobile_number,primary_address1,primary_address2,primary_city,primary_zip,gender,age_bracket,geo_bucket,edu_level
 """
+
 
 def get_settings(algorithm="leximin"):
     columns_to_keep = [
@@ -63,8 +64,12 @@ def test_csv_selection_happy_path_defaults(algorithm):
     print(message)
     success, output_lines = people_cats.people_cats_run_stratification(settings, False)
     # we are removing the header line with the [1:]
-    selected_lines = [l.strip() for l in people_cats.get_selected_file().getvalue().split("\n") if l.strip()][1:]
-    remaining_lines = [l.strip() for l in people_cats.get_remaining_file().getvalue().split("\n") if l.strip()][1:]
+    selected_lines = [
+        l.strip() for l in people_cats.get_selected_file().getvalue().split("\n") if l.strip()
+    ][1:]
+    remaining_lines = [
+        l.strip() for l in people_cats.get_remaining_file().getvalue().split("\n") if l.strip()
+    ][1:]
     """
 		if success and self.PeopleAndCats.get_selected_file() is not None and self.PeopleAndCats.get_remaining_file() is not None:
 			eel.enable_selected_download(self.PeopleAndCats.get_selected_file().getvalue(), 'selected.csv')

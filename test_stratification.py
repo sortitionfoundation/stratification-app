@@ -3,7 +3,11 @@ from dataclasses import dataclass
 from itertools import combinations
 from unittest import TestCase
 
-from stratification import InfeasibleQuotasCantRelaxError, find_distribution_maximin, find_distribution_nash
+from stratification import (
+    InfeasibleQuotasCantRelaxError,
+    find_distribution_maximin,
+    find_distribution_nash,
+)
 
 
 @dataclass
@@ -142,7 +146,7 @@ example6 = Example(example6_categories, example6_people, example6_columns_data, 
 
 def _calculate_marginals(people, committees, probabilities):
     marginals = {id: 0 for id in people}
-    for committee, prob in zip(committees, probabilities):
+    for committee, prob in zip(committees, probabilities, strict=False):
         for id in committee:
             marginals[id] += prob
     return marginals
@@ -218,7 +222,12 @@ class FindDistributionMaximinTests(FindDistributionTests):
         check_same_address = False
         check_same_address_columns = []
         committees, probabilities, _ = find_distribution_maximin(
-            categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+            categories,
+            people,
+            columns_data,
+            number_people_wanted,
+            check_same_address,
+            check_same_address_columns,
         )
         self._distribution_okay(
             committees,
@@ -248,7 +257,12 @@ class FindDistributionMaximinTests(FindDistributionTests):
         check_same_address = True
         check_same_address_columns = ["home"]
         committees, probabilities, _ = find_distribution_maximin(
-            categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+            categories,
+            people,
+            columns_data,
+            number_people_wanted,
+            check_same_address,
+            check_same_address_columns,
         )
         self._distribution_okay(
             committees,
@@ -279,7 +293,12 @@ class FindDistributionMaximinTests(FindDistributionTests):
         check_same_address = False
         check_same_address_columns = []
         committees, probabilities, _ = find_distribution_maximin(
-            categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+            categories,
+            people,
+            columns_data,
+            number_people_wanted,
+            check_same_address,
+            check_same_address_columns,
         )
         self._distribution_okay(
             committees,
@@ -311,7 +330,12 @@ class FindDistributionMaximinTests(FindDistributionTests):
         # There are no feasible committees at all.
         with self.assertRaises(InfeasibleQuotasCantRelaxError):
             find_distribution_maximin(
-                categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+                categories,
+                people,
+                columns_data,
+                number_people_wanted,
+                check_same_address,
+                check_same_address_columns,
             )
 
     def test_no_address_fair_to_people_4(self):
@@ -322,7 +346,12 @@ class FindDistributionMaximinTests(FindDistributionTests):
         check_same_address = False
         check_same_address_columns = []
         committees, probabilities, _ = find_distribution_maximin(
-            categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+            categories,
+            people,
+            columns_data,
+            number_people_wanted,
+            check_same_address,
+            check_same_address_columns,
         )
         self._distribution_okay(
             committees,
@@ -353,7 +382,12 @@ class FindDistributionMaximinTests(FindDistributionTests):
         check_same_address = False
         check_same_address_columns = []
         committees, probabilities, _ = find_distribution_maximin(
-            categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+            categories,
+            people,
+            columns_data,
+            number_people_wanted,
+            check_same_address,
+            check_same_address_columns,
         )
         self._distribution_okay(
             committees,
@@ -388,7 +422,12 @@ class FindDistributionNashTests(FindDistributionTests):
         # There are no feasible committees at all.
         with self.assertRaises(InfeasibleQuotasCantRelaxError):
             find_distribution_nash(
-                categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+                categories,
+                people,
+                columns_data,
+                number_people_wanted,
+                check_same_address,
+                check_same_address_columns,
             )
 
     def test_no_address_fair_to_people_4(self):
@@ -399,7 +438,12 @@ class FindDistributionNashTests(FindDistributionTests):
         check_same_address = False
         check_same_address_columns = []
         committees, probabilities, _ = find_distribution_nash(
-            categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+            categories,
+            people,
+            columns_data,
+            number_people_wanted,
+            check_same_address,
+            check_same_address_columns,
         )
         self._probabilities_well_formed(probabilities)
         for committee in committees:
@@ -431,7 +475,12 @@ class FindDistributionNashTests(FindDistributionTests):
         check_same_address = False
         check_same_address_columns = []
         committees, probabilities, _ = find_distribution_nash(
-            categories, people, columns_data, number_people_wanted, check_same_address, check_same_address_columns
+            categories,
+            people,
+            columns_data,
+            number_people_wanted,
+            check_same_address,
+            check_same_address_columns,
         )
         self._distribution_okay(
             committees,
