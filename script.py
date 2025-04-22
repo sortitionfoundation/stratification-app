@@ -43,31 +43,34 @@ class FileContents:
     def _add_category_content(self, input_content):
         min_selection = 0
         max_selection = 0
-        msg = []
+        all_msg: list[str] = []
         try:
             message = self._init_settings()
             if message != "":
-                msg += [message]
-        except Exception as error:
+                all_msg.append(message)
+        # we want to catch and report unexpected exceptions here
+        except Exception as error:  # noqa: BLE001
             self.PeopleAndCats.category_content_loaded = False
-            msg += [f"Error reading in settings file: {error}"]
+            all_msg.append(f"Error reading in settings file: {error}")
         try:
             msg2, min_selection, max_selection = self.PeopleAndCats.load_cats(
                 input_content,
                 self.category_tab_name,
                 self._settings,
             )
-            msg += msg2
-        except gspread.exceptions.APIError as e:
-            msg3 = [
-                f"API error causing delay. Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet. For the record, the API error is {e} ",
-            ]
-            msg += msg3
-        except Exception as error:
+            all_msg += msg2
+        except gspread.exceptions.APIError as error:
+            all_msg.append(
+                f"API error causing delay. Please wait a couple of seconds while gsheet updates. "
+                f"After waiting you may need to reload sheet. "
+                f"For the record, the API error is {error}",
+            )
+        # we want to catch and report unexpected exceptions here
+        except Exception as error:  # noqa: BLE001
             self.PeopleAndCats.category_content_loaded = False
-            msg += [f"Error reading in categories file: {error}"]
-            print(msg)
-        eel.update_categories_output_area("<br />".join(msg))
+            all_msg.append(f"Error reading in categories file: {error}")
+            print(all_msg)  # noqa: T201
+        eel.update_categories_output_area("<br />".join(all_msg))
         self.update_selection_content()
         eel.update_selection_range(min_selection, max_selection)
         # if these are the same just set the value!
@@ -78,14 +81,14 @@ class FileContents:
         # (possibly) new categories settings
         if self.PeopleAndCats.people_content_loaded:
             dummy_file_contents = ""
-            msg = self.PeopleAndCats.load_people(
+            all_msg = self.PeopleAndCats.load_people(
                 self.settings,
                 dummy_file_contents,
                 self.respondents_tab_name,
                 self.category_tab_name,
                 self.gen_rem_tab,
             )
-            eel.update_selection_output_area("<br />".join(msg))
+            eel.update_selection_output_area("<br />".join(all_msg))
         self.update_run_button()
 
     # called from CSV input
@@ -120,30 +123,33 @@ class FileContents:
                 self.PeopleAndCats = PeopleAndCatsGoogleSheet()
                 # tell this object what this currently is...
                 self.PeopleAndCats.number_selections = self.number_selections
-                msg = []
+                all_msg: list[str] = []
                 if self.number_selections > 1:
-                    msg += [
-                        f"<b>WARNING</b>: You've asked for {self.number_selections} selections. You cannot use the <i>Produce a Test Panel</i> button if you want more than 1 selection and no Remaining tab will be created.",
-                    ]
+                    all_msg.append(
+                        f"<b>WARNING</b>: You've asked for {self.number_selections} selections. "
+                        f"You cannot use the <i>Produce a Test Panel</i> button if you want more "
+                        f"than 1 selection and no Remaining tab will be created.",
+                    )
                 self._add_category_content(self.g_sheet_name)
                 dummy_file_contents = ""
-                msg += self.PeopleAndCats.load_people(
+                all_msg += self.PeopleAndCats.load_people(
                     self.settings,
                     dummy_file_contents,
                     self.respondents_tab_name,
                     self.category_tab_name,
                     self.gen_rem_tab,
                 )
-                eel.update_selection_output_area("<br />".join(msg))
+                eel.update_selection_output_area("<br />".join(all_msg))
                 self.update_run_button()
                 eel.enable_load_g_sheet_btn()
-            except Exception as error:
+            except Exception as error:  # noqa: BLE001
                 eel.update_categories_output_area(
-                    f"Please wait a couple of seconds while gsheet updates. After waiting you may need to reload sheet. Current error is: {error}",
+                    f"Please wait a couple of seconds while gsheet updates. "
+                    f"After waiting you may need to reload sheet. Current error is: {error}",
                 )
 
     ###############################################################################
-    ###The next functions read in extra instance variables for advanced settings###
+    ### The next functions read in extra instance variables for advanced settings###
     ###############################################################################
     def update_respondents_tab_name(self, respondents_tab_name_input):
         self._clear_messages()
@@ -168,7 +174,9 @@ class FileContents:
         # never generate a remaining tab if doing a multiple selection
         if self.number_selections > 1:
             self.gen_rem_tab = "off"
-        else:  # but turn it on if = 1 (this could be wrong if the person wants it off!) if this has changed back to 1...
+        # but turn it on if = 1 (this could be wrong if the person wants it off!)
+        # if this has changed back to 1...
+        else:
             self.gen_rem_tab = "on"
 
     ########################################
@@ -318,12 +326,15 @@ def update_number_people(number_people):
 
 @eel.expose
 def run_selection():
-    csv_files.run_selection(False)
+    csv_files.run_selection(test_selection=False)
 
 
 @eel.expose
 def run_test_selection():
-    csv_files.run_selection(True)
+    csv_files.run_selection(test_selection=True)
+
+
+MIN_WINDOWS_VERSION = 10
 
 
 def main():
@@ -333,7 +344,7 @@ def main():
         eel.start("main.html", size=default_size)
     except OSError:
         # on Windows 10 try Edge if Chrome not available
-        if sys.platform in ("win32", "win64") and int(platform.release()) >= 10:
+        if sys.platform in ("win32", "win64") and int(platform.release()) >= MIN_WINDOWS_VERSION:
             eel.start("main.html", mode="edge", size=default_size)
         else:
             raise
