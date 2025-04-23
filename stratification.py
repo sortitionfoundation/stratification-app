@@ -115,8 +115,7 @@ class Settings:
         try:
             assert isinstance(id_column, str)
             assert isinstance(columns_to_keep, list)
-            # if they have no personal data this could actually be empty
-            # assert(len(columns_to_keep) > 0)
+            # if they have no personal data then columns_to_keep could be empty
             for column in columns_to_keep:
                 assert isinstance(column, str)
             assert isinstance(check_same_address, bool)
@@ -183,23 +182,28 @@ class SelectionError(Exception):
         self.msg = message
 
 
-###################################
-#
-# The PeopleAndCats classes below hold all the people and category info sourced from (and written to) the relevant place
-#
-# categories is a dict of dicts of dicts... like:
-#   categories = { 'gender' : gender, 'age' : age, 'geo' : geo, 'socio' : socio }
-# with each category a dict of possible values with set data, like:
-#     gender = { 'Gender: Male' : { 'min' : 20, 'max' : 24, 'selected' : 0, 'remaining' : 0 },
-#                'Gender: Female' : { 'min' : 21, 'max' : 25, 'selected' : 0, 'remaining' : 0 }
-# etc         }
-#
-# Note that there are now optional extra fields in the above: min_flex and max_flex...
-#
-###################################
 
 
 class PeopleAndCats:
+    """
+    The PeopleAndCats classes below hold all the people and category info sourced from 
+    (and written to) the relevant place
+
+    `categories` is a dict of dicts of dicts... like:
+
+        categories = {"gender" : gender, "age" : age, "geo" : geo, "socio" : socio}
+
+    with each category a dict of possible values with set data, like:
+
+        gender = {
+            "Gender: Male": {"min" : 20, "max" : 24, "selected" : 0, "remaining" : 0},
+            "Gender: Female": {"min" : 21, "max" : 25, "selected" : 0, "remaining" : 0}
+            # etc
+        }
+
+    Note that there are now optional extra fields in the above: min_flex and max_flex...
+    """
+
     # Warning: all / most of these values are hardcoded also somewhere below :-)
     category_file_field_names = ["category", "name", "min", "max", "min_flex", "max_flex"]
 
@@ -500,9 +504,8 @@ class PeopleAndCats:
             people_selected_header_row = []
             for index in range(self.number_selections):
                 people_selected_header_row += [f"Assembly {index}"]
-            # people_selected_rows = [people_selected_header_row]
             # initialise an empty 2d list - yes, not pythonic...
-            people_selected_rows = [[""] * self.number_selections for i in range(self.number_people_to_select)]
+            people_selected_rows = [[""] * self.number_selections for _ in range(self.number_people_to_select)]
             people_remaining_rows = [[]]
             # put all the assemblies in columns of the output
             for set_count, fset in enumerate(people_selected):
@@ -513,7 +516,6 @@ class PeopleAndCats:
             self._output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
         else:  # self.number_selections == 1
             categories = self.categories_after_people
-            # columns_data = self.columns_data
 
             # columns_to_keep ALSO contains check_same_address_columns
             people_selected_rows = [
@@ -527,7 +529,6 @@ class PeopleAndCats:
             for pkey in people_selected[0]:
                 row = [pkey]
                 # this is also just all in here, but in an unordered mess...
-                # row += people_working[pkey].values()
                 for col in settings.columns_to_keep:
                     row.append(people_working[pkey][col])
                 for cat_key in categories:
@@ -581,7 +582,6 @@ class PeopleAndCats:
 class PeopleAndCatsCSV(PeopleAndCats):
     def __init__(self):
         super().__init__()
-        # self.people_csv_content = ''
         self.selected_file = StringIO()
         self.remaining_file = StringIO()
 
@@ -645,8 +645,6 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
     scope = None
     creds = None
     client = None
-    #   category_tab_name = "Categories"
-    #   respondents_tab_name = "Respondents"##Nick is taking this out
     original_selected_tab_name = "Original Selected - output - "
     selected_tab_name = "Selected"
     columns_selected_first = "C"
@@ -679,8 +677,6 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                 num += 1
                 tab_name_new = tab_name + str(num)
                 other_tab_name_new = other_tab_name + str(num)
-            # tab_ready = self.spreadsheet.worksheet(tab_name )
-            # tab_ready.clear()
             else:
                 if inc == -1:
                     tab_name_new = tab_name + str(num - 1)
@@ -812,7 +808,6 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                             and rowrem1[col1 - 1] == rowrem2[col1 - 1]
                             and rowrem1[col2 - 1] == rowrem2[col2 - 1]
                         ):
-                            # cell = i#tab_remaining.find(rowrem1[0])
                             dupes.append(i + 1)
                             dupes.append(j + 1)
                 dupes4 = []
@@ -865,7 +860,6 @@ def create_readable_sample_file(
             for cats_key, cats_item in cats.items():  # e.g. male
                 for _y in range(cats_item["max"]):
                     cat_items_list_weighted.append(cats_key)
-            # random_cat_value = random.choice(list(cats.keys()))
             random_cat_value = random.choice(cat_items_list_weighted)
             row.append(random_cat_value)
         example_people_writer.writerow(row)
@@ -879,7 +873,6 @@ def delete_all_in_cat(categories, people, cat_check_key, cat_check_value):
             people_to_delete.append(pkey)
             # for pcat, pval in person.items():
             for cat_key in categories:
-                # cat_item = categories[pcat][pval]
                 cat_item = categories[cat_key][person[cat_key]]
                 cat_item["remaining"] -= 1
                 if cat_item["remaining"] == 0 and cat_item["selected"] < cat_item["min"]:
