@@ -98,10 +98,17 @@ select = [
 ignore = [
     # TODO: reinstate this
     "B017", #assertRaises(Exception)
-    "S101", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
+    "C901", # too complex
+    "FBT001", # positional boolean arg in function defn
+    "PLR0912", # too many branches
+    "PLR0913", # too many args in function defn
+    "PLR0915", # too many statements
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
-    "T201", # `print` found - fine to use it for now
+    "S101", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
+    "S311", # pseudo-random - it's not security
     "SIM102", # sometimes it's better to nest
+    "T201", # `print` found - fine to use it for now
+    "TRY301", # abstract raise to an inner function
     "UP038", # Checks for uses of isinstance/issubclass that take a tuple
     # of types for comparison.
     # Deactivated because it can make the code slow:

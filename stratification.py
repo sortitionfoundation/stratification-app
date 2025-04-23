@@ -27,6 +27,7 @@ import random
 import typing
 from collections.abc import Iterable
 from copy import deepcopy
+from importlib.util import find_spec
 from io import StringIO
 from math import log
 from pathlib import Path
@@ -96,10 +97,6 @@ random_number_seed = 0
 """
 
 
-class NoSettingsFile(Exception):
-    pass
-
-
 class Settings:
     def __init__(
         self,
@@ -121,7 +118,7 @@ class Settings:
             assert isinstance(check_same_address, bool)
             assert isinstance(check_same_address_columns, list)
             # this could be empty
-            assert len(check_same_address_columns) == 2 or len(check_same_address_columns) == 0
+            assert len(check_same_address_columns) in (0, 2)
             for column in check_same_address_columns:
                 assert isinstance(column, str)
             assert isinstance(max_attempts, int)
@@ -144,13 +141,12 @@ class Settings:
         all_msg: list[str] = []
         settings_file_path = Path.home() / "sf_stratification_settings.toml"
         if not settings_file_path.is_file():
-            with open(settings_file_path, "w", encoding="utf-8") as settings_file:
-                settings_file.write(DEFAULT_SETTINGS)
+            settings_file_path.write_text(DEFAULT_SETTINGS, encoding="utf-8")
             all_msg.append(
                 f"Wrote default settings to '{settings_file_path.absolute()}' - "
                 f"if editing is required, restart this app.",
             )
-        with open(settings_file_path, encoding="utf-8") as settings_file:
+        with settings_file_path.open(encoding="utf-8") as settings_file:
             settings = toml.load(settings_file)
         # you can't check an address if there is no info about which columns to check...
         if not settings["check_same_address"]:
@@ -250,10 +246,10 @@ class PeopleAndCats:
                 cat_head_fn_count = cat_head.count(fn)
                 if cat_head_fn_count == 0 and (fn not in ("min_flex", "max_flex")):
                     msg = f"Did not find required column name '{fn}' in the input "
-                    raise Exception(msg)
+                    raise SelectionError(msg)
                 if cat_head_fn_count > 1:
                     msg = f"Found MORE THAN 1 column named '{fn}' in the input (found {cat_head_fn_count}) "
-                    raise Exception(msg)
+                    raise SelectionError(msg)
             for row in cat_body:
                 # allow for some dirty data - at least strip white space from cat and name
                 # but only if they are strings!
@@ -268,7 +264,7 @@ class PeopleAndCats:
                 cat_value = row["name"]
                 if cat_value == "" or row["min"] == "" or row["max"] == "":
                     msg = f"ERROR reading in category file: found a blank cell in a row of the category: {cat}. "
-                    raise Exception(msg)
+                    raise SelectionError(msg)
                 if isinstance(cat_value, str):
                     cat_value = cat_value.strip()
                 # must convert min/max to ints
@@ -280,7 +276,7 @@ class PeopleAndCats:
                             f"ERROR reading in category file: found a blank min_flex or "
                             f"max_flex cell in a category value: {cat_value}. "
                         )
-                        raise Exception(msg)
+                        raise SelectionError(msg)
                     cat_min_flex = int(row["min_flex"])
                     cat_max_flex = int(row["max_flex"])
                     # if these values exist they must be at least this...
@@ -289,7 +285,7 @@ class PeopleAndCats:
                             f"Inconsistent numbers in min_flex and max_flex in the categories input for {cat_value}: "
                             f"the flex values must be equal or outside the max and min values. "
                         )
-                        raise Exception(msg)
+                        raise SelectionError(msg)
                 else:
                     cat_min_flex = 0
                     # since we don't know self.number_people_to_select yet! We correct this below
@@ -350,7 +346,7 @@ class PeopleAndCats:
                     "the sum of the minimum values of a category is larger than "
                     "the sum of the maximum values of a(nother) category."
                 )
-                raise Exception(msg)
+                raise SelectionError(msg)
 
             # check cat_flex to see if we need to set the max here
             # this is only used if these (optional) flex values are NOT given
@@ -360,7 +356,7 @@ class PeopleAndCats:
                         # this must be bigger than the largest max - and could even be more than number of people
                         cat_value["max_flex"] = max_flex_val
 
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             all_msg.append(f"Error loading categories: {error}")
         return all_msg, min_val, max_val
 
@@ -370,14 +366,10 @@ class PeopleAndCats:
             column_count = people_head.count(column)
             if column_count == 0:
                 msg = f"No '{column}' column {error_text} found in people data!"
-                raise Exception(
-                    msg,
-                )
+                raise SelectionError(msg)
             if column_count > 1:
                 msg = f"MORE THAN 1 '{column}' column {error_text} found in people data!"
-                raise Exception(
-                    msg,
-                )
+                raise SelectionError(msg)
 
     # read in people and calculate how many people in each category in database
     def _init_categories_people(self, people_head, people_body, settings: Settings) -> list[str]:
@@ -427,7 +419,7 @@ class PeopleAndCats:
                             f"ERROR reading in people (init_categories_people): "
                             f"Person (id = {pkey}) has value '{p_value}' not in category '{cat_key}'"
                         )
-                        raise Exception(msg)
+                        raise SelectionError(msg)
                     value.update({cat_key: p_value})
                     categories[cat_key][p_value]["remaining"] += 1
                 # then get the other column values we need
@@ -463,7 +455,7 @@ class PeopleAndCats:
                 )
             self.people = people
             self.columns_data = columns_data
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             self.people_content_loaded = False
             all_msgs.append(f"Error loading people: {error}")
         return all_msgs
@@ -527,11 +519,9 @@ class PeopleAndCats:
             for pkey in people_selected[0]:
                 row = [pkey]
                 # this is also just all in here, but in an unordered mess...
-                for col in settings.columns_to_keep:
-                    row.append(people_working[pkey][col])
-                for cat_key in categories:
-                    row.append(people_working[pkey][cat_key])
-                people_selected_rows += [row]
+                row += [people_working[pkey][col] for col in settings.columns_to_keep]
+                row += [people_working[pkey][cat_key] for cat_key in categories]
+                people_selected_rows.append(row)
                 # if check address then delete all those at this address (will NOT delete the one we want as well)
                 if settings.check_same_address:
                     people_to_delete, new_output_lines = get_people_at_same_address(
@@ -795,7 +785,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                 col1 = tab_remaining.find(csa1).col
                 csa2 = settings.check_same_address_columns[1]
                 col2 = tab_remaining.find(csa2).col
-                dupes = []
+                dupes_set = set()
                 n = len(people_remaining_rows)
                 for i in range(n):
                     rowrem1 = people_remaining_rows[i]
@@ -806,18 +796,13 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                             and rowrem1[col1 - 1] == rowrem2[col1 - 1]
                             and rowrem1[col2 - 1] == rowrem2[col2 - 1]
                         ):
-                            dupes.append(i + 1)
-                            dupes.append(j + 1)
-                dupes4 = []
-                [dupes4.append(x) for x in dupes if x not in dupes4]
-                dupes2 = sorted(dupes4)
-                dupes3 = []
-                m = min(30, len(dupes2))
+                            dupes_set.add(i + 1)
+                            dupes_set.add(j + 1)
+                dupes = sorted(dupes_set)
+                m = min(30, len(dupes))
                 for i in range(m):
-                    dupes3.append(dupes2[i])
-                for row in dupes3:
                     tab_remaining.format(
-                        str(row),
+                        str(dupes[i]),
                         {"backgroundColor": {"red": 5, "green": 2.5, "blue": 0}},
                     )
         return dupes2
@@ -851,13 +836,11 @@ def create_readable_sample_file(
     example_people_writer.writerow([settings.id_column, *settings.columns_to_keep, *list(cat_keys)])
     for x in range(number_people_example_file):
         row = [f"p{x}"]
-        for col in settings.columns_to_keep:
-            row.append(col + str(x))
+        row += [col + str(x) for col in settings.columns_to_keep]
         for cats in categories.values():  # e.g. gender
-            cat_items_list_weighted = []
+            cat_items_list_weighted: list[str] = []
             for cats_key, cats_item in cats.items():  # e.g. male
-                for _y in range(cats_item["max"]):
-                    cat_items_list_weighted.append(cats_key)
+                cat_items_list_weighted += [cats_key for _ in range(cats_item["max"])]
             random_cat_value = random.choice(cat_items_list_weighted)
             row.append(random_cat_value)
         example_people_writer.writerow(row)
@@ -889,7 +872,7 @@ def delete_all_in_cat(categories, people, cat_check_key, cat_check_value):
 
 # selected = True means we are deleting because they have been chosen,
 # otherwise they are being deleted because they live at same address as someone selected
-def really_delete_person(categories, people, pkey: str, selected: bool) -> None:
+def really_delete_person(categories, people, pkey: str, *, selected: bool) -> None:
     for pcat, pval in people[pkey].items():
         if pcat not in categories:
             # some categories are just first_name etc - so will
@@ -941,9 +924,9 @@ def delete_person(categories, people, pkey, check_same_address, check_same_addre
         )
         # then delete this/these people at the same address
         for del_person_key in people_to_delete:
-            really_delete_person(categories, people, del_person_key, False)
+            really_delete_person(categories, people, del_person_key, selected=False)
     # delete the actual person after checking for people at the same address
-    really_delete_person(categories, people, pkey, True)
+    really_delete_person(categories, people, pkey, selected=True)
     # then check if any cats of selected person is (was) in are full
     for pcat, pval in person.items():
         if pcat in categories:
@@ -967,9 +950,8 @@ def find_max_ratio_cat(categories):
             if cat_item["selected"] < cat_item["min"] and cat_item["remaining"] < (
                 cat_item["min"] - cat_item["selected"]
             ):
-                raise SelectionError(
-                    "FAIL in find_max_ratio_cat: No people (or not enough) in category " + cat,
-                )
+                msg = f"FAIL in find_max_ratio_cat: No people (or not enough) in category {cat}"
+                raise SelectionError(msg)
             # if there are none remaining, it must be because we have reached max and deleted them
             # or, if max = 0, then we don't want any of these (could happen when seeking replacements)
             if cat_item["remaining"] != 0 and cat_item["max"] != 0:
@@ -1010,8 +992,8 @@ def print_category_info(categories, people, people_selected, number_people_wante
     # create a local version of this to count stuff in, as this might be called from places that don't track this info
     # and reset the info just in case it has been used
     categories_working = copy.deepcopy(categories)
-    for cat_key, cats in categories_working.items():
-        for cat, cat_item in cats.items():
+    for cats in categories_working.values():
+        for cat_item in cats.values():
             cat_item["selected"] = 0
     # count those either initially or selected, but use the same data item...
     if initial_print:
@@ -1066,7 +1048,7 @@ def check_category_selected(categories, people, people_selected, number_selectio
     # and reset the info just in case it has been used
     categories_working = copy.deepcopy(categories)
     for cats in categories_working.values():
-        for cat, cat_item in cats.items():
+        for cat_item in cats.values():
             cat_item["selected"] = 0
     # count those selected - but not at the start when people_selected is empty (the initial values should be zero)
     if len(people_selected) == 1:
@@ -1220,6 +1202,9 @@ def standardize_distribution(
     return new_committees, new_probabilities
 
 
+ASSERT_TOLERANCE = 0.0001
+
+
 def lottery_rounding(
     committees: list[frozenset[str]],
     probabilities: list[float],
@@ -1230,11 +1215,11 @@ def lottery_rounding(
 
     num_copies = []
     residuals = []
-    for committee, prob in zip(committees, probabilities, strict=False):
+    for _, prob in zip(committees, probabilities, strict=False):
         scaled_prob = prob * number_selections
         num_copies.append(int(scaled_prob))  # give lower quotas
         residuals.append(scaled_prob - int(scaled_prob))
-    assert abs(sum(residuals) - round(sum(residuals))) <= 0.0001
+    assert abs(sum(residuals) - round(sum(residuals))) <= ASSERT_TOLERANCE
 
     rounded_up_indices = pipage_rounding(list(enumerate(residuals)))
     assert round(sum(residuals)) == len(rounded_up_indices)
@@ -1243,8 +1228,7 @@ def lottery_rounding(
 
     committee_lottery = []
     for committee, committee_copies in zip(committees, num_copies, strict=False):
-        for _ in range(committee_copies):
-            committee_lottery.append(committee)
+        committee_lottery += [committee for _ in range(committee_copies)]
 
     return committee_lottery
 
@@ -1299,30 +1283,23 @@ def find_random_sample(
             "contain the new fields 'min_flex' and 'max_flex'. If they're not in the categories file, the "
             "code should set default values before calling this function."
         )
-        raise ValueError(
-            msg,
-        )
-    for feature in categories:
-        for value in categories[feature]:
-            info = categories[feature][value]
+        raise ValueError(msg)
+    for feature, values in categories.items():
+        for value, info in values.items():
             if not (info["min_flex"] <= info["min"] <= info["max"] <= info["max_flex"]):
                 msg = (
                     f"For feature ({feature}: {value}), the different quotas have incompatible values. "
                     f"It must hold that min_flex ({info['min_flex']}) <= min ({info['min']}) <= max "
                     f"({info['max']}) <= max_flex ({info['max_flex']})."
                 )
-                raise ValueError(
-                    msg,
-                )
+                raise ValueError(msg)
 
     if check_same_address and len(check_same_address_columns) == 0:
         msg = (
             "Since the algorithm is configured to prevent multiple house members to appear on the same "
             "panel (check_same_address = true), check_same_address_columns must not be empty."
         )
-        raise ValueError(
-            msg,
-        )
+        raise ValueError(msg)
 
     # just go quick and nasty so we can hook up our charts ands tables :-)
     if test_selection:
@@ -1332,9 +1309,7 @@ def find_random_sample(
                 "Running the test selection does not support generating a transparent lottery, so, if "
                 "`test_selection` is true, `number_selections` must be 1."
             )
-            raise ValueError(
-                msg,
-            )
+            raise ValueError(msg)
         return _find_any_committee(
             categories,
             people,
@@ -1345,18 +1320,15 @@ def find_random_sample(
         )
 
     output_lines = []
-    if selection_algorithm == "leximin":
-        try:
-            import gurobipy
-        except ModuleNotFoundError:
-            output_lines.append(
-                _print(
-                    "The leximin algorithm requires the optimization library Gurobi to be installed "
-                    "(commercial, free academic licenses available). Switching to the simpler "
-                    "maximin algorithm, which can be run using open source solvers.",
-                ),
-            )
-            selection_algorithm = "maximin"
+    if selection_algorithm == "leximin" and not find_spec("gurobipy"):
+        output_lines.append(
+            _print(
+                "The leximin algorithm requires the optimization library Gurobi to be installed "
+                "(commercial, free academic licenses available). Switching to the simpler "
+                "maximin algorithm, which can be run using open source solvers.",
+            ),
+        )
+        selection_algorithm = "maximin"
 
     if selection_algorithm == "legacy":
         if number_selections != 1:
@@ -1364,9 +1336,7 @@ def find_random_sample(
                 "Currently, the legacy algorithm does not support generating a transparent lottery, "
                 "so `number_selections` must be set to 1."
             )
-            raise ValueError(
-                msg,
-            )
+            raise ValueError(msg)
         return find_random_sample_legacy(
             categories,
             people,
@@ -1407,9 +1377,7 @@ def find_random_sample(
             f"Unknown selection algorithm {selection_algorithm!r}, must be either 'legacy', 'leximin',"
             f" 'maximin', or 'nash'."
         )
-        raise ValueError(
-            msg,
-        )
+        raise ValueError(msg)
 
     committees, probabilities = standardize_distribution(committees, probabilities)
     if len(committees) > len(people):
@@ -1468,12 +1436,11 @@ def find_random_sample_legacy(
 
 def _ilp_results_to_committee(variables: dict[str, mip.entities.Var]) -> frozenset[str]:
     try:
-        res = frozenset(item for item in variables if variables[item].x > 0.5)
-    except Exception as e:  # unfortunately, MIP sometimes throws generic Exceptions rather than a subclass.
-        msg = f"It seems like some variables does not have a value. Original exception: {e}."
-        raise ValueError(
-            msg,
-        )
+        res = frozenset(item for item in variables if variables[item].x > 0.5)  # noqa: PLR2004
+    # unfortunately, MIP sometimes throws generic Exceptions rather than a subclass.
+    except Exception as error:
+        msg = f"It seems like some variables does not have a value. Original exception: {error}."
+        raise ValueError(msg) from error
 
     return res
 
@@ -1608,8 +1575,8 @@ def _relax_infeasible_quotas(
             )
 
             if check_same_address:
-                for household, members in people_by_household.items():
-                    if len(members) >= 2:
+                for members in people_by_household.values():
+                    if len(members) > 1:
                         model.add_constr(mip.xsum(agent_vars[mid] for mid in members) <= 1)
 
     def reduction_weight(feature, value):
@@ -1634,18 +1601,14 @@ def _relax_infeasible_quotas(
             "likely, quotas would have to be relaxed beyond what the 'min_flex' and "
             "'max_flex' columns allow."
         )
-        raise InfeasibleQuotasCantRelaxError(
-            msg,
-        )
+        raise InfeasibleQuotasCantRelaxError(msg)
     if status != mip.OptimizationStatus.OPTIMAL:
         msg = (
             f"No feasible committees found, solver returns code {status} (see "
             f"https://docs.python-mip.com/en/latest/classes.html#optimizationstatus). Either the pool "
             f"is very bad or something is wrong with the solver."
         )
-        raise SelectionError(
-            msg,
-        )
+        raise SelectionError(msg)
 
     output_lines = []
     new_quotas = {}
@@ -1682,8 +1645,8 @@ def _setup_committee_generation(
     model.add_constr(mip.xsum(agent_vars.values()) == number_people_wanted)
 
     # we have to respect quotas
-    for feature in categories:
-        for value in categories[feature]:
+    for feature, values in categories.items():
+        for value in values:
             number_feature_value_agents = mip.xsum(
                 agent_vars[pid] for pid, person in people.items() if person[feature] == value
             )
@@ -1698,8 +1661,8 @@ def _setup_committee_generation(
                 people_by_household[household] = []
             people_by_household[household].append(hid)
 
-        for household, members in people_by_household.items():
-            if len(members) >= 2:
+        for members in people_by_household.values():
+            if len(members) > 1:
                 model.add_constr(mip.xsum(agent_vars[mid] for mid in members) <= 1)
 
     # Optimize once without any constraints to check if no feasible committees exist at all.
@@ -1718,9 +1681,7 @@ def _setup_committee_generation(
             f"No feasible committees found, solver returns code {status} (see "
             "https://docs.python-mip.com/en/latest/classes.html#optimizationstatus)."
         )
-        raise SelectionError(
-            msg,
-        )
+        raise SelectionError(msg)
 
     return model, agent_vars
 
@@ -1796,9 +1757,9 @@ def _generate_initial_committees(
         )
 
     # If there are any agents that have not been included so far, try to find a committee including this specific agent.
-    for item in agent_vars:
+    for item, value in agent_vars.items():
         if item not in covered_agents:
-            new_committee_model.objective = agent_vars[item]  # only care about agent `item` being included.
+            new_committee_model.objective = value  # only care about agent `item` being included.
             new_committee_model.optimize()
             new_set: frozenset[str] = _ilp_results_to_committee(agent_vars)
             if item in new_set:
@@ -2126,7 +2087,8 @@ def find_distribution_maximin(
         status = incremental_model.optimize()
         assert status == mip.OptimizationStatus.OPTIMAL
 
-        entitlement_weights = {item: incr_agent_vars[item].x for item in covered_agents}  # currently optimal values for y_e
+        # currently optimal values for y_e
+        entitlement_weights = {item: incr_agent_vars[item].x for item in covered_agents}
         upper = upper_bound.x  # currently optimal value for z
 
         # For these fixed y_e, find the feasible committee B with maximal Σ_{i ∈ B} y_{e(i)}.
@@ -2312,9 +2274,7 @@ def find_distribution_nash(
         differentials = entitled_reciprocals.dot(matrix)
         assert differentials.shape == (len(committees),)
 
-        obj = []
-        for item in covered_agents:
-            obj.append(entitled_reciprocals[contributes_to_entitlement[item]] * agent_vars[item])
+        obj = [entitled_reciprocals[contributes_to_entitlement[item]] * agent_vars[item] for item in covered_agents]
         new_committee_model.objective = mip.xsum(obj)
         new_committee_model.optimize()
 
