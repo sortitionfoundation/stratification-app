@@ -142,20 +142,28 @@ class Settings:
 
     @classmethod
     def load_from_file(cls):
-        message = ""
+        all_msg: list[str] = []
         settings_file_path = Path.home() / "sf_stratification_settings.toml"
         if not settings_file_path.is_file():
             with open(settings_file_path, "w", encoding="utf-8") as settings_file:
                 settings_file.write(DEFAULT_SETTINGS)
-            message = f"Wrote default settings to '{settings_file_path.absolute()}' - if editing is required, restart this app."
+            all_msg.append(
+                f"Wrote default settings to '{settings_file_path.absolute()}' - "
+                f"if editing is required, restart this app."
+            )
         with open(settings_file_path, encoding="utf-8") as settings_file:
             settings = toml.load(settings_file)
         # you can't check an address if there is no info about which columns to check...
-        if settings["check_same_address"] is False:
-            message += "<b>WARNING</b>: Settings file is such that we do NOT check if respondents have same address."
+        if not settings["check_same_address"]:
+            all_msg.append(
+                "<b>WARNING</b>: Settings file is such that we do NOT check if respondents have same address."
+            )
             settings["check_same_address_columns"] = []
-        if len(settings["check_same_address_columns"]) == 0 and settings["check_same_address"] is True:
-            message += "\n<b>ERROR</b>: in sf_stratification_settings.toml file check_same_address is TRUE but there are no columns listed to check! FIX THIS and RESTART this program!"
+        if len(settings["check_same_address_columns"]) == 0 and settings["check_same_address"]:
+            all_msg.append(
+                "\n<b>ERROR</b>: in sf_stratification_settings.toml file check_same_address is TRUE "
+                "but there are no columns listed to check! FIX THIS and RESTART this program!"
+            )
         settings["json_file_path"] = Path.home() / "secret_do_not_commit.json"
         return cls(
             settings["id_column"],
@@ -166,7 +174,7 @@ class Settings:
             settings["selection_algorithm"],
             settings["random_number_seed"],
             settings["json_file_path"],
-        ), message
+        ), "".join(all_msg)
 
 
 # class for throwing error/fail exceptions
@@ -223,9 +231,9 @@ class PeopleAndCats:
         return None
 
     # read in stratified selection categories and values - a dict of dicts of dicts...
-    def _read_in_cats(self, cat_head, cat_body):
+    def _read_in_cats(self, cat_head, cat_body) -> tuple[list[str], int, int]:
         self.original_categories = {}
-        msg = []
+        all_msg: list[str] = []
         min_val = 0
         max_val = 0
         # to keep track of number in cats - number people selected MUST be between these limits in every cat...
@@ -240,17 +248,14 @@ class PeopleAndCats:
                 cat_head_fn_count = cat_head.count(fn)
                 if cat_head_fn_count == 0 and (fn not in ("min_flex", "max_flex")):
                     msg = f"Did not find required column name '{fn}' in the input "
-                    raise Exception(
-                        msg,
-                    )
+                    raise Exception(msg)
                 if cat_head_fn_count > 1:
                     msg = f"Found MORE THAN 1 column named '{fn}' in the input (found {cat_head_fn_count}) "
-                    raise Exception(
-                        msg,
-                    )
+                    raise Exception(msg)
             for row in cat_body:
                 # allow for some dirty data - at least strip white space from cat and name
-                # but only if they are strings! (sometimes people use ints as cat names or values and then strip produces an exception...)
+                # but only if they are strings!
+                # (sometimes people use ints as cat names or values and then strip produces an exception)
                 cat = row["category"]
                 # and skip over any blank lines...
                 if cat == "":
@@ -261,9 +266,7 @@ class PeopleAndCats:
                 cat_value = row["name"]
                 if cat_value == "" or row["min"] == "" or row["max"] == "":
                     msg = f"ERROR reading in category file: found a blank cell in a row of the category: {cat}. "
-                    raise Exception(
-                        msg,
-                    )
+                    raise Exception(msg)
                 if isinstance(cat_value, str):
                     cat_value = cat_value.strip()
                 # must convert min/max to ints
@@ -271,18 +274,20 @@ class PeopleAndCats:
                 cat_max = int(row["max"])
                 if cat_flex:
                     if row["min_flex"] == "" or row["max_flex"] == "":
-                        msg = f"ERROR reading in category file: found a blank min_flex or max_flex cell in a category value: {cat_value}. "
-                        raise Exception(
-                            msg,
+                        msg = (
+                            f"ERROR reading in category file: found a blank min_flex or "
+                            f"max_flex cell in a category value: {cat_value}. "
                         )
+                        raise Exception(msg)
                     cat_min_flex = int(row["min_flex"])
                     cat_max_flex = int(row["max_flex"])
                     # if these values exist they must be at least this...
                     if cat_min_flex > cat_min or cat_max_flex < cat_max:
-                        msg = f"Inconsistent numbers in min_flex and max_flex in the categories input for {cat_value}: the flex values must be equal or outside the max and min values. "
-                        raise Exception(
-                            msg,
+                        msg = (
+                            f"Inconsistent numbers in min_flex and max_flex in the categories input for {cat_value}: "
+                            f"the flex values must be equal or outside the max and min values. "
                         )
+                        raise Exception(msg)
                 else:
                     cat_min_flex = 0
                     # since we don't know self.number_people_to_select yet! We correct this below
@@ -326,7 +331,7 @@ class PeopleAndCats:
                         },
                     )
 
-            msg += [f"Number of categories: {len(self.original_categories.keys())}"]
+            all_msg.append(f"Number of categories: {len(self.original_categories.keys())}")
 
             # work out what the min and max number of people should be,
             # given these cats
@@ -338,10 +343,12 @@ class PeopleAndCats:
             min_val = max(min_values)
             # if the min is bigger than the max we're in trouble i.e. there's an input error
             if min_val > max_val:
-                msg = "Inconsistent numbers in min and max in the categories input: the sum of the minimum values of a category is larger than the sum of the maximum values of a(nother) category. "
-                raise Exception(
-                    msg,
+                msg = (
+                    "Inconsistent numbers in min and max in the categories input: "
+                    "the sum of the minimum values of a category is larger than "
+                    "the sum of the maximum values of a(nother) category."
                 )
+                raise Exception(msg)
 
             # check cat_flex to see if we need to set the max here
             # this is only used if these (optional) flex values are NOT given
@@ -352,8 +359,8 @@ class PeopleAndCats:
                         cat_value["max_flex"] = max_flex_val
 
         except Exception as error:
-            msg += [f"Error loading categories: {error}"]
-        return msg, min_val, max_val
+            all_msg.append(f"Error loading categories: {error}")
+        return all_msg, min_val, max_val
 
     # simple helper function to tidy the code below
     def _check_columns_exist_or_multiple(self, people_head, column_list, error_text):
@@ -371,7 +378,7 @@ class PeopleAndCats:
                 )
 
     # read in people and calculate how many people in each category in database
-    def _init_categories_people(self, people_head, people_body, settings: Settings):
+    def _init_categories_people(self, people_head, people_body, settings: Settings) -> list[str]:
         people = {}
         columns_data = {}
         # this modifies the categories, so we keep the original categories here
@@ -379,7 +386,7 @@ class PeopleAndCats:
         categories = self.categories_after_people
         # check that id_column and all the categories, columns_to_keep and check_same_address_columns are in
         # the people data fields...
-        msg = []
+        all_msgs: list[str] = []
         try:
             # check both for existence and duplicate column names
             self._check_columns_exist_or_multiple(people_head, [settings.id_column], "(unique id)")
@@ -402,7 +409,7 @@ class PeopleAndCats:
                 pkey = row[settings.id_column]
                 # skip over any blank lines... but warn the user
                 if pkey == "":
-                    msg += ["<b>WARNING</b>: blank cell found in ID column - skipped that line!"]
+                    all_msgs.append("<b>WARNING</b>: blank cell found in ID column - skipped that line!")
                     continue
                 value = {}
                 # get the category values: these are the most important and we must check them
@@ -414,10 +421,11 @@ class PeopleAndCats:
                     if isinstance(row[cat_key], str):
                         p_value = p_value.strip()
                     if p_value not in cats:
-                        msg = f"ERROR reading in people (init_categories_people): Person (id = {pkey}) has value '{p_value}' not in category {cat_key}"
-                        raise Exception(
-                            msg,
+                        msg = (
+                            f"ERROR reading in people (init_categories_people): "
+                            f"Person (id = {pkey}) has value '{p_value}' not in category '{cat_key}'"
                         )
+                        raise Exception(msg)
                     value.update({cat_key: p_value})
                     categories[cat_key][p_value]["remaining"] += 1
                 # then get the other column values we need
@@ -433,29 +441,30 @@ class PeopleAndCats:
             # check if any cat[max] is set to zero... if so delete everyone with that cat...
             # NOT DONE: could then check if anyone is left...
             total_num_people = len(people.keys())
-            msg += [f"Number of people: {total_num_people}."]
+            all_msgs.append(f"Number of people: {total_num_people}.")
             total_num_deleted = 0
             for cat_key, cats in categories.items():
                 for cat, cat_item in cats.items():
                     if cat_item["max"] == 0:  # we don't want any of these people
                         # pass the message in as deleting them might throw an exception
-                        msg += [f"Category {cat} full - deleting people..."]
+                        all_msgs.append(f"Category {cat} full - deleting people...")
                         num_deleted, num_left = delete_all_in_cat(categories, people, cat_key, cat)
                         # if no expcetion was thrown above add this bit to the end of the previous message
-                        msg[-1] += f" Deleted {num_deleted}, {num_left} left."
+                        all_msgs[-1] += f" Deleted {num_deleted}, {num_left} left."
                         total_num_deleted += num_deleted
-            # if the total number of people deleted is lots then we're probably doing a replacement selection, which means
-            # the 'remaining' file will be useless - remind the user of this!
+            # if the total number of people deleted is lots then we're probably doing a replacement selection,
+            # which means the 'remaining' file will be useless - remind the user of this!
             if total_num_deleted > total_num_people / 2:
-                msg += [
-                    ">>> WARNING <<< That deleted MANY PEOPLE - are you doing a replacement? If so your REMAINING FILE WILL BE USELESS!!!",
-                ]
+                all_msgs.append(
+                    ">>> WARNING <<< That deleted MANY PEOPLE - are you doing a replacement? "
+                    "If so your REMAINING FILE WILL BE USELESS!!!",
+                )
             self.people = people
             self.columns_data = columns_data
         except Exception as error:
             self.people_content_loaded = False
-            msg += [f"Error loading people: {error}"]
-        return msg
+            all_msgs.append(f"Error loading people: {error}")
+        return all_msgs
 
     def people_cats_run_stratification(self, settings: Settings, test_selection: bool):
         # if this is being called again (the user hit the button again!) we want to make sure all data is cleared etc
@@ -499,8 +508,6 @@ class PeopleAndCats:
             for set_count, fset in enumerate(people_selected):
                 for p_count, pkey in enumerate(fset):
                     people_selected_rows[p_count][set_count] = pkey
-            # there must be some pythonic way to do this but i don't know it...
-            # people_selected_rows = [[people_selected[i][j] for i in range(self.number_selections)] for j in range(self.number_people_to_select)]
             # prepend the header row afterwards
             people_selected_rows.insert(0, people_selected_header_row)
             self._output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
@@ -558,13 +565,16 @@ class PeopleAndCats:
                 people_remaining_rows,
             )
             if settings.check_same_address and self.gen_rem_tab == "on":
-                output_lines += [
-                    f"Deleted {num_same_address_deleted} people from remaining file who had the same address as selected people.",
-                ]
+                output_lines.append(
+                    f"Deleted {num_same_address_deleted} people from remaining file who had the same "
+                    f"address as selected people.",
+                )
                 m = min(30, len(dupes))
-                output_lines += [
-                    f"In the remaining tab there are {len(dupes)} people who share the same address as someone else in the tab. We highlighted the first {m} of these. The full list of lines is {dupes}",
-                ]
+                output_lines.append(
+                    f"In the remaining tab there are {len(dupes)} people who share the same address as "
+                    f"someone else in the tab. We highlighted the first {m} of these. "
+                    f"The full list of lines is {dupes}",
+                )
         return output_lines
 
 
@@ -718,7 +728,6 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
             self.category_content_loaded = False
         return msg, min_val, max_val
 
-    ##Added respondents_tab_name, category_tab_name and gen_rem_tab as an argument
     def load_people(
         self,
         settings: Settings,
@@ -728,17 +737,18 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
         gen_rem_tab,
     ):
         self.people_content_loaded = True
-        self.respondents_tab_name = respondents_tab_name  ##Added for respondents tab text box.
-        self.category_tab_name = category_tab_name  ##Added for category tab text box.
-        self.gen_rem_tab = gen_rem_tab  ##Added for checkbox.
+        self.respondents_tab_name = respondents_tab_name  # Added for respondents tab text box.
+        self.category_tab_name = category_tab_name  # Added for category tab text box.
+        self.gen_rem_tab = gen_rem_tab  # Added for checkbox.
         msg = []
-        # self.number_selections = int(number_selections) ##Added for multiple selections. Brett removed - now in base class
         try:
             if self._tab_exists(self.respondents_tab_name):
                 tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
                 # if we don't read this in here we can't check if there are 2 columns with the same name
                 people_head_input = tab_people.row_values(1)
-                # the numericise_ignore doesn't convert the phone numbers to ints... 1 Oct 2024: the final argument with expected_headers is to deal with the fact that updated versions of gspread can't cope with duplicate headers
+                # the numericise_ignore doesn't convert the phone numbers to ints... 
+                # 1 Oct 2024: the final argument with expected_headers is to deal with the fact that
+                # updated versions of gspread can't cope with duplicate headers
                 people_input = tab_people.get_all_records(
                     numericise_ignore=["all"],
                     expected_headers=[],
@@ -874,14 +884,12 @@ def delete_all_in_cat(categories, people, cat_check_key, cat_check_value):
                 cat_item["remaining"] -= 1
                 if cat_item["remaining"] == 0 and cat_item["selected"] < cat_item["min"]:
                     lpd = len(people_to_delete)
-                    raise SelectionError(
-                        "SELECTION IMPOSSIBLE: FAIL in delete_all_in_cat as after previous deletion no one/not enough left in "
-                        + cat_key
-                        + " "
-                        + person[cat_key]
-                        + ". Tried to delete: "
-                        + str(lpd),
+                    msg = (
+                        f"SELECTION IMPOSSIBLE: FAIL in delete_all_in_cat as after previous deletion "
+                        f"no one/not enough left in {cat_key} {person[cat_key]}. "
+                        f"Tried to delete: {lpd}",
                     )
+                    raise SelectionError(msg)
     for p in people_to_delete:
         del people[p]
     # return the number of people deleted and the number of people left
@@ -1062,7 +1070,6 @@ def check_category_selected(categories, people, people_selected, number_selectio
         return hit_targets, [
             "<p>No target checks done for multiple selections - please see your output files.</p>",
         ]
-    # else:
     # count and print
     # create a local version of this to count stuff in, as this might be called from places that don't track this info
     # and reset the info just in case it has been used
