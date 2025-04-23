@@ -148,20 +148,20 @@ class Settings:
                 settings_file.write(DEFAULT_SETTINGS)
             all_msg.append(
                 f"Wrote default settings to '{settings_file_path.absolute()}' - "
-                f"if editing is required, restart this app."
+                f"if editing is required, restart this app.",
             )
         with open(settings_file_path, encoding="utf-8") as settings_file:
             settings = toml.load(settings_file)
         # you can't check an address if there is no info about which columns to check...
         if not settings["check_same_address"]:
             all_msg.append(
-                "<b>WARNING</b>: Settings file is such that we do NOT check if respondents have same address."
+                "<b>WARNING</b>: Settings file is such that we do NOT check if respondents have same address.",
             )
             settings["check_same_address_columns"] = []
         if len(settings["check_same_address_columns"]) == 0 and settings["check_same_address"]:
             all_msg.append(
                 "\n<b>ERROR</b>: in sf_stratification_settings.toml file check_same_address is TRUE "
-                "but there are no columns listed to check! FIX THIS and RESTART this program!"
+                "but there are no columns listed to check! FIX THIS and RESTART this program!",
             )
         settings["json_file_path"] = Path.home() / "secret_do_not_commit.json"
         return cls(
@@ -182,11 +182,9 @@ class SelectionError(Exception):
         self.msg = message
 
 
-
-
 class PeopleAndCats:
     """
-    The PeopleAndCats classes below hold all the people and category info sourced from 
+    The PeopleAndCats classes below hold all the people and category info sourced from
     (and written to) the relevant place
 
     `categories` is a dict of dicts of dicts... like:
@@ -742,7 +740,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                 tab_people = self.spreadsheet.worksheet(self.respondents_tab_name)
                 # if we don't read this in here we can't check if there are 2 columns with the same name
                 people_head_input = tab_people.row_values(1)
-                # the numericise_ignore doesn't convert the phone numbers to ints... 
+                # the numericise_ignore doesn't convert the phone numbers to ints...
                 # 1 Oct 2024: the final argument with expected_headers is to deal with the fact that
                 # updated versions of gspread can't cope with duplicate headers
                 people_input = tab_people.get_all_records(
@@ -1105,22 +1103,22 @@ def _distribution_stats(
         f"{num_non_zero} are chosen with positive probability.",
     )
 
-    individual_probabilities = {id: 0 for id in people}
-    containing_committees = {id: [] for id in people}
+    individual_probabilities = {pid: 0 for pid in people}
+    containing_committees = {pid: [] for pid in people}
     for committee, prob in zip(committees, probabilities, strict=False):
         if prob > 0:
-            for id in committee:
-                individual_probabilities[id] += prob
-                containing_committees[id].append(committee)
+            for cid in committee:
+                individual_probabilities[cid] += prob
+                containing_committees[cid].append(committee)
 
     table = [
         "<table border='1' cellpadding='5'><tr><th>Agent ID</th><th>Probability of selection</th><th>Included in #"
         "of committees</th></tr>",
     ]
 
-    for _, id in sorted((prob, id) for id, prob in individual_probabilities.items()):
+    for _, cid in sorted((prob, cid) for cid, prob in individual_probabilities.items()):
         table.append(
-            f"<tr><td>{id}</td><td>{individual_probabilities[id]:.4%}</td><td>{len(containing_committees[id])}"
+            f"<tr><td>{cid}</td><td>{individual_probabilities[cid]:.4%}</td><td>{len(containing_committees[cid])}"
             "</td></tr>",
         )
     table.append("</table>")
@@ -1154,7 +1152,7 @@ def _output_panel_table(panels: list[frozenset[str]], probs: list[float]):
             if prob > 0:
                 file.write(f"{number},{prob},")
                 number += 1
-                file.write(",".join(f'"{id}"' for id in tup))
+                file.write(",".join(f'"{item}"' for item in tup))
                 file.write("\n")
 
 
@@ -1470,7 +1468,7 @@ def find_random_sample_legacy(
 
 def _ilp_results_to_committee(variables: dict[str, mip.entities.Var]) -> frozenset[str]:
     try:
-        res = frozenset(id for id in variables if variables[id].x > 0.5)
+        res = frozenset(item for item in variables if variables[item].x > 0.5)
     except Exception as e:  # unfortunately, MIP sometimes throws generic Exceptions rather than a subclass.
         msg = f"It seems like some variables does not have a value. Original exception: {e}."
         raise ValueError(
@@ -1499,7 +1497,7 @@ def _compute_households(
     check_same_address_columns: list[str],
 ) -> dict[str, int]:
     ids = list(people.keys())
-    households = {id: None for id in people}  # for each agent, the id of the earliest person with same address
+    households = {pid: None for pid in people}  # for each agent, the id of the earliest person with same address
 
     counter = 0
     for i, id1 in enumerate(ids):
@@ -1583,14 +1581,14 @@ def _relax_infeasible_quotas(
     if check_same_address:
         assert households is not None
 
-        for id, household in households.items():
+        for hid, household in households.items():
             if household not in people_by_household:
                 people_by_household[household] = []
-            people_by_household[household].append(id)
+            people_by_household[household].append(hid)
 
     for inclusion_set in ensure_inclusion:
         # for every person, we have a binary variable indicating whether they are in the committee
-        agent_vars = {id: model.add_var(var_type=mip.BINARY) for id in people}
+        agent_vars = {pid: model.add_var(var_type=mip.BINARY) for pid in people}
         for agent in inclusion_set:
             model.add_constr(agent_vars[agent] == 1)
 
@@ -1600,7 +1598,7 @@ def _relax_infeasible_quotas(
         # we have to respect the relaxed quotas
         for feature, value in feature_values:
             number_feature_value_agents = mip.xsum(
-                agent_vars[id] for id, person in people.items() if person[feature] == value
+                agent_vars[pid] for pid, person in people.items() if person[feature] == value
             )
             model.add_constr(
                 number_feature_value_agents >= categories[feature][value]["min"] - min_vars[(feature, value)],
@@ -1612,7 +1610,7 @@ def _relax_infeasible_quotas(
             if check_same_address:
                 for household, members in people_by_household.items():
                     if len(members) >= 2:
-                        model.add_constr(mip.xsum(agent_vars[id] for id in members) <= 1)
+                        model.add_constr(mip.xsum(agent_vars[mid] for mid in members) <= 1)
 
     def reduction_weight(feature, value):
         """Make the algorithm more recluctant to reduce lower quotas that are already low. If the lower quotas was 1,
@@ -1678,7 +1676,7 @@ def _setup_committee_generation(
     model.verbose = debug
 
     # for every person, we have a binary variable indicating whether they are in the committee
-    agent_vars = {id: model.add_var(var_type=mip.BINARY) for id in people}
+    agent_vars = {pid: model.add_var(var_type=mip.BINARY) for pid in people}
 
     # we have to select exactly `number_people_wanted` many persons
     model.add_constr(mip.xsum(agent_vars.values()) == number_people_wanted)
@@ -1687,7 +1685,7 @@ def _setup_committee_generation(
     for feature in categories:
         for value in categories[feature]:
             number_feature_value_agents = mip.xsum(
-                agent_vars[id] for id, person in people.items() if person[feature] == value
+                agent_vars[pid] for pid, person in people.items() if person[feature] == value
             )
             model.add_constr(number_feature_value_agents >= categories[feature][value]["min"])
             model.add_constr(number_feature_value_agents <= categories[feature][value]["max"])
@@ -1695,14 +1693,14 @@ def _setup_committee_generation(
     # we might not be able to select multiple persons from the same household
     if check_same_address:
         people_by_household = {}
-        for id, household in households.items():
+        for hid, household in households.items():
             if household not in people_by_household:
                 people_by_household[household] = []
-            people_by_household[household].append(id)
+            people_by_household[household].append(hid)
 
         for household, members in people_by_household.items():
             if len(members) >= 2:
-                model.add_constr(mip.xsum(agent_vars[id] for id in members) <= 1)
+                model.add_constr(mip.xsum(agent_vars[mid] for mid in members) <= 1)
 
     # Optimize once without any constraints to check if no feasible committees exist at all.
     status = model.optimize()
@@ -1765,32 +1763,32 @@ def _generate_initial_committees(
     # Note that if all start with weight `1` then we can end up with some committees
     # having the wrong number of results.
     # Further investigation of this to happen under https://github.com/sortitionfoundation/stratification-app/issues/23
-    weights = {id: random.uniform(0.99, 1.0) for id in agent_vars}
+    weights = {item: random.uniform(0.99, 1.0) for item in agent_vars}
     for i in range(multiplicative_weights_rounds):
         # In each round, we find a
         # feasible committee such that the sum of weights of its members is maximal.
-        new_committee_model.objective = mip.xsum(weights[id] * agent_vars[id] for id in agent_vars)
+        new_committee_model.objective = mip.xsum(weights[item] * agent_vars[item] for item in agent_vars)
         new_committee_model.optimize()
         new_set = _ilp_results_to_committee(agent_vars)
 
         # We then decrease the weight of each agent in the new committee by a constant factor. As a result, future
         # rounds will strongly prioritize including agents that appear in few committees.
-        for id in new_set:
-            weights[id] *= 0.8
+        for item in new_set:
+            weights[item] *= 0.8
         # We rescale the weights, which does not change the conceptual algorithm but prevents floating point problems.
         coefficient_sum = sum(weights.values())
-        for id in agent_vars:
-            weights[id] *= len(agent_vars) / coefficient_sum
+        for item in agent_vars:
+            weights[item] *= len(agent_vars) / coefficient_sum
 
         if new_set not in committees:
             # We found a new committee, and repeat.
             committees.add(new_set)
-            for id in new_set:
-                covered_agents.add(id)
+            for item in new_set:
+                covered_agents.add(item)
         else:
             # If our committee is already known, make all weights a bit more equal again to mix things up a little.
-            for id in agent_vars:
-                weights[id] = 0.9 * weights[id] + 0.1
+            for item in agent_vars:
+                weights[item] = 0.9 * weights[item] + 0.1
 
         print(
             f"Multiplicative weights phase, round {i + 1}/{multiplicative_weights_rounds}. Discovered {len(committees)}"
@@ -1798,18 +1796,18 @@ def _generate_initial_committees(
         )
 
     # If there are any agents that have not been included so far, try to find a committee including this specific agent.
-    for id in agent_vars:
-        if id not in covered_agents:
-            new_committee_model.objective = agent_vars[id]  # only care about agent `id` being included.
+    for item in agent_vars:
+        if item not in covered_agents:
+            new_committee_model.objective = agent_vars[item]  # only care about agent `item` being included.
             new_committee_model.optimize()
             new_set: frozenset[str] = _ilp_results_to_committee(agent_vars)
-            if id in new_set:
+            if item in new_set:
                 committees.add(new_set)
                 for id2 in new_set:
                     covered_agents.add(id2)
             else:
                 new_output_lines.append(
-                    _print(f"Agent {id} not contained in any feasible committee."),
+                    _print(f"Agent {item} not contained in any feasible committee."),
                 )
 
     # We assume in this stage that the quotas are feasible.
@@ -1993,7 +1991,7 @@ def find_distribution_leximin(
             assert new_set not in committees
             committees.add(new_set)
             dual_model.addConstr(
-                grb.quicksum(dual_agent_vars[id] for id in new_set) <= dual_cap_var,
+                grb.quicksum(dual_agent_vars[item] for item in new_set) <= dual_cap_var,
             )
 
     # The previous algorithm computed the leximin selection probabilities of each agent and a set of panels such that
@@ -2027,11 +2025,11 @@ def _find_maximin_primal(
 
     committee_variables = [model.add_var(var_type=mip.CONTINUOUS, lb=0.0, ub=1.0) for _ in committees]
     model.add_constr(mip.xsum(committee_variables) == 1)
-    agent_panel_variables = {id: [] for id in covered_agents}
+    agent_panel_variables = {item: [] for item in covered_agents}
     for committee, var in zip(committees, committee_variables, strict=False):
-        for id in committee:
-            if id in covered_agents:
-                agent_panel_variables[id].append(var)
+        for item in committee:
+            if item in covered_agents:
+                agent_panel_variables[item].append(var)
 
     lower = model.add_var(var_type=mip.CONTINUOUS, lb=0.0, ub=1.0)
 
@@ -2110,7 +2108,9 @@ def find_distribution_maximin(
         ub=mip.INF,
     )  # variable z
     # variables y_e
-    incr_agent_vars = {id: incremental_model.add_var(var_type=mip.CONTINUOUS, lb=0.0, ub=1.0) for id in covered_agents}
+    incr_agent_vars = {
+        item: incremental_model.add_var(var_type=mip.CONTINUOUS, lb=0.0, ub=1.0) for item in covered_agents
+    }
 
     # Σ_e y_e = 1
     incremental_model.add_constr(mip.xsum(incr_agent_vars.values()) == 1)
@@ -2118,7 +2118,7 @@ def find_distribution_maximin(
     incremental_model.objective = upper_bound
 
     for committee in committees:
-        committee_sum = mip.xsum([incr_agent_vars[id] for id in committee])
+        committee_sum = mip.xsum([incr_agent_vars[cid] for cid in committee])
         # Σ_{i ∈ B} y_{e(i)} ≤ z   ∀ B ∈ `committees`
         incremental_model.add_constr(committee_sum <= upper_bound)
 
@@ -2126,14 +2126,16 @@ def find_distribution_maximin(
         status = incremental_model.optimize()
         assert status == mip.OptimizationStatus.OPTIMAL
 
-        entitlement_weights = {id: incr_agent_vars[id].x for id in covered_agents}  # currently optimal values for y_e
+        entitlement_weights = {item: incr_agent_vars[item].x for item in covered_agents}  # currently optimal values for y_e
         upper = upper_bound.x  # currently optimal value for z
 
         # For these fixed y_e, find the feasible committee B with maximal Σ_{i ∈ B} y_{e(i)}.
-        new_committee_model.objective = mip.xsum(entitlement_weights[id] * agent_vars[id] for id in covered_agents)
+        new_committee_model.objective = mip.xsum(
+            entitlement_weights[item] * agent_vars[item] for item in covered_agents
+        )
         new_committee_model.optimize()
         new_set = _ilp_results_to_committee(agent_vars)
-        value = sum(entitlement_weights[id] for id in new_set)
+        value = sum(entitlement_weights[item] for item in new_set)
 
         output_lines.append(
             _print(
@@ -2150,7 +2152,7 @@ def find_distribution_maximin(
         # Some committee B violates Σ_{i ∈ B} y_{e(i)} ≤ z. We add B to `committees` and recurse.
         assert new_set not in committees
         committees.add(new_set)
-        incremental_model.add_constr(mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound)
+        incremental_model.add_constr(mip.xsum(incr_agent_vars[item] for item in new_set) <= upper_bound)
 
         # Heuristic for better speed in practice:
         # Because optimizing `incremental_model` takes a long time, we would like to get multiple committees out
@@ -2160,25 +2162,27 @@ def find_distribution_maximin(
         counter = 0
         for _ in range(10):
             # scale down the y_{e(i)} for i ∈ `new_set` to make Σ_{i ∈ `new_set`} y_{e(i)} ≤ z true.
-            for id in new_set:
-                entitlement_weights[id] *= upper / value
+            for item in new_set:
+                entitlement_weights[item] *= upper / value
             # This will change Σ_e y_e to be less than 1. We rescale the y_e and z.
             sum_weights = sum(entitlement_weights.values())
             if sum_weights < EPS:
                 break
-            for id in entitlement_weights:
-                entitlement_weights[id] /= sum_weights
+            for item in entitlement_weights:
+                entitlement_weights[item] /= sum_weights
             upper /= sum_weights
 
-            new_committee_model.objective = mip.xsum(entitlement_weights[id] * agent_vars[id] for id in covered_agents)
+            new_committee_model.objective = mip.xsum(
+                entitlement_weights[item] * agent_vars[item] for item in covered_agents
+            )
             new_committee_model.optimize()
             new_set = _ilp_results_to_committee(agent_vars)
-            value = sum(entitlement_weights[id] for id in new_set)
+            value = sum(entitlement_weights[item] for item in new_set)
             if value <= upper + EPS or new_set in committees:
                 break
             committees.add(new_set)
             incremental_model.add_constr(
-                mip.xsum(incr_agent_vars[id] for id in new_set) <= upper_bound,
+                mip.xsum(incr_agent_vars[item] for item in new_set) <= upper_bound,
             )
             counter += 1
         if counter > 0:
@@ -2188,8 +2192,8 @@ def find_distribution_maximin(
 def _define_entitlements(covered_agents: frozenset[str]) -> tuple[list[str], dict[str, int]]:
     entitlements = list(covered_agents)
     contributes_to_entitlement = {}
-    for id in covered_agents:
-        contributes_to_entitlement[id] = entitlements.index(id)
+    for item in covered_agents:
+        contributes_to_entitlement[item] = entitlements.index(item)
 
     return entitlements, contributes_to_entitlement
 
@@ -2202,8 +2206,8 @@ def _committees_to_matrix(
     columns = []
     for committee in committees:
         column = [0 for _ in entitlements]
-        for id in committee:
-            column[contributes_to_entitlement[id]] += 1
+        for item in committee:
+            column[contributes_to_entitlement[item]] += 1
         columns.append(np.array(column))
     return np.column_stack(columns)
 
@@ -2309,13 +2313,13 @@ def find_distribution_nash(
         assert differentials.shape == (len(committees),)
 
         obj = []
-        for id in covered_agents:
-            obj.append(entitled_reciprocals[contributes_to_entitlement[id]] * agent_vars[id])
+        for item in covered_agents:
+            obj.append(entitled_reciprocals[contributes_to_entitlement[item]] * agent_vars[item])
         new_committee_model.objective = mip.xsum(obj)
         new_committee_model.optimize()
 
         new_set = _ilp_results_to_committee(agent_vars)
-        value = sum(entitled_reciprocals[contributes_to_entitlement[id]] for id in new_set)
+        value = sum(entitled_reciprocals[contributes_to_entitlement[item]] for item in new_set)
         if value <= differentials.max() + EPS_NASH:
             probabilities = np.array(lambdas.value).clip(0, 1)
             probabilities = list(probabilities / sum(probabilities))
