@@ -25,6 +25,7 @@ import copy
 import csv
 import random
 import typing
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from copy import deepcopy
 from importlib.util import find_spec
@@ -178,6 +179,23 @@ class SelectionError(Exception):
         self.msg = message
 
 
+class PeopleCatsDataBase(ABC):
+    def get_selected_file(self) -> StringIO | None:
+        return None
+
+    def get_remaining_file(self) -> StringIO | None:
+        return None
+
+    @abstractmethod
+    def output_selected_remaining(
+        self,
+        settings: Settings,
+        people_selected_rows: list[list[str]],
+        people_remaining_rows: list[list[str]],
+    ) -> list[int]:
+        pass
+
+
 class PeopleAndCats:
     """
     The PeopleAndCats classes below hold all the people and category info sourced from
@@ -198,12 +216,18 @@ class PeopleAndCats:
     Note that there are now optional extra fields in the above: min_flex and max_flex...
     """
 
+    # TODO: split this into a Loader class and the actual class
+    # The loader class will not have too much state, but will parse the CSV/whatever and
+    # then create the actual class.
+    # That way the actual class doesn't have to have None|xyz types all over the place
+
     # Warning: all / most of these values are hardcoded also somewhere below :-)
     category_file_field_names = ["category", "name", "min", "max", "min_flex", "max_flex"]
 
-    def __init__(self):
+    def __init__(self, data_provider: PeopleCatsDataBase) -> None:
         # mins and maxs (from category data) for number of people one can select
         # min_flex and max_flex are how much we are happy for this to "stretch"...
+        self.data_provider = data_provider
         self.min_max_people = {}
         self.original_categories = None
         self.categories_after_people = None
@@ -222,14 +246,14 @@ class PeopleAndCats:
         self.enable_file_download = False
         self.gen_rem_tab = ""
 
-    def get_selected_file(self):
-        return None
+    def get_selected_file(self) -> StringIO | None:
+        return self.data_provider.get_selected_file()
 
-    def get_remaining_file(self):
-        return None
+    def get_remaining_file(self) -> StringIO | None:
+        return self.data_provider.get_remaining_file()
 
     # read in stratified selection categories and values - a dict of dicts of dicts...
-    def _read_in_cats(self, cat_head, cat_body) -> tuple[list[str], int, int]:
+    def read_in_cats(self, cat_head, cat_body) -> tuple[list[str], int, int]:
         self.original_categories = {}
         all_msg: list[str] = []
         min_val = 0
@@ -372,7 +396,7 @@ class PeopleAndCats:
                 raise SelectionError(msg)
 
     # read in people and calculate how many people in each category in database
-    def _init_categories_people(self, people_head, people_body, settings: Settings) -> list[str]:
+    def init_categories_people(self, people_head, people_body, settings: Settings) -> list[str]:
         people = {}
         columns_data = {}
         # this modifies the categories, so we keep the original categories here
@@ -503,7 +527,7 @@ class PeopleAndCats:
                     people_selected_rows[p_count][set_count] = pkey
             # prepend the header row afterwards
             people_selected_rows.insert(0, people_selected_header_row)
-            self._output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
+            self.output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
         else:  # self.number_selections == 1
             categories = self.categories_after_people
 
@@ -548,7 +572,7 @@ class PeopleAndCats:
                 for cat_key in categories:
                     row.append(people_working[pkey][cat_key])
                 people_remaining_rows += [row]
-            dupes = self._output_selected_remaining(
+            dupes = self.output_selected_remaining(
                 settings,
                 people_selected_rows,
                 people_remaining_rows,
@@ -567,26 +591,35 @@ class PeopleAndCats:
         return output_lines
 
 
-class PeopleAndCatsCSV(PeopleAndCats):
+class PeopleCatsCSV(PeopleCatsDataBase):
     def __init__(self):
-        super().__init__()
         self.selected_file = StringIO()
         self.remaining_file = StringIO()
 
-    def get_selected_file(self):
+    def get_selected_file(self) -> StringIO | None:
         return self.selected_file
 
-    def get_remaining_file(self):
+    def get_remaining_file(self) -> StringIO | None:
         return self.remaining_file
 
-    def load_cats(self, file_contents, dummy_category_tab, settings: Settings):
+    def load_cats(
+        self,
+        people_cats: PeopleAndCats,
+        file_contents,
+        dummy_category_tab,
+        settings: Settings,
+    ):
         self.category_content_loaded = True
         category_file = StringIO(file_contents)
         category_reader = csv.DictReader(category_file)
-        return self._read_in_cats(list(category_reader.fieldnames), category_reader)
+        return people_cats.read_in_cats(
+            list(category_reader.fieldnames),
+            category_reader,
+        )
 
     def load_people(
         self,
+        people_cats: PeopleAndCats,
         settings: Settings,
         file_contents="",
         dummy_respondents_tab="",
@@ -597,11 +630,11 @@ class PeopleAndCatsCSV(PeopleAndCats):
             self.people_content_loaded = True
         people_file = StringIO(file_contents)
         people_data = csv.DictReader(people_file)
-        return self._init_categories_people(list(people_data.fieldnames), people_data, settings)
+        return people_cats.init_categories_people(list(people_data.fieldnames), people_data, settings)
 
     # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
     # BUT, we should not include in this people from the same address as someone who has been selected!
-    def _output_selected_remaining(
+    def output_selected_remaining(
         self,
         settings: Settings,
         people_selected_rows,
@@ -627,9 +660,11 @@ class PeopleAndCatsCSV(PeopleAndCats):
         )
         for row in people_remaining_rows:
             people_remaining_writer.writerow(row)
+        # TODO: actually return the dupes - or move the dupes code from the GSheet version to PeopleAndCats
+        return []
 
 
-class PeopleAndCatsGoogleSheet(PeopleAndCats):
+class PeopleCatsGoogleSheet(PeopleCatsDataBase):
     scope = None
     creds = None
     client = None
@@ -642,7 +677,6 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
     new_tab_default_size_cols = "40"
 
     def __init__(self):
-        super().__init__()
         self.g_sheet_name = ""
         self.respondents_tab_name = ""
         self.category_tab_name = ""
@@ -675,7 +709,13 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                 )
         return tab_ready
 
-    def load_cats(self, g_sheet_name, category_tab_name, settings: Settings):
+    def load_cats(
+        self,
+        people_cats: PeopleAndCats,
+        g_sheet_name: str,
+        category_tab_name: str,
+        settings: Settings,
+    ):
         self.category_content_loaded = True
         self.g_sheet_name = g_sheet_name
         self.category_tab_name = category_tab_name
@@ -701,7 +741,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                 tab_cats = self.spreadsheet.worksheet(self.category_tab_name)
                 cat_head_input = tab_cats.row_values(1)
                 cat_input = tab_cats.get_all_records(expected_headers=[])
-                new_msg, min_val, max_val = self._read_in_cats(cat_head_input, cat_input)
+                new_msg, min_val, max_val = people_cats.read_in_cats(cat_head_input, cat_input)
                 msg += [f"Read in '{self.category_tab_name}' tab in above Google sheet."]
                 msg += new_msg
             else:
@@ -714,10 +754,11 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
 
     def load_people(
         self,
+        people_cats: PeopleAndCats,
         settings: Settings,
         dummy_file_contents,
-        respondents_tab_name,
-        category_tab_name,
+        respondents_tab_name: str,
+        category_tab_name: str,
         gen_rem_tab,
     ):
         self.people_content_loaded = True
@@ -738,7 +779,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
                     expected_headers=[],
                 )
                 msg = [f"Reading in '{self.respondents_tab_name}' tab in above Google sheet."]
-                msg += self._init_categories_people(people_head_input, people_input, settings)
+                msg += people_cats.init_categories_people(people_head_input, people_input, settings)
             else:
                 msg = [
                     f"Error in Google sheet: no tab called '{self.respondents_tab_name}' found. ",
@@ -749,7 +790,7 @@ class PeopleAndCatsGoogleSheet(PeopleAndCats):
             self.people_content_loaded = False
         return msg
 
-    def _output_selected_remaining(
+    def output_selected_remaining(
         self,
         settings: Settings,
         people_selected_rows,

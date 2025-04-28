@@ -3,7 +3,8 @@ from pathlib import Path
 import pytest
 
 from stratification import (
-    PeopleAndCatsCSV,
+    PeopleAndCats,
+    PeopleCatsCSV,
     Settings,
 )
 
@@ -59,10 +60,18 @@ def test_csv_selection_happy_path_defaults(algorithm):
         Given default settings and an easy selection, we should get selected and remaining.
     """
     settings = get_settings(algorithm)
-    people_cats = PeopleAndCatsCSV()
-    people_cats.load_cats(categories_content, "Categories", settings)
+    people_cats_csv = PeopleCatsCSV()
+    people_cats = PeopleAndCats(people_cats_csv)
+    people_cats_csv.load_cats(people_cats, categories_content, "Categories", settings)
     people_cats.number_people_to_select = PEOPLE_TO_SELECT
-    message = people_cats.load_people(settings, candidates_content, "Respondents", "Categories", "")
+    message = people_cats_csv.load_people(
+        people_cats,
+        settings,
+        candidates_content,
+        "Respondents",
+        "Categories",
+        "",
+    )
     print("load_people_message: ")
     print(message)
     success, output_lines = people_cats.people_cats_run_stratification(
@@ -70,15 +79,11 @@ def test_csv_selection_happy_path_defaults(algorithm):
         test_selection=False,
     )
     # we are removing the header line with the [1:]
-    selected_lines = [
-        line.strip()
-        for line in people_cats.get_selected_file().getvalue().split("\n")
-        if line.strip()
-    ][1:]
+    selected_lines = [line.strip() for line in people_cats.get_selected_file().getvalue().split("\n") if line.strip()][
+        1:
+    ]
     remaining_lines = [
-        line.strip()
-        for line in people_cats.get_remaining_file().getvalue().split("\n")
-        if line.strip()
+        line.strip() for line in people_cats.get_remaining_file().getvalue().split("\n") if line.strip()
     ][1:]
     print(output_lines)
     assert success
