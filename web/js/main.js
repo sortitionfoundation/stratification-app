@@ -2,24 +2,24 @@ $(function(){
 
 
     function init_page() {
-        const categories_file_input = document.getElementById("categories-file");
-        categories_file_input.addEventListener("click", clear_file_value, false);
-        categories_file_input.addEventListener("change", handle_categories_file, false);
+        const csv_categories_file_input = document.getElementById("csv-categories-file");
+        csv_categories_file_input.addEventListener("click", clear_file_value, false);
+        csv_categories_file_input.addEventListener("change", handle_csv_categories_file, false);
         const categories_g_sheet_name_input = document.getElementById("categories-g-sheet");
         categories_g_sheet_name_input.addEventListener("input", handle_g_sheet_name, false);
         const categories_respondents_tab_name_input = document.getElementById("categories-respondents-tab");//for respondents tab
         categories_respondents_tab_name_input.addEventListener("input", handle_respondents_tab_name, false);//for categories tab
-        const categories_tab_name_input = document.getElementById("categories-tab");//for categories tab
-        categories_tab_name_input.addEventListener("input", handle_categories_tab_name, false);//for categories tab
+        const g_sheet_categories_tab_name_input = document.getElementById("g-sheet-categories-tab");//for categories tab
+        g_sheet_categories_tab_name_input.addEventListener("input", handle_g_sheet_categories_tab_name, false);//for categories tab
         const gen_rem_tab_input = document.getElementById("gen-rem-tab");//for generate remaining tab checkbox
         gen_rem_tab_input.addEventListener('change', handle_gen_rem_tab, false);// for generate remaining tab checkbox
         const number_selections_input = document.getElementById("number-selections");//for categories tab
         number_selections_input.addEventListener("input", handle_number_selections, false);//for categories tab
         const load_g_sheet_btn = document.getElementById('load-g-sheet-btn');
         load_g_sheet_btn.addEventListener('click', handle_load_g_sheet_btn, false);
-        const selection_file_input = document.getElementById("selection-file");
-        selection_file_input.addEventListener("click", clear_file_value, false);
-        selection_file_input.addEventListener("change", handle_selection_file, false);
+        const csv_selection_file_input = document.getElementById("csv-selection-file");
+        csv_selection_file_input.addEventListener("click", clear_file_value, false);
+        csv_selection_file_input.addEventListener("change", handle_csv_selection_file, false);
         const select_number_people_input = document.getElementById("selection-number");
         select_number_people_input.addEventListener("input", handle_number_people, false);
         const run_btn = document.getElementById('run-btn');
@@ -46,17 +46,17 @@ $(function(){
         this.value = null;
     }
 
-    function handle_categories_file() {
+    function handle_csv_categories_file() {
         const file_handle = this.files[0];
         const reader = new FileReader();
-        reader.onload = categories_file_loaded;
+        reader.onload = csv_categories_file_loaded;
         reader.readAsText(file_handle);
     }
 
-    function handle_selection_file() {
+    function handle_csv_selection_file() {
         const file_handle = this.files[0];
         const reader = new FileReader();
-        reader.onload = selection_file_loaded;
+        reader.onload = csv_selection_file_loaded;
         reader.readAsText(file_handle);
     }
 
@@ -72,8 +72,8 @@ $(function(){
     	eel.update_respondents_tab_name(this.value);
     }
 
-    function handle_categories_tab_name() {
-    	eel.update_categories_tab_name(this.value);
+    function handle_g_sheet_categories_tab_name() {
+    	eel.update_g_sheet_categories_tab_name(this.value);
     }
 
     function handle_gen_rem_tab() {
@@ -103,14 +103,14 @@ $(function(){
         load_button.disabled = false;
     }
 
-    function categories_file_loaded(e) {
+    function csv_categories_file_loaded(e) {
         const file_contents = e.target.result;
-        eel.handle_category_contents(file_contents);
+        eel.handle_csv_category_contents(file_contents);
     }
 
-    function selection_file_loaded(e) {
+    function csv_selection_file_loaded(e) {
         const file_contents = e.target.result;
-        eel.handle_selection_contents(file_contents);
+        eel.handle_csv_selection_contents(file_contents);
     }
 
     eel.expose(update_categories_output_area);
@@ -153,9 +153,9 @@ $(function(){
         eel.run_test_selection();
     }
 
-	eel.expose(enable_selection_content);
-    function enable_selection_content() {
-        const selection_content = document.getElementById("selection-file");
+    eel.expose(enable_csv_selection_content);
+    function enable_csv_selection_content() {
+        const selection_content = document.getElementById("csv-selection-file");
         selection_content.disabled = false;
     }
 
@@ -163,7 +163,7 @@ $(function(){
     function set_select_number_people(number_people) {
     	const select_number_people_input = document.getElementById("selection-number");
         select_number_people_input.value = number_people;
-	}
+    }
 
     eel.expose(enable_run_button);
     function enable_run_button() {

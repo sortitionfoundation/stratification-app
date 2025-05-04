@@ -62,16 +62,9 @@ def test_csv_selection_happy_path_defaults(algorithm):
     settings = get_settings(algorithm)
     people_cats_csv = PeopleCatsCSV()
     people_cats = PeopleAndCats(people_cats_csv)
-    people_cats_csv.load_cats(people_cats, categories_content, "Categories", settings)
+    people_cats_csv.load_cats(people_cats, categories_content)
     people_cats.number_people_to_select = PEOPLE_TO_SELECT
-    message = people_cats_csv.load_people(
-        people_cats,
-        settings,
-        candidates_content,
-        "Respondents",
-        "Categories",
-        "",
-    )
+    message = people_cats_csv.load_people(people_cats, settings, candidates_content)
     print("load_people_message: ")
     print(message)
     success, output_lines = people_cats.people_cats_run_stratification(

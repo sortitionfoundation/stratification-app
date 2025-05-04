@@ -189,6 +189,7 @@ class PeopleCatsDataBase(ABC):
     @abstractmethod
     def output_selected_remaining(
         self,
+        people_and_cats: "PeopleAndCats",
         settings: Settings,
         people_selected_rows: list[list[str]],
         people_remaining_rows: list[list[str]],
@@ -527,7 +528,7 @@ class PeopleAndCats:
                     people_selected_rows[p_count][set_count] = pkey
             # prepend the header row afterwards
             people_selected_rows.insert(0, people_selected_header_row)
-            self.output_selected_remaining(settings, people_selected_rows, people_remaining_rows)
+            self.data_provider.output_selected_remaining(self, settings, people_selected_rows, people_remaining_rows)
         else:  # self.number_selections == 1
             categories = self.categories_after_people
 
@@ -572,7 +573,8 @@ class PeopleAndCats:
                 for cat_key in categories:
                     row.append(people_working[pkey][cat_key])
                 people_remaining_rows += [row]
-            dupes = self.output_selected_remaining(
+            dupes = self.data_provider.output_selected_remaining(
+                self,
                 settings,
                 people_selected_rows,
                 people_remaining_rows,
@@ -605,13 +607,12 @@ class PeopleCatsCSV(PeopleCatsDataBase):
     def load_cats(
         self,
         people_cats: PeopleAndCats,
-        file_contents,
-        dummy_category_tab,
-        settings: Settings,
+        file_contents: str,
     ):
         self.category_content_loaded = True
         category_file = StringIO(file_contents)
         category_reader = csv.DictReader(category_file)
+        assert category_reader.fieldnames
         return people_cats.read_in_cats(
             list(category_reader.fieldnames),
             category_reader,
@@ -621,25 +622,24 @@ class PeopleCatsCSV(PeopleCatsDataBase):
         self,
         people_cats: PeopleAndCats,
         settings: Settings,
-        file_contents="",
-        dummy_respondents_tab="",
-        dummy_category_tab="",
-        dummy_gen_rem="",
-    ):
-        if file_contents != "":
+        file_contents: str = "",
+    ) -> list[str]:
+        if file_contents:
             self.people_content_loaded = True
         people_file = StringIO(file_contents)
         people_data = csv.DictReader(people_file)
+        assert people_data.fieldnames
         return people_cats.init_categories_people(list(people_data.fieldnames), people_data, settings)
 
     # Actually useful to also write to a file all those who are NOT selected for later selection if people pull out etc
     # BUT, we should not include in this people from the same address as someone who has been selected!
     def output_selected_remaining(
         self,
+        people_and_cats: PeopleAndCats,
         settings: Settings,
-        people_selected_rows,
-        people_remaining_rows,
-    ):
+        people_selected_rows: list[list[str]],
+        people_remaining_rows: list[list[str]],
+    ) -> list[int]:
         # we have succeeded in CSV so can activate buttons in GUI...
         self.enable_file_download = True
 
@@ -756,11 +756,10 @@ class PeopleCatsGoogleSheet(PeopleCatsDataBase):
         self,
         people_cats: PeopleAndCats,
         settings: Settings,
-        dummy_file_contents,
         respondents_tab_name: str,
         category_tab_name: str,
-        gen_rem_tab,
-    ):
+        gen_rem_tab: str,
+    ) -> list[str]:
         self.people_content_loaded = True
         self.respondents_tab_name = respondents_tab_name  # Added for respondents tab text box.
         self.category_tab_name = category_tab_name  # Added for category tab text box.
@@ -792,12 +791,15 @@ class PeopleCatsGoogleSheet(PeopleCatsDataBase):
 
     def output_selected_remaining(
         self,
+        people_and_cats: PeopleAndCats,
         settings: Settings,
-        people_selected_rows,
-        people_remaining_rows,
-    ):
+        people_selected_rows: list[list[str]],
+        people_remaining_rows: list[list[str]],
+    ) -> list[int]:
         # if self.number_selections > 1 then self.gen_rem_tab=='off'
-        assert self.number_selections == 1 or (self.number_selections > 1 and self.gen_rem_tab == "off")
+        assert people_and_cats.number_selections == 1 or (
+            people_and_cats.number_selections > 1 and self.gen_rem_tab == "off"
+        )
         tab_original_selected = self._clear_or_create_tab(
             self.original_selected_tab_name,
             self.remaining_tab_name,

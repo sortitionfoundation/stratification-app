@@ -72,7 +72,7 @@
 <!-- HTML body now follows-->
 <body>
 <div id="input-elements" class="container">
-	<img src="logo_sortition-foundation_alt.svg" style="float: right; height:50px"><h1>Sortition Foundation - Stratification & Selection</h1>
+	<img src="logo_sortition-foundation_alt.svg" style="float: right; height:50px"><h1>Sortition Foundation - Stratification &amp; Selection</h1>
 	<p></p>
 	<div id="accordion">
   <div class="card">
@@ -88,12 +88,12 @@
       <div class="card-body">
 		<p>
 			<div class="form-group">
-				<label for="categories-file">Step 1: Select a CSV file with category information</label>
-				<input type="file" class="form-control" id="categories-file">
+				<label for="csv-categories-file">Step 1: Select a CSV file with category information</label>
+				<input type="file" class="form-control" id="csv-categories-file">
 			</div>
 			<div class="form-group">
-				<label for="selection-file">Step 2: Select a CSV file with people to select from</label>
-				<input type="file" class="form-control" id="selection-file" disabled>
+				<label for="csv-selection-file">Step 2: Select a CSV file with people to select from</label>
+				<input type="file" class="form-control" id="csv-selection-file" disabled>
 			</div>
 			<div class="container mb-2">
 				<h2>After selection... download output:</h2>
@@ -138,8 +138,8 @@
 				<small id="RespondentsHelp" class="form-text text-muted">If you change this, then you must click "Load G-Sheet" afterwards.</small>
 			</div>
 			<div class="form-group">
-				<label for="categories-tab">Google spreadsheet categories tab:</label>
-				<input type="text" id="categories-tab" name="categories-tab" min="0" size="20" maxlength=100 value="Categories">
+				<label for="g-sheet-categories-tab">Google spreadsheet categories tab:</label>
+				<input type="text" id="g-sheet-categories-tab" name="g-sheet-categories-tab" min="0" size="20" maxlength=100 value="Categories">
 				<small id="CategoriesHelp" class="form-text text-muted">If you change this, then you must click "Load G-Sheet" afterwards.</small>
 			</div>
 			<div class="form-check">
