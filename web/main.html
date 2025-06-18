@@ -76,17 +76,17 @@
     <div id="input-elements" class="container">
       <img src="logo_sortition-foundation_alt.svg" style="float: right; height:50px">
       <h1>Sortition Foundation - Stratification & Selection</h1>
-      <p></p> 
+      <p></p>
       <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="csv-tab" data-bs-toggle="tab" data-bs-target="#csv" type="button" role="tab" aria-controls="csv" aria-selected="true">CSV file input &amp; output</button>
+          <button class="nav-link" id="csv-tab" data-bs-toggle="tab" data-bs-target="#csv" type="button" role="tab" aria-controls="csv" aria-selected="false">CSV file input &amp; output</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="gsheet-tab" data-bs-toggle="tab" data-bs-target="#gsheet" type="button" role="tab" aria-controls="gsheet" aria-selected="false">Google Sheet input &amp; output</button>
+          <button class="nav-link active" id="gsheet-tab" data-bs-toggle="tab" data-bs-target="#gsheet" type="button" role="tab" aria-controls="gsheet" aria-selected="true">Google Sheet input &amp; output</button>
         </li>
       </ul>
       <div class="tab-content" id="myTabContent">
-        <div class="tab-pane fade show active" id="csv" role="tabpanel" aria-labelledby="csv-tab">
+        <div class="tab-pane fade" id="csv" role="tabpanel" aria-labelledby="csv-tab">
           <div class="card">
             <div class="card-header" id="headingOne">
               <h2 class="mb-0">
@@ -138,7 +138,7 @@
             </div>
           </div>
         </div>
-        <div class="tab-pane fade" id="gsheet" role="tabpanel" aria-labelledby="gsheet-tab">
+        <div class="tab-pane fade show active" id="gsheet" role="tabpanel" aria-labelledby="gsheet-tab">
           <div class="card">
             <div class="card-header" id="headingTwo">
               <h5 class="mb-0">
@@ -166,7 +166,7 @@
                         </div>
                         <div class="form-group">
                           <label for="g-sheet-features-tab">Google spreadsheet categories tab:</label>
-                          <input type="text" id="g-sheet-features-tab" name="g-sheet-features-tab" min="0" size="20" maxlength=100 value="Features">
+                          <input type="text" id="g-sheet-features-tab" name="g-sheet-features-tab" min="0" size="20" maxlength=100 value="Categories">
                           <small id="CategoriesHelp" class="form-text text-muted">If you change this, then you must click "Load G-Sheet" afterwards.</small>
                         </div>
                         <div class="form-check">
@@ -233,8 +233,8 @@
 				<div class="card">
 					<div class="card-block"><div class="card-block-log">
 						<h3 class="card-title">Detailed Log</h3>
-						<div id="output-area-selection-messages">
-							<p id="output-area-selection-messages-target-p" class="card-text"></p>
+						<div id="output-area-detailed-log">
+							<p id="output-area-detailed-log-target-p" class="card-text"></p>
 						</div></div>
 					</div>
 				</div>

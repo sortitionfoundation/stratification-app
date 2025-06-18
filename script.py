@@ -1,20 +1,63 @@
-from ast import Str
-from io import StringIO
 import platform
 import sys
+from collections.abc import Iterable
+from enum import Enum
+from io import StringIO
 from pathlib import Path
 
 import eel
 import gspread
 from sortition_algorithms import Settings, adapters, core, features, people
 
-# from stratification import (
-#     PeopleAndCatsCSV,
-#     PeopleAndCatsGoogleSheet,
-# )
-
 DEFAULT_SETTINGS_PATH = Path.home() / "sf_stratification_settings.toml"
-DEFAULT_AUTH_JSON_PATH = Path.home() / "sf_stratification_settings.toml"
+DEFAULT_AUTH_JSON_PATH = Path.home() / "secret_do_not_commit.json"
+
+
+class LogType(Enum):
+    CSV_FEATURES = 1
+    CSV_SELECTION = 2
+    GSHEET_FEATURES = 3
+    GSHEET_SELECTION = 4
+    DETAILED_LOG = 5
+
+
+class GuiLog:
+    """Singleton class for sending messages to different divs"""
+
+    def __init__(self) -> None:
+        self.lines: dict[LogType, list[str]] = {lt: [""] for lt in LogType}
+
+    def reset(self, section: LogType, new_message: str = "") -> None:
+        self.lines[section] = [new_message]
+        self.update_area(section)
+
+    def add_lines(self, section: LogType, lines: Iterable[str]) -> None:
+        self.lines[section] += lines
+        self.update_area(section)
+
+    def add_line(self, section: LogType, line: str) -> None:
+        self.lines[section].append(line)
+        self.update_area(section)
+
+    def update_area(self, section: LogType) -> None:
+        update_str = "<br />".join(line for line in self.lines[section] if line.strip())
+        if section == LogType.CSV_FEATURES:
+            eel.update_csv_features_output_area(update_str)
+        elif section == LogType.CSV_SELECTION:
+            eel.update_csv_selection_output_area(update_str)
+        elif section == LogType.GSHEET_FEATURES:
+            eel.update_g_sheet_features_output_area(update_str)
+        elif section == LogType.GSHEET_SELECTION:
+            eel.update_g_sheet_selection_output_area(update_str)
+        elif section == LogType.DETAILED_LOG:
+            eel.update_detailed_log_messages_area(update_str)
+
+    def update_all_areas(self) -> None:
+        for log_type in LogType:
+            self.update_area(log_type)
+
+
+gui_log = GuiLog()
 
 
 class SettingsHolder:
@@ -35,11 +78,16 @@ class SettingsHolder:
         if self._settings is None:
             try:
                 self._settings, message = Settings.load_from_file(
-                    settings_file_path=DEFAULT_SETTINGS_PATH
+                    settings_file_path=DEFAULT_SETTINGS_PATH,
                 )
             except Exception as error:
                 return f"Error reading in settings file: {error}"
         return message
+
+    def init_settings_log(self, section: LogType) -> None:
+        message = self.init_settings()
+        if message:
+            gui_log.add_line(section, message)
 
     def loaded(self) -> bool:
         return self._settings is not None
@@ -57,24 +105,37 @@ class CSVHandler:
         self.people_contents: str = ""
         self.panel_size: int = 0
 
+    def update_panel_size(self, panel_size: str) -> None:
+        if panel_size == "":
+            self.panel_size = 1
+        else:
+            self.panel_size = int(panel_size.strip())
+            self.update_run_button()
+
+    def update_run_button(self):
+        if self.features and self.people and self.panel_size > 0:
+            eel.enable_csv_run_button()
+        else:
+            eel.disable_csv_run_button()
+        if self.panel_size <= 0:
+            eel.set_csv_panel_size("")
+
     def add_feature_content(self, file_contents: str):
-        all_msg: list[str] = []
+        gui_log.reset(LogType.CSV_FEATURES)
         if not file_contents:
-            all_msg.append("No file contents - was the file empty?")
-            eel.update_csv_features_output_area("<br />".join(all_msg))
+            gui_log.add_line(
+                LogType.CSV_FEATURES,
+                "No file contents - was the file empty?",
+            )
             return
-        message = settings_holder.init_settings()
-        if message:
-            all_msg.append(message)
+        settings_holder.init_settings_log(LogType.CSV_FEATURES)
         if not settings_holder.loaded():
-            eel.update_csv_features_output_area("<br />".join(all_msg))
             return
         try:
             self.features, msgs = self.adapter.load_features_from_str(file_contents)
-            all_msg += msgs
+            gui_log.add_lines(LogType.CSV_FEATURES, msgs)
         except Exception as error:
-            all_msg.append(f"Failed to load features: {error}")
-        eel.update_csv_features_output_area("<br />".join(all_msg))
+            gui_log.add_line(LogType.CSV_FEATURES, f"Failed to load features: {error}")
         if not self.features:
             return
         eel.enable_csv_selection_content()
@@ -89,8 +150,8 @@ class CSVHandler:
         if self.people:
             self.add_people_content(self.people_contents)
 
-    def add_people_content(self, file_contents: str):
-        all_msg: list[str] = []
+    def add_people_content(self, file_contents: str) -> None:
+        gui_log.reset(LogType.CSV_SELECTION)
         assert self.features is not None
         try:
             self.people, msgs = self.adapter.load_people_from_str(
@@ -100,31 +161,19 @@ class CSVHandler:
             )
             # now we've done a successful load, cache the results
             self.people_contents = file_contents
-            all_msg += msgs
+            gui_log.add_lines(LogType.CSV_SELECTION, msgs)
+            gui_log.add_line(
+                LogType.CSV_SELECTION,
+                f"Loaded {self.people.count} people.",
+            )
         except Exception as error:
-            all_msg.append(f"Failed to load people: {error}")
-        eel.update_csv_selection_output_area("<br />".join(all_msg))
+            gui_log.add_line(LogType.CSV_SELECTION, f"Failed to load people: {error}")
         self.update_run_button()
 
-    def update_panel_size(self, panel_size: str) -> None:
-        if panel_size == "":
-            self.panel_size = 1
-        else:
-            self.panel_size = int(panel_size.strip())
-
-    def update_run_button(self):
-        if self.features and self.people and self.panel_size > 0:
-            eel.enable_csv_run_button()
-        else:
-            eel.disable_csv_run_button()
-        if self.panel_size <= 0:
-            eel.set_csv_panel_size("")
-
-    def run_selection(self, test_selection: bool):
-        all_msg: list[str] = []
+    def run_selection(self, test_selection: bool) -> None:
         assert self.people is not None and self.features is not None
         # they may have hit this button again, so clear the output area so it's more obvious
-        eel.update_selection_output_messages_area("Selecting... please wait...<br />")
+        gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
         success, people_selected, msgs = core.run_stratification(
             self.features,
             self.people,
@@ -132,9 +181,12 @@ class CSVHandler:
             settings_holder.settings,
             test_selection=test_selection,
         )
-        all_msg += msgs
+        gui_log.add_lines(LogType.DETAILED_LOG, msgs)
         selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-            self.people, people_selected[0], self.features, settings_holder.settings
+            self.people,
+            people_selected[0],
+            self.features,
+            settings_holder.settings,
         )
         if success:
             self.adapter.selected_file = StringIO()
@@ -148,56 +200,142 @@ class CSVHandler:
                 self.adapter.remaining_file.getvalue(),
                 "remaining.csv",
             )
-        # print output_lines to the App:
-        eel.update_selection_output_messages_area("<br />".join(all_msg))
 
 
 class GSheetHandler:
     clear_message = "Number of features: You must (re)load sheet..."
+    original_selected_tab_name = "Original Selected - output - "
+    remaining_tab_name = "Remaining - output - "
 
     def __init__(self):
         self.adapter = adapters.GSheetAdapter(DEFAULT_AUTH_JSON_PATH)
         self.features: features.FeatureCollection | None = None
         self.people: people.People | None = None
-        self.panel_size: int = 0
+        self.g_sheet_name = ""
+        self.features_tab_name = "Categories"
+        self.people_tab_name = "Respondents"
+        self.gen_rem_tab = "on"
+        self.number_selections = 1  # How many panels to create
+        self.panel_size = 0  # Number of people in each panel
 
-    def _clear_messages(self, normal_message: str = clear_message):
-        eel.update_g_sheet_features_output_area(normal_message)
-        eel.update_g_sheet_selection_output_area(normal_message)
-        eel.update_selection_output_messages_area("")
+    def _clear_messages(self, normal_message: str = clear_message) -> None:
+        gui_log.reset(LogType.GSHEET_FEATURES, normal_message)
+        gui_log.reset(LogType.GSHEET_SELECTION, normal_message)
+        gui_log.reset(LogType.DETAILED_LOG)
         eel.set_g_sheet_panel_size("")
 
-    def add_feature_content(self, g_sheet_name: str, feature_tab_name: str):
-        all_msg: list[str] = []
-        message = settings_holder.init_settings()
-        if message:
-            all_msg.append(message)
+    # called from g-sheet input
+    def update_g_sheet_name(self, g_sheet_name_input) -> None:
+        self._clear_messages()
+        self.g_sheet_name = g_sheet_name_input
+        if self.g_sheet_name != "":
+            eel.enable_load_g_sheet_btn()
+
+    def update_panel_size(self, panel_size: str) -> None:
+        if panel_size == "":
+            self.panel_size = 1
+        else:
+            self.panel_size = int(panel_size.strip())
+        self.update_run_button()
+
+    def update_run_button(self) -> None:
+        if self.features and self.people and self.panel_size > 0:
+            eel.enable_g_sheet_run_button()
+        else:
+            eel.disable_g_sheet_run_button()
+        if self.panel_size <= 0:
+            eel.set_g_sheet_panel_size("")
+
+    def update_people_tab_name(self, people_tab_name_input: str) -> None:
+        self._clear_messages()
+        self.people_tab_name = people_tab_name_input
+
+    def update_features_tab_name(self, features_tab_name_input: str) -> None:
+        self._clear_messages()
+        self.features_tab_name = features_tab_name_input
+
+    def update_gen_rem_tab(self, gen_rem_tab_input: str) -> None:
+        self.gen_rem_tab = gen_rem_tab_input
+        # never generate a remaining tab if doing a multiple selection
+        if self.number_selections > 1:
+            self.gen_rem_tab = "off"
+
+    def update_number_selections(self, number_selections_input: str) -> None:
+        self._clear_messages()
+        self.number_selections = 1 if number_selections_input == "" else int(number_selections_input)
+        # never generate a remaining tab if doing a multiple selection
+        # but turn it on if = 1 (this could be wrong if the person wants it off!)
+        # if this has changed back to 1...
+        self.gen_rem_tab = "off" if self.number_selections > 1 else "on"
+
+    # do features and people at same time...
+    def load_g_sheet(self) -> None:
+        # this can happen if they enter something and then delete it...
+        if self.g_sheet_name == "":
+            self._clear_messages("Please enter a spreadsheet name...")
+            return
+        self._clear_messages("Requesting data from sheet...")
+        settings_holder.init_settings_log(LogType.GSHEET_FEATURES)
         if not settings_holder.loaded():
-            eel.update_g_sheet_features_output_area("<br />".join(all_msg))
             return
         try:
-            self.features, msgs = self.adapter.load_features(
-                g_sheet_name, feature_tab_name
+            self.adapter.g_sheet_name = self.g_sheet_name
+            if self.number_selections > 1:
+                gui_log.add_line(
+                    LogType.GSHEET_SELECTION,
+                    f"<b>WARNING</b>: You've asked for {self.number_selections} selections. "
+                    f"You cannot use the <i>Produce a Test Panel</i> button if you want more "
+                    f"than 1 selection and no Remaining tab will be created.",
+                )
+            self.add_feature_content(self.g_sheet_name, self.features_tab_name)
+            self.add_people_content(self.people_tab_name)
+            self.update_run_button()
+            eel.enable_load_g_sheet_btn()
+        except Exception as error:
+            gui_log.add_line(
+                LogType.GSHEET_FEATURES,
+                f"Please wait a couple of seconds while gsheet updates. "
+                f"After waiting you may need to reload sheet. Current error is: {error}",
             )
-            all_msg += msgs
+
+    def add_feature_content(self, g_sheet_name: str, features_tab_name: str) -> None:
+        try:
+            self.features, msgs = self.adapter.load_features(
+                g_sheet_name,
+                features_tab_name,
+            )
+            gui_log.add_lines(LogType.GSHEET_FEATURES, msgs)
         except gspread.exceptions.APIError as error:
-            all_msg.append(
+            gui_log.add_line(
+                LogType.GSHEET_FEATURES,
                 f"API error causing delay. Please wait a couple of seconds while gsheet updates. "
                 f"After waiting you may need to reload sheet. "
                 f"For the record, the API error is {error}",
             )
         except Exception as error:
-            all_msg.append(f"Failed to load features: {error}")
-        if not self.features:
-            all_msg.append("Failed to load features")
-        eel.update_g_sheet_features_output_area("<br />".join(all_msg))
-        if self.features:
-            eel.update_g_sheet_selection_range(
-                self.features.minimum_selection(), self.features.maximum_selection()
+            gui_log.add_line(
+                LogType.GSHEET_FEATURES,
+                f"Failed to load features: {error}",
             )
+        if not self.features:
+            gui_log.add_line(
+                LogType.GSHEET_FEATURES,
+                "Failed to load features",
+            )
+            return
+        eel.update_g_sheet_selection_range(
+            self.features.minimum_selection(),
+            self.features.maximum_selection(),
+        )
+        min_size = self.features.minimum_selection()
+        max_size = self.features.maximum_selection()
+        eel.update_g_sheet_selection_range(min_size, max_size)
+        # if these are the same just set the value!
+        if min_size == max_size and min_size > 0:
+            eel.set_g_sheet_panel_size(str(min_size))
+            self.panel_size = min_size
 
-    def add_people_content(self, people_tab_name: str):
-        all_msg: list[str] = []
+    def add_people_content(self, people_tab_name: str) -> None:
         assert self.features is not None
         try:
             self.people, msgs = self.adapter.load_people(
@@ -205,254 +343,49 @@ class GSheetHandler:
                 settings_holder.settings,
                 self.features,
             )
-            all_msg += msgs
+            gui_log.add_lines(LogType.GSHEET_SELECTION, msgs)
         except Exception as error:
-            all_msg.append(f"Failed to load people: {error}")
+            gui_log.add_line(
+                LogType.GSHEET_SELECTION,
+                f"Failed to load people: {error}",
+            )
         if not self.people:
-            all_msg.append("Failed to load people")
-        eel.update_g_sheet_selection_output_area("<br />".join(all_msg))
+            gui_log.add_line(
+                LogType.GSHEET_SELECTION,
+                "Failed to load people",
+            )
 
-    """
-    success, people_selected, msgs = core.run_stratification(features, people, number_wanted, settings_obj)
-    echo_all(msgs)
-    if not success:
-        raise click.ClickException("Selection not successful, no files written.")
-
-    selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-        people, people_selected[0], features, settings_obj
-    )
-    adapter.selected_tab_name = selected_tab_name
-    adapter.remaining_tab_name = remaining_tab_name
-    adapter.output_selected_remaining(selected_rows, remaining_rows, settings_obj)
-    """
-
-
-# to be honest this is no longer a file contents class - it's a GUI interface handler
-# all the "content" has been moved into the PeopleAndCats class and its children
-class FileContents:
-    def __init__(self):
-        self.PeopleAndCats = None
-        # All of these below are only used in the Google Sheet version
-        self.g_sheet_name = ""
-        self.respondents_tab_name = (
-            "Respondents"  # Instance attribute for Advanced Settings
+    def run_selection(self, test_selection: bool) -> None:
+        assert self.features is not None and self.people is not None
+        gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
+        success, people_selected, msgs = core.run_stratification(
+            self.features,
+            self.people,
+            self.panel_size,
+            settings_holder.settings,
+            test_selection=test_selection,
+            number_selections=self.number_selections,
         )
-        self.category_tab_name = (
-            "Categories"  # Instance attribute for Advanced Settings
+        gui_log.add_lines(LogType.DETAILED_LOG, msgs)
+        if not success:
+            gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet.")
+
+        selected_rows, remaining_rows, _ = core.selected_remaining_tables(
+            self.people,
+            people_selected[0],
+            self.features,
+            settings_holder.settings,
         )
-        self.gen_rem_tab = "on"  # Instance attribute for Advanced Settings
-        self.number_selections = 1  # Instance attribute for Advanced Settings (then later stored in PeopleAndCats)
-
-    def _add_category_content(self, input_content):
-        min_selection = 0
-        max_selection = 0
-        all_msg: list[str] = []
-        try:
-            message = self._init_settings()
-            if message != "":
-                all_msg.append(message)
-        # we want to catch and report unexpected exceptions here
-        except Exception as error:  # noqa: BLE001
-            self.PeopleAndCats.category_content_loaded = False
-            all_msg.append(f"Error reading in settings file: {error}")
-        try:
-            msg2, min_selection, max_selection = self.PeopleAndCats.load_cats(
-                input_content,
-                self.category_tab_name,
-                self._settings,
-            )
-            all_msg += msg2
-        except gspread.exceptions.APIError as error:
-            all_msg.append(
-                f"API error causing delay. Please wait a couple of seconds while gsheet updates. "
-                f"After waiting you may need to reload sheet. "
-                f"For the record, the API error is {error}",
-            )
-        # we want to catch and report unexpected exceptions here
-        except Exception as error:  # noqa: BLE001
-            self.PeopleAndCats.category_content_loaded = False
-            all_msg.append(f"Error reading in categories file: {error}")
-            print(all_msg)  # noqa: T201
-        eel.update_categories_output_area("<br />".join(all_msg))
-        self.update_selection_content()
-        eel.update_selection_range(min_selection, max_selection)
-        # if these are the same just set the value!
-        if min_selection == max_selection and min_selection > 0:
-            eel.set_select_number_people(str(min_selection))
-            self.PeopleAndCats.number_people_to_select = int(min_selection)
-        # if we've already uploaded people, we need to re-process them with the
-        # (possibly) new categories settings
-        if self.PeopleAndCats.people_content_loaded:
-            dummy_file_contents = ""
-            all_msg = self.PeopleAndCats.load_people(
-                self.settings,
-                dummy_file_contents,
-                self.respondents_tab_name,
-                self.category_tab_name,
-                self.gen_rem_tab,
-            )
-            eel.update_selection_output_area("<br />".join(all_msg))
-        self.update_run_button()
-
-    # called from CSV input
-    def add_category_content(self, file_contents):
-        if file_contents != "":
-            self.PeopleAndCats = PeopleAndCatsCSV()
-            self._add_category_content(file_contents)
-
-    def _clear_messages(
-        self, normal_message="Number of categories: You must (re)load sheet..."
-    ):
-        eel.update_categories_output_area(normal_message)
-        eel.update_selection_output_area(normal_message)
-        eel.update_selection_output_messages_area("")
-        eel.set_select_number_people("")
-
-    # called from g-sheet input
-    def update_g_sheet_name(self, g_sheet_name_input):
-        self._clear_messages()
-        self.g_sheet_name = g_sheet_name_input
-        if self.g_sheet_name != "":
-            eel.enable_load_g_sheet_btn()
-
-            # user has hit the (re)load button
-
-    # do cats and people at same time...
-    def load_g_sheet(self):
-        # this can happen if they enter something and then delete it...
-        if self.g_sheet_name == "":
-            self._clear_messages("Please enter a spreadsheet name...")
-        else:
-            self._clear_messages("Requesting data from sheet...")
-            try:
-                self.PeopleAndCats = PeopleAndCatsGoogleSheet()
-                # tell this object what this currently is...
-                self.PeopleAndCats.number_selections = self.number_selections
-                all_msg: list[str] = []
-                if self.number_selections > 1:
-                    all_msg.append(
-                        f"<b>WARNING</b>: You've asked for {self.number_selections} selections. "
-                        f"You cannot use the <i>Produce a Test Panel</i> button if you want more "
-                        f"than 1 selection and no Remaining tab will be created.",
-                    )
-                self._add_category_content(self.g_sheet_name)
-                dummy_file_contents = ""
-                all_msg += self.PeopleAndCats.load_people(
-                    self.settings,
-                    dummy_file_contents,
-                    self.respondents_tab_name,
-                    self.category_tab_name,
-                    self.gen_rem_tab,
-                )
-                eel.update_selection_output_area("<br />".join(all_msg))
-                self.update_run_button()
-                eel.enable_load_g_sheet_btn()
-            except Exception as error:  # noqa: BLE001
-                eel.update_categories_output_area(
-                    f"Please wait a couple of seconds while gsheet updates. "
-                    f"After waiting you may need to reload sheet. Current error is: {error}",
-                )
-
-    ###############################################################################
-    ### The next functions read in extra instance variables for advanced settings###
-    ###############################################################################
-    def update_respondents_tab_name(self, respondents_tab_name_input):
-        self._clear_messages()
-        self.respondents_tab_name = respondents_tab_name_input
-
-    def update_categories_tab_name(self, categories_tab_name_input):
-        self._clear_messages()
-        self.category_tab_name = categories_tab_name_input
-
-    def update_gen_rem_tab(self, gen_rem_tab_input):
-        self.gen_rem_tab = gen_rem_tab_input
-        # never generate a remaining tab if doing a multiple selection
-        if self.number_selections > 1:
-            self.gen_rem_tab = "off"
-
-    def update_number_selections(self, number_selections_input):
-        self._clear_messages()
-        if number_selections_input == "":
-            self.number_selections = 1
-        else:
-            self.number_selections = int(number_selections_input)
-        # never generate a remaining tab if doing a multiple selection
-        if self.number_selections > 1:
-            self.gen_rem_tab = "off"
-        # but turn it on if = 1 (this could be wrong if the person wants it off!)
-        # if this has changed back to 1...
-        else:
-            self.gen_rem_tab = "on"
-
-    ########################################
-    ###End of Advanced Settings variables###
-    ########################################
-    ### From here 'selection' means people...
-    def add_selection_content(self, file_contents):
-        self._init_settings()
-        # this calls update internally
-        msg = self.PeopleAndCats.load_people(
-            self.settings,
-            file_contents,
-            self.respondents_tab_name,
-            self.category_tab_name,
-            self.gen_rem_tab,
+        self.adapter.selected_tab_name = self.original_selected_tab_name
+        self.adapter.remaining_tab_name = self.remaining_tab_name
+        self.adapter.output_selected_remaining(
+            selected_rows,
+            remaining_rows,
+            settings_holder.settings,
         )
-        eel.update_selection_output_area("<br />".join(msg))
-        self.update_run_button()
-
-    # 'selection' means people...
-    def update_selection_content(self):
-        if self.PeopleAndCats.category_content_loaded:
-            eel.enable_selection_content()
-
-    def update_run_button(self):
-        if (
-            self.PeopleAndCats.category_content_loaded
-            and self.PeopleAndCats.people_content_loaded
-            and self.PeopleAndCats.number_people_to_select > 0
-        ):
-            eel.enable_run_button()
-        else:
-            eel.disable_run_button()
-        if self.PeopleAndCats.number_people_to_select <= 0:
-            eel.set_select_number_people("")
-
-    def update_number_people(self, number_people):
-        if number_people == "":
-            self.PeopleAndCats.number_people_to_select = 0
-        else:
-            self.PeopleAndCats.number_people_to_select = int(number_people)
-        self.update_run_button()
-
-    def run_selection(self, test_selection):
-        self._init_settings()
-        # they may have hit this button again, so clear the output area so it's more obvious
-        eel.update_selection_output_messages_area("Selecting... please wait...<br />")
-        success, output_lines = self.PeopleAndCats.people_cats_run_stratification(
-            self.settings,
-            test_selection,
-        )
-        if (
-            success
-            and self.PeopleAndCats.get_selected_file() is not None
-            and self.PeopleAndCats.get_remaining_file() is not None
-        ):
-            eel.enable_selected_download(
-                self.PeopleAndCats.get_selected_file().getvalue(),
-                "selected.csv",
-            )
-            eel.enable_remaining_download(
-                self.PeopleAndCats.get_remaining_file().getvalue(),
-                "remaining.csv",
-            )
-        # print output_lines to the App:
-        eel.update_selection_output_messages_area("<br />".join(output_lines))
 
 
-# global to hold contents uploaded from JS
-# not really - now just a GUI event handler more or less...
-csv_files = FileContents()
+# globals - GUI event handlers
 csv_handler = CSVHandler()
 g_sheet_handler = GSheetHandler()
 
@@ -507,23 +440,23 @@ def load_g_sheet():
 ###Start Advanced Settings###
 #############################
 @eel.expose
-def update_respondents_tab_name(respondents_tab_name):
-    g_sheet_handler.update_respondents_tab_name(respondents_tab_name)
+def update_respondents_tab_name(people_tab_name):
+    g_sheet_handler.update_people_tab_name(people_tab_name)
 
 
 @eel.expose
 def reload_respondents_tab():
-    g_sheet_handler.update_respondents_tab_name("")
+    g_sheet_handler.update_people_tab_name("")
 
 
 @eel.expose
-def update_categories_tab_name(categories_tab_name):
-    g_sheet_handler.update_categories_tab_name(categories_tab_name)
+def update_features_tab_name(features_tab_name):
+    g_sheet_handler.update_features_tab_name(features_tab_name)
 
 
 @eel.expose
-def reload_categories_tab():
-    g_sheet_handler.update_categories_tab_name("")
+def reload_features_tab():
+    g_sheet_handler.update_features_tab_name("")
 
 
 @eel.expose
@@ -552,17 +485,17 @@ def reload_number_selections():
 
 
 @eel.expose
-def update_number_people(number_people):
-    g_sheet_handler.update_number_people(number_people)
+def update_g_sheet_panel_size(panel_size):
+    g_sheet_handler.update_panel_size(panel_size)
 
 
 @eel.expose
-def run_selection():
+def g_sheet_run_selection():
     g_sheet_handler.run_selection(test_selection=False)
 
 
 @eel.expose
-def run_test_selection():
+def g_sheet_run_test_selection():
     g_sheet_handler.run_selection(test_selection=True)
 
 
@@ -576,10 +509,7 @@ def main():
         eel.start("main.html", size=default_size)
     except OSError:
         # on Windows 10 try Edge if Chrome not available
-        if (
-            sys.platform in ("win32", "win64")
-            and int(platform.release()) >= MIN_WINDOWS_VERSION
-        ):
+        if sys.platform in ("win32", "win64") and int(platform.release()) >= MIN_WINDOWS_VERSION:
             eel.start("main.html", mode="edge", size=default_size)
         else:
             raise

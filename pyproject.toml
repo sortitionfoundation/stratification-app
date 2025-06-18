@@ -28,6 +28,12 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
 
+# eel does not have type hints/stubs
+[[tool.mypy.overrides]]
+module = "eel.*"
+ignore_missing_imports = true
+ignore_errors = true
+
 [tool.ruff]
 target-version = "py312"
 line-length = 120
@@ -91,7 +97,8 @@ select = [
 ]
 ignore = [
   # TODO: reinstate this
-  "B017",    #assertRaises(Exception)
+  "B017",    # assertRaises(Exception)
+  "BLE001",  # don't catch Exception
   "C901",    # too complex
   "FBT001",  # positional boolean arg in function defn
   "PLR0912", # too many branches

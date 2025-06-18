@@ -182,7 +182,7 @@ $(function () {
   }
 
   function handle_features_tab_name() {
-    eel.update_categories_tab_name(this.value);
+    eel.update_features_tab_name(this.value);
   }
 
   function handle_gen_rem_tab() {
@@ -276,9 +276,9 @@ $(function () {
   //Some functions for the output area - shared by CSV and GSheets
   ////////////////////////////////////////
 
-  eel.expose(update_selection_output_messages_area);
-  function update_selection_output_messages_area(output_html) {
-    const output_area = document.getElementById("output-area-selection-messages-target-p");
+  eel.expose(update_detailed_log_messages_area);
+  function update_detailed_log_messages_area(output_html) {
+    const output_area = document.getElementById("output-area-detailed-log-target-p");
     output_area.innerHTML = output_html;
   }
 
