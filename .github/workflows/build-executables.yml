@@ -14,15 +14,15 @@ jobs:
   # 1. Build Windows Executable
   #
   build-windows-exe:
-    name: 'script.exe creation using python 3.11 on Windows'
-    runs-on: 'windows-latest'
+    name: "script.exe creation using python 3.11 on Windows"
+    runs-on: "windows-latest"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
-          version: "0.6.2"
-          python-version: '3.11'
+          version: "latest"
+          python-version: "3.11"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: "Install dependencies"
@@ -49,15 +49,15 @@ jobs:
   # Note that this produces an ARM based build, so won't work on older
   # intel based Macs.
   build-macos-executable:
-    name: 'script.app creation using python 3.11 on MacOS'
-    runs-on: 'macos-latest'
+    name: "script.app creation using python 3.11 on MacOS"
+    runs-on: "macos-latest"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
-          version: "0.6.2"
-          python-version: '3.11'
+          version: "latest"
+          python-version: "3.11"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: "Install dependencies"
@@ -84,15 +84,15 @@ jobs:
   # 3. Build Linux Executable
   #
   build-linux-executable:
-    name: 'executable creation using python 3.11 on Linux'
-    runs-on: 'ubuntu-24.04'
+    name: "executable creation using python 3.11 on Linux"
+    runs-on: "ubuntu-24.04"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
-          version: "0.6.2"
-          python-version: '3.11'
+          version: "latest"
+          python-version: "3.11"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: "Install dependencies"
