@@ -50,7 +50,8 @@ jobs:
   # intel based Macs.
   build-macos-executable:
     name: "script.app creation using python 3.11 on MacOS"
-    runs-on: "macos-latest"
+    # we use 13 to build x86_64 apps
+    runs-on: "macos-13"
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
