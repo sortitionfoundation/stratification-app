@@ -67,8 +67,10 @@ jobs:
           uv sync
       - name: "Build MacOS package"
         run: |
-          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile --windowed
+          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onedir --windowed
           mkdir -p target/release
+          ls -l dist
+          ls -l dist/strat-select-macos
           mv dist/strat-select-macos target/release
           cd dist  && zip -r ../target/release/strat-select-macos.app.zip strat-select-macos.app
           ls -l ../target/release/
