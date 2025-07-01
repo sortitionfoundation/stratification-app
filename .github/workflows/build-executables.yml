@@ -65,12 +65,15 @@ jobs:
           uv run python -VV
           uv run python -m site
           uv sync
+      # notes:
+      # --onedir rather than --onefile is required for app bundle
+      # --target-arch=x86_64 is required for python-mip 1.15.0 - revisit once 1.16.0 is properly released
+      #                      See https://groups.google.com/g/python-mip/c/0R2NC_URD6M
       - name: "Build MacOS package"
         run: |
-          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onedir --windowed
+          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onedir --windowed --target-arch=x86_64
           mkdir -p target/release
-          ls -l dist
-          ls -l dist/strat-select-macos
+          ls -l dist/strat-select-macos.app
           mv dist/strat-select-macos target/release
           cd dist  && zip -r ../target/release/strat-select-macos.app.zip strat-select-macos.app
           ls -l ../target/release/
