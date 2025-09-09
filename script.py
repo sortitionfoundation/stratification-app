@@ -279,7 +279,6 @@ class GSheetHandler:
         if not settings_holder.loaded():
             return
         try:
-            self.adapter.g_sheet_name = self.g_sheet_name
             if self.number_selections > 1:
                 gui_log.add_line(
                     LogType.GSHEET_SELECTION,
@@ -287,7 +286,8 @@ class GSheetHandler:
                     f"You cannot use the <i>Produce a Test Panel</i> button if you want more "
                     f"than 1 selection and no Remaining tab will be created.",
                 )
-            self.add_feature_content(self.g_sheet_name, self.features_tab_name)
+            self.adapter.set_g_sheet_name(self.g_sheet_name)
+            self.add_feature_content(self.features_tab_name)
             self.add_people_content(self.people_tab_name)
             self.update_run_button()
             eel.enable_load_g_sheet_btn()
@@ -298,12 +298,9 @@ class GSheetHandler:
                 f"After waiting you may need to reload sheet. Current error is: {error}",
             )
 
-    def add_feature_content(self, g_sheet_name: str, features_tab_name: str) -> None:
+    def add_feature_content(self, features_tab_name: str) -> None:
         try:
-            self.features, msgs = self.adapter.load_features(
-                g_sheet_name,
-                features_tab_name,
-            )
+            self.features, msgs = self.adapter.load_features(features_tab_name)
             gui_log.add_lines(LogType.GSHEET_FEATURES, msgs)
         except gspread.exceptions.APIError as error:
             gui_log.add_line(
