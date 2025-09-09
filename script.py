@@ -139,8 +139,8 @@ class CSVHandler:
         if not self.features:
             return
         eel.enable_csv_selection_content()
-        min_size = self.features.minimum_selection()
-        max_size = self.features.maximum_selection()
+        min_size = features.minimum_selection(self.features)
+        max_size = features.maximum_selection(self.features)
         eel.update_csv_selection_range(min_size, max_size)
         # if these are the same just set the value!
         if min_size == max_size and min_size > 0:
@@ -321,11 +321,11 @@ class GSheetHandler:
             )
             return
         eel.update_g_sheet_selection_range(
-            self.features.minimum_selection(),
-            self.features.maximum_selection(),
+            features.minimum_selection(self.features),
+            features.maximum_selection(self.features),
         )
-        min_size = self.features.minimum_selection()
-        max_size = self.features.maximum_selection()
+        min_size = features.minimum_selection(self.features)
+        max_size = features.maximum_selection(self.features)
         eel.update_g_sheet_selection_range(min_size, max_size)
         # if these are the same just set the value!
         if min_size == max_size and min_size > 0:
