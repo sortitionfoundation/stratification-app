@@ -187,9 +187,9 @@ $(function () {
 
   function handle_gen_rem_tab() {
     if (this.checked == true) {
-      eel.update_gen_rem_tab(this.value);
+      eel.update_gen_rem_tab(true);
     } else {
-      eel.update_gen_rem_tab("off");
+      eel.update_gen_rem_tab(false);
     }
   }
 

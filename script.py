@@ -74,15 +74,15 @@ class SettingsHolder:
         """
         Call from lots of places to report the error early
         """
-        message = ""
         if self._settings is None:
             try:
-                self._settings, message = Settings.load_from_file(
+                self._settings, report = Settings.load_from_file(
                     settings_file_path=DEFAULT_SETTINGS_PATH,
                 )
+                return report.as_html()
             except Exception as error:
                 return f"Error reading in settings file: {error}"
-        return message
+        return ""
 
     def init_settings_log(self, section: LogType) -> None:
         message = self.init_settings()
@@ -132,8 +132,8 @@ class CSVHandler:
         if not settings_holder.loaded():
             return
         try:
-            self.features, msgs = self.adapter.load_features_from_str(file_contents)
-            gui_log.add_lines(LogType.CSV_FEATURES, msgs)
+            self.features, report = self.adapter.load_features_from_str(file_contents)
+            gui_log.add_line(LogType.CSV_FEATURES, report.as_html())
         except Exception as error:
             gui_log.add_line(LogType.CSV_FEATURES, f"Failed to load features: {error}")
         if not self.features:
@@ -154,14 +154,14 @@ class CSVHandler:
         gui_log.reset(LogType.CSV_SELECTION)
         assert self.features is not None
         try:
-            self.people, msgs = self.adapter.load_people_from_str(
+            self.people, report = self.adapter.load_people_from_str(
                 file_contents,
                 settings_holder.settings,
                 self.features,
             )
             # now we've done a successful load, cache the results
             self.people_contents = file_contents
-            gui_log.add_lines(LogType.CSV_SELECTION, msgs)
+            gui_log.add_line(LogType.CSV_SELECTION, report.as_html())
             gui_log.add_line(
                 LogType.CSV_SELECTION,
                 f"Loaded {self.people.count} people.",
@@ -174,14 +174,14 @@ class CSVHandler:
         assert self.people is not None and self.features is not None
         # they may have hit this button again, so clear the output area so it's more obvious
         gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
-        success, people_selected, msgs = core.run_stratification(
+        success, people_selected, report = core.run_stratification(
             self.features,
             self.people,
             self.panel_size,
             settings_holder.settings,
             test_selection=test_selection,
         )
-        gui_log.add_lines(LogType.DETAILED_LOG, msgs)
+        gui_log.add_lines(LogType.DETAILED_LOG, report.as_html())
         selected_rows, remaining_rows, _ = core.selected_remaining_tables(
             self.people,
             people_selected[0],
@@ -214,7 +214,7 @@ class GSheetHandler:
         self.g_sheet_name = ""
         self.features_tab_name = "Categories"
         self.people_tab_name = "Respondents"
-        self.gen_rem_tab = "on"
+        self.gen_rem_tab = True
         self.number_selections = 1  # How many panels to create
         self.panel_size = 0  # Number of people in each panel
 
@@ -254,11 +254,11 @@ class GSheetHandler:
         self._clear_messages()
         self.features_tab_name = features_tab_name_input
 
-    def update_gen_rem_tab(self, gen_rem_tab_input: str) -> None:
-        self.gen_rem_tab = gen_rem_tab_input
+    def update_gen_rem_tab(self, gen_rem_tab: bool) -> None:
+        self.gen_rem_tab = gen_rem_tab
         # never generate a remaining tab if doing a multiple selection
         if self.number_selections > 1:
-            self.gen_rem_tab = "off"
+            self.gen_rem_tab = False
 
     def update_number_selections(self, number_selections_input: str) -> None:
         self._clear_messages()
@@ -266,7 +266,8 @@ class GSheetHandler:
         # never generate a remaining tab if doing a multiple selection
         # but turn it on if = 1 (this could be wrong if the person wants it off!)
         # if this has changed back to 1...
-        self.gen_rem_tab = "off" if self.number_selections > 1 else "on"
+        if self.number_selections > 1:
+            self.gen_rem_tab = False
 
     # do features and people at same time...
     def load_g_sheet(self) -> None:
@@ -300,8 +301,8 @@ class GSheetHandler:
 
     def add_feature_content(self, features_tab_name: str) -> None:
         try:
-            self.features, msgs = self.adapter.load_features(features_tab_name)
-            gui_log.add_lines(LogType.GSHEET_FEATURES, msgs)
+            self.features, report = self.adapter.load_features(features_tab_name)
+            gui_log.add_line(LogType.GSHEET_FEATURES, report.as_html())
         except gspread.exceptions.APIError as error:
             gui_log.add_line(
                 LogType.GSHEET_FEATURES,
@@ -335,12 +336,12 @@ class GSheetHandler:
     def add_people_content(self, people_tab_name: str) -> None:
         assert self.features is not None
         try:
-            self.people, msgs = self.adapter.load_people(
+            self.people, report = self.adapter.load_people(
                 people_tab_name,
                 settings_holder.settings,
                 self.features,
             )
-            gui_log.add_lines(LogType.GSHEET_SELECTION, msgs)
+            gui_log.add_line(LogType.GSHEET_SELECTION, report.as_html())
         except Exception as error:
             gui_log.add_line(
                 LogType.GSHEET_SELECTION,
@@ -355,7 +356,7 @@ class GSheetHandler:
     def run_selection(self, test_selection: bool) -> None:
         assert self.features is not None and self.people is not None
         gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
-        success, people_selected, msgs = core.run_stratification(
+        success, people_selected, report = core.run_stratification(
             self.features,
             self.people,
             self.panel_size,
@@ -363,7 +364,7 @@ class GSheetHandler:
             test_selection=test_selection,
             number_selections=self.number_selections,
         )
-        gui_log.add_lines(LogType.DETAILED_LOG, msgs)
+        gui_log.add_lines(LogType.DETAILED_LOG, report.as_html())
         if not success:
             gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet.")
 
@@ -463,7 +464,7 @@ def update_gen_rem_tab(gen_rem_tab):
 
 @eel.expose
 def reload_gen_rem_tab():
-    g_sheet_handler.update_gen_rem_tab("")
+    g_sheet_handler.update_gen_rem_tab(gen_rem_tab=False)
 
 
 @eel.expose

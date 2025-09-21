@@ -824,7 +824,7 @@ wheels = [
 
 [[package]]
 name = "sortition-algorithms"
-version = "0.9.3"
+version = "0.10.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -834,10 +834,11 @@ dependencies = [
     { name = "mip" },
     { name = "numpy" },
     { name = "oauth2client" },
+    { name = "tabulate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a5/ea/07e7d315b0727baf26d393a933a9acbd697399674c82f07931d796ddc38c/sortition_algorithms-0.9.3.tar.gz", hash = "sha256:8d8b116fdd771e0f9f8e7b76c977239f1a2dc6de82278c09945266afd84e1bf3", size = 147058, upload-time = "2025-09-09T15:02:54.472Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/59/89657544aa8e561cec4e3e785ec5456d0ebac31e6c57bbf053475b3d19af/sortition_algorithms-0.10.1.tar.gz", hash = "sha256:29d844c9b7bbb8fde21dfe30346d3635247a090513f5b5a0e22be1f6634fead4", size = 153098, upload-time = "2025-09-18T10:33:35.14Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/69/b5/629ac14aecbfd46be3c8ad104fcdbe18267048a7902d5e849db8688ec9a3/sortition_algorithms-0.9.3-py3-none-any.whl", hash = "sha256:3ee9ee664fb97ff669d66a74f58eb9d986722944eabe285ee228f0bb0f6381dc", size = 59416, upload-time = "2025-09-09T15:02:53.321Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/eb/c4356ba6d7ee5c0d32cb2f65d6b60d8be6a7416c404e1d681d13967ec286/sortition_algorithms-0.10.1-py3-none-any.whl", hash = "sha256:642d4f429fad6b45d6012ed368e98752c59a12ded25a53e11907aa04031338eb", size = 61671, upload-time = "2025-09-18T10:33:33.957Z" },
 ]
 
 [[package]]
@@ -864,7 +865,7 @@ requires-dist = [
     { name = "eel", specifier = "==0.17.0" },
     { name = "oauth2client", specifier = "<5" },
     { name = "pyinstaller", specifier = "<7" },
-    { name = "sortition-algorithms", specifier = ">=0.9.3" },
+    { name = "sortition-algorithms", specifier = ">=0.10.1" },
     { name = "toml" },
 ]
 
@@ -873,6 +874,15 @@ dev = [
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-cov", specifier = ">=6.0.0" },
     { name = "ruff", specifier = ">=0.9.7" },
+]
+
+[[package]]
+name = "tabulate"
+version = "0.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/fe/802052aecb21e3797b8f7902564ab6ea0d60ff8ca23952079064155d1ae1/tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c", size = 81090, upload-time = "2022-10-06T17:21:48.54Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/44/4a5f08c96eb108af5cb50b41f76142f0afa346dfa99d5296fe7202a11854/tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f", size = 35252, upload-time = "2022-10-06T17:21:44.262Z" },
 ]
 
 [[package]]
