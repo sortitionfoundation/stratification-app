@@ -166,6 +166,7 @@ class CSVHandler:
                 LogType.CSV_SELECTION,
                 f"Loaded {self.people.count} people.",
             )
+            gui_log.add_line(LogType.CSV_SELECTION, "Successfully loaded features and people.")
         except Exception as error:
             gui_log.add_line(LogType.CSV_SELECTION, f"Failed to load people: {error}")
         self.update_run_button()
@@ -290,6 +291,7 @@ class GSheetHandler:
             self.adapter.set_g_sheet_name(self.g_sheet_name)
             self.add_feature_content(self.features_tab_name)
             self.add_people_content(self.people_tab_name)
+            gui_log.add_line(LogType.GSHEET_SELECTION, "Successfully loaded features and people.")
             self.update_run_button()
             eel.enable_load_g_sheet_btn()
         except Exception as error:
