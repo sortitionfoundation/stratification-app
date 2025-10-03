@@ -182,7 +182,7 @@ class CSVHandler:
             settings_holder.settings,
             test_selection=test_selection,
         )
-        gui_log.add_lines(LogType.DETAILED_LOG, report.as_html())
+        gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
         selected_rows, remaining_rows, _ = core.selected_remaining_tables(
             self.people,
             people_selected[0],
@@ -366,7 +366,7 @@ class GSheetHandler:
             test_selection=test_selection,
             number_selections=self.number_selections,
         )
-        gui_log.add_lines(LogType.DETAILED_LOG, report.as_html())
+        gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
         if not success:
             gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet.")
 
