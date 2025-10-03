@@ -10,7 +10,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-  "Eel==0.17.0",
+  "Eel==0.18.2",
   "oauth2client<5",
   "pyinstaller<7",
   "sortition-algorithms>=0.10.1",
