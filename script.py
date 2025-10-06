@@ -296,18 +296,17 @@ class GSheetHandler:
 
     def update_gen_rem_tab(self, gen_rem_tab: bool) -> None:
         self.gen_rem_tab = gen_rem_tab
+
+    def _safe_gen_rem_tab(self) -> bool:
+        """Get self.gen_rem_tab - but set to false if number_selections > 1"""
         # never generate a remaining tab if doing a multiple selection
         if self.number_selections > 1:
-            self.gen_rem_tab = False
+            return False
+        return self.gen_rem_tab
 
     def update_number_selections(self, number_selections_input: str) -> None:
         self._clear_messages()
         self.number_selections = 1 if number_selections_input == "" else int(number_selections_input)
-        # never generate a remaining tab if doing a multiple selection
-        # but turn it on if = 1 (this could be wrong if the person wants it off!)
-        # if this has changed back to 1...
-        if self.number_selections > 1:
-            self.gen_rem_tab = False
 
     # do features and people at same time...
     def load_g_sheet(self) -> None:
@@ -404,9 +403,10 @@ class GSheetHandler:
         )
         gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
         if not success:
-            gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet.")
+            gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet - ending here.")
             return
 
+        gui_log.add_line(LogType.DETAILED_LOG, "About to write to spreadsheet.")
         selected_rows, remaining_rows, _ = core.selected_remaining_tables(
             self.people,
             people_selected[0],
@@ -415,7 +415,10 @@ class GSheetHandler:
         )
         self.data_source.selected_tab_name = self.original_selected_tab_name
         self.data_source.remaining_tab_name = self.remaining_tab_name
+        self.select_data.gen_rem_tab = self._safe_gen_rem_tab()
         self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
+        gui_log.add_line(LogType.DETAILED_LOG, "All spreadsheet writing has finished.")
+        gui_log.add_line(LogType.DETAILED_LOG, "Selection process finished.")
 
 
 # globals - GUI event handlers
