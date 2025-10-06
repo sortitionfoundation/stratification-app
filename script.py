@@ -103,22 +103,38 @@ class CSVHandler:
         self.people: people.People | None = None
         # cache this in case we need to reload
         self.people_contents: str = ""
-        self.panel_size: int = 0
+        self.panel_size_str = "0"  # Number of people in each panel
+
+    @property
+    def panel_size_num(self) -> int:
+        if self.panel_size_str == "":
+            return 0
+        return int(self.panel_size_str)
+
+    def _set_panel_size(self, panel_size: str | int, *, update_eel: bool = True) -> None:
+        self.panel_size_str = str(panel_size)
+        # check if we can convert to int, and that it is >= 0
+        try:
+            panel_size_int = int(self.panel_size_str)
+            if panel_size_int < 0:
+                self.panel_size_str = ""
+        except ValueError:
+            self.panel_size_str = ""
+        # finally update the display - unless we've been called from the JS
+        # in which case skip this to avoid infinite loops.
+        if update_eel:
+            eel.set_csv_panel_size(self.panel_size_str)
 
     def update_panel_size(self, panel_size: str) -> None:
-        if panel_size == "":
-            self.panel_size = 1
-        else:
-            self.panel_size = int(panel_size.strip())
-            self.update_run_button()
+        # this comes from the UI, so don't update_eel - otherwise we have a loop
+        self._set_panel_size(panel_size.strip(), update_eel=False)
+        self.update_run_button()
 
     def update_run_button(self):
-        if self.features and self.people and self.panel_size > 0:
+        if self.features and self.people and self.panel_size_num > 0:
             eel.enable_csv_run_button()
         else:
             eel.disable_csv_run_button()
-        if self.panel_size <= 0:
-            eel.set_csv_panel_size("")
 
     def add_feature_content(self, file_contents: str):
         gui_log.reset(LogType.CSV_FEATURES)
@@ -145,8 +161,7 @@ class CSVHandler:
         eel.update_csv_selection_range(min_size, max_size)
         # if these are the same just set the value!
         if min_size == max_size and min_size > 0:
-            eel.set_csv_panel_size(str(min_size))
-            self.panel_size = min_size
+            self._set_panel_size(min_size)
         # reset people, might need to be reloaded with features
         if self.people:
             self.add_people_content(self.people_contents)
@@ -176,7 +191,7 @@ class CSVHandler:
         success, people_selected, report = core.run_stratification(
             self.features,
             self.people,
-            self.panel_size,
+            self.panel_size_num,
             settings_holder.settings,
             test_selection=test_selection,
         )
@@ -214,42 +229,69 @@ class GSheetHandler:
         self.people_tab_name = "Respondents"
         self.gen_rem_tab = True
         self.number_selections = 1  # How many panels to create
-        self.panel_size = 0  # Number of people in each panel
+        self.panel_size_str = "0"  # Number of people in each panel
+
+    @property
+    def panel_size_num(self) -> int:
+        if self.panel_size_str == "":
+            return 0
+        return int(self.panel_size_str)
+
+    def _set_panel_size(self, panel_size: str | int, *, update_eel: bool = True) -> None:
+        self.panel_size_str = str(panel_size)
+        # check if we can convert to int, and that it is >= 0
+        try:
+            panel_size_int = int(self.panel_size_str)
+            if panel_size_int < 0:
+                self.panel_size_str = ""
+        except ValueError:
+            self.panel_size_str = ""
+        # finally update the display - unless we've been called from the JS
+        # in which case skip this to avoid infinite loops.
+        if update_eel:
+            eel.set_g_sheet_panel_size(self.panel_size_str)
 
     def _clear_messages(self, normal_message: str = clear_message) -> None:
+        """Clear all messages (and optionally put a new message in place)"""
         gui_log.reset(LogType.GSHEET_FEATURES, normal_message)
         gui_log.reset(LogType.GSHEET_SELECTION, normal_message)
         gui_log.reset(LogType.DETAILED_LOG)
-        eel.set_g_sheet_panel_size("")
+        self._set_panel_size("")
+
+    def _reset_spreadsheet(self, *, reset_features: bool = True) -> None:
+        if reset_features:
+            self.features = None
+        self.people = None
+        self._set_panel_size("")
+        self.update_run_button()
 
     # called from g-sheet input
     def update_g_sheet_name(self, g_sheet_name_input) -> None:
         self._clear_messages()
+        self._reset_spreadsheet()
         self.g_sheet_name = g_sheet_name_input
         if self.g_sheet_name != "":
             eel.enable_load_g_sheet_btn()
 
     def update_panel_size(self, panel_size: str) -> None:
-        if panel_size == "":
-            self.panel_size = 1
-        else:
-            self.panel_size = int(panel_size.strip())
+        # this comes from the UI, so don't update_eel - otherwise we have a loop
+        self._set_panel_size(panel_size.strip(), update_eel=False)
         self.update_run_button()
 
     def update_run_button(self) -> None:
-        if self.features and self.people and self.panel_size > 0:
+        if self.features and self.people and self.panel_size_num > 0:
             eel.enable_g_sheet_run_button()
         else:
             eel.disable_g_sheet_run_button()
-        if self.panel_size <= 0:
-            eel.set_g_sheet_panel_size("")
 
     def update_people_tab_name(self, people_tab_name_input: str) -> None:
         self._clear_messages()
+        self._reset_spreadsheet(reset_features=False)
         self.people_tab_name = people_tab_name_input
 
     def update_features_tab_name(self, features_tab_name_input: str) -> None:
         self._clear_messages()
+        self._reset_spreadsheet()
         self.features_tab_name = features_tab_name_input
 
     def update_gen_rem_tab(self, gen_rem_tab: bool) -> None:
@@ -330,8 +372,7 @@ class GSheetHandler:
         eel.update_g_sheet_selection_range(min_size, max_size)
         # if these are the same just set the value!
         if min_size == max_size and min_size > 0:
-            eel.set_g_sheet_panel_size(str(min_size))
-            self.panel_size = min_size
+            self._set_panel_size(min_size)
 
     def add_people_content(self, people_tab_name: str) -> None:
         assert self.features is not None
@@ -356,7 +397,7 @@ class GSheetHandler:
         success, people_selected, report = core.run_stratification(
             self.features,
             self.people,
-            self.panel_size,
+            self.panel_size_num,
             settings_holder.settings,
             test_selection=test_selection,
             number_selections=self.number_selections,
