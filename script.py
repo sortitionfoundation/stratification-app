@@ -188,29 +188,45 @@ class CSVHandler:
         assert self.people is not None and self.features is not None
         # they may have hit this button again, so clear the output area so it's more obvious
         gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
-        success, people_selected, report = core.run_stratification(
-            self.features,
-            self.people,
-            self.panel_size_num,
-            settings_holder.settings,
-            test_selection=test_selection,
-        )
-        gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
-        selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-            self.people,
-            people_selected[0],
-            self.features,
-            settings_holder.settings,
-        )
-        if success:
-            self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
-            eel.enable_csv_selected_download(
-                self.data_source.selected_file.getvalue(),
-                "selected.csv",
+        try:
+            success, people_selected, report = core.run_stratification(
+                self.features,
+                self.people,
+                self.panel_size_num,
+                settings_holder.settings,
+                test_selection=test_selection,
             )
-            eel.enable_csv_remaining_download(
-                self.data_source.remaining_file.getvalue(),
-                "remaining.csv",
+        except Exception as err:
+            gui_log.add_lines(
+                LogType.DETAILED_LOG,
+                [f"Unexpected error during selection: {err}", "Selection failed, process ended."],
+            )
+            return
+        gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
+        if not success:
+            gui_log.add_line(LogType.DETAILED_LOG, "No panels written to CSV, process ended.")
+            return
+        try:
+            selected_rows, remaining_rows, _ = core.selected_remaining_tables(
+                self.people,
+                people_selected[0],
+                self.features,
+                settings_holder.settings,
+            )
+            if success:
+                self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
+                eel.enable_csv_selected_download(
+                    self.data_source.selected_file.getvalue(),
+                    "selected.csv",
+                )
+                eel.enable_csv_remaining_download(
+                    self.data_source.remaining_file.getvalue(),
+                    "remaining.csv",
+                )
+        except Exception as err:
+            gui_log.add_lines(
+                LogType.DETAILED_LOG,
+                [f"Unexpected error during writing selection: {err}", "Writing failed, process ended."],
             )
 
 
@@ -393,32 +409,45 @@ class GSheetHandler:
     def run_selection(self, test_selection: bool) -> None:
         assert self.features is not None and self.people is not None
         gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
-        success, people_selected, report = core.run_stratification(
-            self.features,
-            self.people,
-            self.panel_size_num,
-            settings_holder.settings,
-            test_selection=test_selection,
-            number_selections=self.number_selections,
-        )
+        try:
+            success, people_selected, report = core.run_stratification(
+                self.features,
+                self.people,
+                self.panel_size_num,
+                settings_holder.settings,
+                test_selection=test_selection,
+                number_selections=self.number_selections,
+            )
+        except Exception as err:
+            gui_log.add_lines(
+                LogType.DETAILED_LOG,
+                [f"Unexpected error during selection: {err}", "Selection failed, process ended."],
+            )
+            return
         gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
         if not success:
-            gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet - ending here.")
+            gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet, process ended.")
             return
 
         gui_log.add_line(LogType.DETAILED_LOG, "About to write to spreadsheet.")
-        selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-            self.people,
-            people_selected[0],
-            self.features,
-            settings_holder.settings,
-        )
-        self.data_source.selected_tab_name = self.original_selected_tab_name
-        self.data_source.remaining_tab_name = self.remaining_tab_name
-        self.select_data.gen_rem_tab = self._safe_gen_rem_tab()
-        self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
-        gui_log.add_line(LogType.DETAILED_LOG, "All spreadsheet writing has finished.")
-        gui_log.add_line(LogType.DETAILED_LOG, "Selection process finished.")
+        try:
+            selected_rows, remaining_rows, _ = core.selected_remaining_tables(
+                self.people,
+                people_selected[0],
+                self.features,
+                settings_holder.settings,
+            )
+            self.data_source.selected_tab_name = self.original_selected_tab_name
+            self.data_source.remaining_tab_name = self.remaining_tab_name
+            self.select_data.gen_rem_tab = self._safe_gen_rem_tab()
+            self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
+            gui_log.add_line(LogType.DETAILED_LOG, "All spreadsheet writing has finished.")
+            gui_log.add_line(LogType.DETAILED_LOG, "Selection process finished.")
+        except Exception as err:
+            gui_log.add_lines(
+                LogType.DETAILED_LOG,
+                [f"Unexpected error during writing selection: {err}", "Writing failed, process ended."],
+            )
 
 
 # globals - GUI event handlers
