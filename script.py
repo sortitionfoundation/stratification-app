@@ -440,7 +440,17 @@ class GSheetHandler:
             self.data_source.selected_tab_name = self.original_selected_tab_name
             self.data_source.remaining_tab_name = self.remaining_tab_name
             self.select_data.gen_rem_tab = self._safe_gen_rem_tab()
-            self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
+            dupes, report = self.select_data.output_selected_remaining(
+                selected_rows,
+                remaining_rows,
+                settings_holder.settings,
+            )
+            gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
+            gui_log.add_line(
+                LogType.DETAILED_LOG,
+                f"In the remaining tab there are {len(dupes)} people who share the same address as "
+                f"someone else in the tab. They are highlighted in orange.",
+            )
             gui_log.add_line(LogType.DETAILED_LOG, "All spreadsheet writing has finished.")
             gui_log.add_line(LogType.DETAILED_LOG, "Selection process finished.")
         except Exception as err:
