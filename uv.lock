@@ -834,7 +834,7 @@ wheels = [
 
 [[package]]
 name = "sortition-algorithms"
-version = "0.10.1"
+version = "0.10.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -846,9 +846,9 @@ dependencies = [
     { name = "oauth2client" },
     { name = "tabulate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ef/59/89657544aa8e561cec4e3e785ec5456d0ebac31e6c57bbf053475b3d19af/sortition_algorithms-0.10.1.tar.gz", hash = "sha256:29d844c9b7bbb8fde21dfe30346d3635247a090513f5b5a0e22be1f6634fead4", size = 153098, upload-time = "2025-09-18T10:33:35.14Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/59/9f36ad8efd4e963d446b6450efd2e36cbcd08a8152a8efd7ec98a40c192c/sortition_algorithms-0.10.2.tar.gz", hash = "sha256:b75e14c5447a91b02b40d27bf96f4b9380dff9fe69255d5f13592aa12713fe5c", size = 157139, upload-time = "2025-10-06T09:39:38.385Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/eb/c4356ba6d7ee5c0d32cb2f65d6b60d8be6a7416c404e1d681d13967ec286/sortition_algorithms-0.10.1-py3-none-any.whl", hash = "sha256:642d4f429fad6b45d6012ed368e98752c59a12ded25a53e11907aa04031338eb", size = 61671, upload-time = "2025-09-18T10:33:33.957Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/42/4624a4cfd5c1f015b731976493ad16068eb4d72a196f9e3a6b401c2e54e3/sortition_algorithms-0.10.2-py3-none-any.whl", hash = "sha256:ff166c8f496208ec960b6a8c1afc5b2b3362281888db911bff621c919647a616", size = 62862, upload-time = "2025-10-06T09:39:36.109Z" },
 ]
 
 [[package]]
@@ -875,7 +875,7 @@ requires-dist = [
     { name = "eel", specifier = "==0.18.2" },
     { name = "oauth2client", specifier = "<5" },
     { name = "pyinstaller", specifier = "<7" },
-    { name = "sortition-algorithms", specifier = ">=0.10.1" },
+    { name = "sortition-algorithms", specifier = "==0.10.2" },
     { name = "toml" },
 ]
 

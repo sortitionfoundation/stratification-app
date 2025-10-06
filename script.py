@@ -2,7 +2,6 @@ import platform
 import sys
 from collections.abc import Iterable
 from enum import Enum
-from io import StringIO
 from pathlib import Path
 
 import eel
@@ -98,7 +97,8 @@ settings_holder = SettingsHolder()
 
 class CSVHandler:
     def __init__(self):
-        self.adapter = adapters.CSVAdapter()
+        self.data_source = adapters.CSVStringDataSource("", "")
+        self.select_data = adapters.SelectionData(self.data_source)
         self.features: features.FeatureCollection | None = None
         self.people: people.People | None = None
         # cache this in case we need to reload
@@ -132,7 +132,8 @@ class CSVHandler:
         if not settings_holder.loaded():
             return
         try:
-            self.features, report = self.adapter.load_features_from_str(file_contents)
+            self.data_source.features_data = file_contents
+            self.features, report = self.select_data.load_features()
             gui_log.add_line(LogType.CSV_FEATURES, report.as_html())
         except Exception as error:
             gui_log.add_line(LogType.CSV_FEATURES, f"Failed to load features: {error}")
@@ -154,11 +155,8 @@ class CSVHandler:
         gui_log.reset(LogType.CSV_SELECTION)
         assert self.features is not None
         try:
-            self.people, report = self.adapter.load_people_from_str(
-                file_contents,
-                settings_holder.settings,
-                self.features,
-            )
+            self.data_source.people_data = file_contents
+            self.people, report = self.select_data.load_people(settings_holder.settings, self.features)
             # now we've done a successful load, cache the results
             self.people_contents = file_contents
             gui_log.add_line(LogType.CSV_SELECTION, report.as_html())
@@ -190,15 +188,13 @@ class CSVHandler:
             settings_holder.settings,
         )
         if success:
-            self.adapter.selected_file = StringIO()
-            self.adapter.remaining_file = StringIO()
-            self.adapter.output_selected_remaining(selected_rows, remaining_rows)
+            self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
             eel.enable_csv_selected_download(
-                self.adapter.selected_file.getvalue(),
+                self.data_source.selected_file.getvalue(),
                 "selected.csv",
             )
             eel.enable_csv_remaining_download(
-                self.adapter.remaining_file.getvalue(),
+                self.data_source.remaining_file.getvalue(),
                 "remaining.csv",
             )
 
@@ -209,7 +205,8 @@ class GSheetHandler:
     remaining_tab_name = "Remaining - output - "
 
     def __init__(self):
-        self.adapter = adapters.GSheetAdapter(DEFAULT_AUTH_JSON_PATH)
+        self.data_source = adapters.GSheetDataSource("", "", DEFAULT_AUTH_JSON_PATH)
+        self.select_data = adapters.SelectionData(self.data_source)
         self.features: features.FeatureCollection | None = None
         self.people: people.People | None = None
         self.g_sheet_name = ""
@@ -288,7 +285,7 @@ class GSheetHandler:
                     f"You cannot use the <i>Produce a Test Panel</i> button if you want more "
                     f"than 1 selection and no Remaining tab will be created.",
                 )
-            self.adapter.set_g_sheet_name(self.g_sheet_name)
+            self.data_source.set_g_sheet_name(self.g_sheet_name)
             self.add_feature_content(self.features_tab_name)
             self.add_people_content(self.people_tab_name)
             gui_log.add_line(LogType.GSHEET_SELECTION, "Successfully loaded features and people.")
@@ -303,7 +300,8 @@ class GSheetHandler:
 
     def add_feature_content(self, features_tab_name: str) -> None:
         try:
-            self.features, report = self.adapter.load_features(features_tab_name)
+            self.data_source.feature_tab_name = features_tab_name
+            self.features, report = self.select_data.load_features()
             gui_log.add_line(LogType.GSHEET_FEATURES, report.as_html())
         except gspread.exceptions.APIError as error:
             gui_log.add_line(
@@ -338,11 +336,8 @@ class GSheetHandler:
     def add_people_content(self, people_tab_name: str) -> None:
         assert self.features is not None
         try:
-            self.people, report = self.adapter.load_people(
-                people_tab_name,
-                settings_holder.settings,
-                self.features,
-            )
+            self.data_source.people_tab_name = people_tab_name
+            self.people, report = self.select_data.load_people(settings_holder.settings, self.features)
             gui_log.add_line(LogType.GSHEET_SELECTION, report.as_html())
         except Exception as error:
             gui_log.add_line(
@@ -376,13 +371,9 @@ class GSheetHandler:
             self.features,
             settings_holder.settings,
         )
-        self.adapter.selected_tab_name = self.original_selected_tab_name
-        self.adapter.remaining_tab_name = self.remaining_tab_name
-        self.adapter.output_selected_remaining(
-            selected_rows,
-            remaining_rows,
-            settings_holder.settings,
-        )
+        self.data_source.selected_tab_name = self.original_selected_tab_name
+        self.data_source.remaining_tab_name = self.remaining_tab_name
+        self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
 
 
 # globals - GUI event handlers
