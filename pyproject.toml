@@ -6,6 +6,7 @@ authors = [
   "Nick Gill <nick@sortitionfoundation.org>",
   "Brett Hennig <brett@sortitionfoundation.org>",
   "Paul Goelz <mail@paulgoelz.de>",
+  "Hamish Downer <hamish@sortitionfoundation.org>",
 ]
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -13,7 +14,7 @@ dependencies = [
   "Eel==0.18.2",
   "oauth2client<5",
   "pyinstaller<7",
-  "sortition-algorithms==0.10.3",
+  "sortition-algorithms==0.10.4",
   "toml",
 ]
 
