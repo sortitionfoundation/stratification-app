@@ -405,6 +405,7 @@ class GSheetHandler:
         gui_log.add_line(LogType.DETAILED_LOG, report.as_html())
         if not success:
             gui_log.add_line(LogType.DETAILED_LOG, "No panels written to spreadsheet.")
+            return
 
         selected_rows, remaining_rows, _ = core.selected_remaining_tables(
             self.people,
