@@ -326,6 +326,8 @@ class GSheetHandler:
 
     # do features and people at same time...
     def load_g_sheet(self) -> None:
+        # forget about any previously loaded spreadsheet, and disable the run button
+        self._reset_spreadsheet()
         # this can happen if they enter something and then delete it...
         if self.g_sheet_name == "":
             self._clear_messages("Please enter a spreadsheet name...")
