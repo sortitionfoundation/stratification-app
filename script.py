@@ -12,6 +12,10 @@ DEFAULT_SETTINGS_PATH = Path.home() / "sf_stratification_settings.toml"
 DEFAULT_AUTH_JSON_PATH = Path.home() / "secret_do_not_commit.json"
 
 
+class KnownFailureError(Exception):
+    """Class to raise without extra errors"""
+
+
 class LogType(Enum):
     CSV_FEATURES = 1
     CSV_SELECTION = 2
@@ -350,12 +354,15 @@ class GSheetHandler:
             gui_log.add_line(LogType.GSHEET_SELECTION, "Successfully loaded features and people.")
             self.update_run_button()
             eel.enable_load_g_sheet_btn()
-        except Exception as error:
-            gui_log.add_line(
+        except KnownFailureError:
+            # this is for when the function called has already logged the error, so we don't need
+            # to report it again.
+            gui_log.add_lines(
                 LogType.GSHEET_FEATURES,
-                f"Please wait a couple of seconds while gsheet updates. "
-                f"After waiting you may need to reload sheet. Current error is: {error}",
+                ["Loading spreadsheet failed, see above messages.", "Fix the problems and try loading again."],
             )
+        except Exception as error:
+            gui_log.add_line(LogType.GSHEET_FEATURES, f"Loading spreadsheet failed: {error}")
 
     def add_feature_content(self, features_tab_name: str) -> None:
         try:
@@ -369,17 +376,13 @@ class GSheetHandler:
                 f"After waiting you may need to reload sheet. "
                 f"For the record, the API error is {error}",
             )
+            raise KnownFailureError from error
         except Exception as error:
-            gui_log.add_line(
-                LogType.GSHEET_FEATURES,
-                f"Failed to load features: {error}",
-            )
+            gui_log.add_line(LogType.GSHEET_FEATURES, f"Failed to load features: {error}")
+            raise KnownFailureError from error
         if not self.features:
-            gui_log.add_line(
-                LogType.GSHEET_FEATURES,
-                "Failed to load features",
-            )
-            return
+            gui_log.add_line(LogType.GSHEET_FEATURES, "Failed to load features")
+            raise KnownFailureError
         eel.update_g_sheet_selection_range(
             features.minimum_selection(self.features),
             features.maximum_selection(self.features),
@@ -402,11 +405,13 @@ class GSheetHandler:
                 LogType.GSHEET_SELECTION,
                 f"Failed to load people: {error}",
             )
+            raise KnownFailureError from error
         if not self.people:
             gui_log.add_line(
                 LogType.GSHEET_SELECTION,
                 "Failed to load people",
             )
+            raise KnownFailureError
 
     def run_selection(self, test_selection: bool) -> None:
         assert self.features is not None and self.people is not None
