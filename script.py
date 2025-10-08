@@ -271,10 +271,10 @@ class GSheetHandler:
         if update_eel:
             eel.set_g_sheet_panel_size(self.panel_size_str)
 
-    def _clear_messages(self, normal_message: str = clear_message) -> None:
+    def _clear_messages(self, features_message: str = clear_message) -> None:
         """Clear all messages (and optionally put a new message in place)"""
-        gui_log.reset(LogType.GSHEET_FEATURES, normal_message)
-        gui_log.reset(LogType.GSHEET_SELECTION, normal_message)
+        gui_log.reset(LogType.GSHEET_FEATURES, features_message)
+        gui_log.reset(LogType.GSHEET_SELECTION)
         gui_log.reset(LogType.DETAILED_LOG)
         self._set_panel_size("")
 
@@ -336,7 +336,7 @@ class GSheetHandler:
         if self.g_sheet_name == "":
             self._clear_messages("Please enter a spreadsheet name...")
             return
-        self._clear_messages("Requesting data from sheet...")
+        self._clear_messages(f"Requesting category data from spreadsheet tab {self.features_tab_name} ...")
         settings_holder.init_settings_log(LogType.GSHEET_FEATURES)
         if not settings_holder.loaded():
             return
@@ -350,6 +350,10 @@ class GSheetHandler:
                 )
             self.data_source.set_g_sheet_name(self.g_sheet_name)
             self.add_feature_content(self.features_tab_name)
+            gui_log.add_line(
+                LogType.GSHEET_SELECTION,
+                f"Requesting people data from spreadsheet tab {self.people_tab_name} ...",
+            )
             self.add_people_content(self.people_tab_name)
             gui_log.add_line(LogType.GSHEET_SELECTION, "Successfully loaded features and people.")
             self.update_run_button()
