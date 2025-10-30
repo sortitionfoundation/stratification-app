@@ -14,7 +14,7 @@ dependencies = [
   "Eel==0.18.2",
   "oauth2client<5",
   "pyinstaller<7",
-  "sortition-algorithms==0.10.4",
+  "sortition-algorithms==0.10.6",
   "toml",
 ]
 
