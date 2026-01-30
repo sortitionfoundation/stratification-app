@@ -194,10 +194,10 @@ class CSVHandler:
         gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
         try:
             success, people_selected, report = core.run_stratification(
-                self.features,
-                self.people,
-                self.panel_size_num,
-                settings_holder.settings,
+                features=self.features,
+                people=self.people,
+                number_people_wanted=self.panel_size_num,
+                settings=settings_holder.settings,
                 test_selection=test_selection,
             )
         except Exception as err:
@@ -212,10 +212,10 @@ class CSVHandler:
             return
         try:
             selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-                self.people,
-                people_selected[0],
-                self.features,
-                settings_holder.settings,
+                full_people=self.people,
+                people_selected=people_selected[0],
+                features=self.features,
+                settings=settings_holder.settings,
             )
             if success:
                 self.select_data.output_selected_remaining(selected_rows, remaining_rows, settings_holder.settings)
@@ -240,7 +240,11 @@ class GSheetHandler:
     remaining_tab_name = "Remaining - output - "
 
     def __init__(self):
-        self.data_source = adapters.GSheetDataSource("", "", DEFAULT_AUTH_JSON_PATH)
+        self.data_source = adapters.GSheetDataSource(
+            feature_tab_name="",
+            people_tab_name="",
+            auth_json_path=DEFAULT_AUTH_JSON_PATH,
+        )
         self.select_data = adapters.SelectionData(self.data_source)
         self.features: features.FeatureCollection | None = None
         self.people: people.People | None = None
@@ -422,10 +426,10 @@ class GSheetHandler:
         gui_log.reset(LogType.DETAILED_LOG, "Selecting... please wait...<br />")
         try:
             success, people_selected, report = core.run_stratification(
-                self.features,
-                self.people,
-                self.panel_size_num,
-                settings_holder.settings,
+                features=self.features,
+                people=self.people,
+                number_people_wanted=self.panel_size_num,
+                settings=settings_holder.settings,
                 test_selection=test_selection,
                 number_selections=self.number_selections,
             )
@@ -443,10 +447,10 @@ class GSheetHandler:
         gui_log.add_line(LogType.DETAILED_LOG, "About to write to spreadsheet.")
         try:
             selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-                self.people,
-                people_selected[0],
-                self.features,
-                settings_holder.settings,
+                full_people=self.people,
+                people_selected=people_selected[0],
+                features=self.features,
+                settings=settings_holder.settings,
             )
             self.data_source.selected_tab_name = self.original_selected_tab_name
             self.data_source.remaining_tab_name = self.remaining_tab_name
