@@ -130,7 +130,7 @@ jobs:
       contents: write
     steps:
       - name: Download a single artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: strat-select-win.exe
       # copy nicks-script.exe to the release
@@ -155,7 +155,7 @@ jobs:
       contents: write
     steps:
       - name: Download a single artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: strat-select-macos
       # copy script.app to the release
@@ -180,7 +180,7 @@ jobs:
       contents: write
     steps:
       - name: Download a single artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: strat-select-linux
       # copy script.app to the release
