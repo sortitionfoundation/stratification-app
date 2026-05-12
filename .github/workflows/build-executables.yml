@@ -160,7 +160,7 @@ jobs:
           name: strat-select-macos
       # copy script.app to the release
       # https://github.com/marketplace/actions/upload-files-to-a-github-release
-      - name: upload exectuable to release
+      - name: upload executable to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -186,7 +186,7 @@ jobs:
       # copy script.app to the release
       #
       # https://github.com/marketplace/actions/upload-files-to-a-github-release
-      - name: upload exectuable to release
+      - name: upload executable to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
