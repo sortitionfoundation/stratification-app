@@ -36,7 +36,7 @@ jobs:
           mv dist/strat-select-win.exe target/release
       # copy script exe to build artifacts so we can test it
       - name: Upload executable to artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: strat-select-win.exe
           path: target/release/strat-select-win.exe
@@ -79,7 +79,7 @@ jobs:
           ls -l ../target/release/
       # copy script app to build artifacts so we can test it
       - name: Upload executable to artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: strat-select-macos
           path: target/release/
@@ -112,7 +112,7 @@ jobs:
           mv dist/strat-select-linux target/release
       # copy script app to build artifacts so we can test it
       - name: Upload executable to artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: strat-select-linux
           path: target/release/strat-select-linux
