@@ -1,10 +1,21 @@
 version: 2
+
 updates:
-  - package-ecosystem: pip
+  - package-ecosystem: "uv"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     directory: "/"
     schedule:
-      interval: weekly
-    groups:
-      python-packages:
-        patterns:
-          - "*"
+      interval: "weekly"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    # Workflow files stored in the default location of `.github/workflows`
+    # You don't need to specify `/.github/workflows` for `directory`. You can use `directory: "/"`.
+    # cooldown is not supported
+    cooldown:
+      default-days: 7
+    directory: "/"
+    schedule:
+      interval: "weekly"
