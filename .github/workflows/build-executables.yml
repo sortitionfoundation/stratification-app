@@ -14,15 +14,15 @@ jobs:
   # 1. Build Windows Executable
   #
   build-windows-exe:
-    name: 'script.exe creation using python 3.11 on Windows'
-    runs-on: 'windows-latest'
+    name: "script.exe creation using python 3.11 on Windows"
+    runs-on: "windows-latest"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
-          version: "0.6.2"
-          python-version: '3.11'
+          version: "latest"
+          python-version: "3.11"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: "Install dependencies"
@@ -49,15 +49,16 @@ jobs:
   # Note that this produces an ARM based build, so won't work on older
   # intel based Macs.
   build-macos-executable:
-    name: 'script.app creation using python 3.11 on MacOS'
-    runs-on: 'macos-latest'
+    name: "script.app creation using python 3.11 on MacOS"
+    # we use 13 to build x86_64 apps
+    runs-on: "macos-13"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
-          version: "0.6.2"
-          python-version: '3.11'
+          version: "latest"
+          python-version: "3.11"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: "Install dependencies"
@@ -65,10 +66,15 @@ jobs:
           uv run python -VV
           uv run python -m site
           uv sync
+      # notes:
+      # --onedir rather than --onefile is required for app bundle
+      # --target-arch=x86_64 is required for python-mip 1.15.0 - revisit once 1.16.0 is properly released
+      #                      See https://groups.google.com/g/python-mip/c/0R2NC_URD6M
       - name: "Build MacOS package"
         run: |
-          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onefile --windowed
+          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onedir --windowed --target-arch=x86_64
           mkdir -p target/release
+          ls -l dist/strat-select-macos.app
           mv dist/strat-select-macos target/release
           cd dist  && zip -r ../target/release/strat-select-macos.app.zip strat-select-macos.app
           ls -l ../target/release/
@@ -84,15 +90,15 @@ jobs:
   # 3. Build Linux Executable
   #
   build-linux-executable:
-    name: 'executable creation using python 3.11 on Linux'
-    runs-on: 'ubuntu-24.04'
+    name: "executable creation using python 3.11 on Linux"
+    runs-on: "ubuntu-24.04"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
-          version: "0.6.2"
-          python-version: '3.11'
+          version: "latest"
+          python-version: "3.11"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - name: "Install dependencies"
