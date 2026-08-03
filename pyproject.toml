@@ -22,6 +22,11 @@ dependencies = [
 [dependency-groups]
 dev = ["pytest>=8.3.4", "pytest-cov>=6.0.0", "ruff>=0.9.7"]
 
+[tool.uv]
+# this provides a "cooldown" to avoid supply chain issues - requires uv>=0.9.17
+# background: https://blog.yossarian.net/2025/11/21/We-should-all-be-using-dependency-cooldowns
+exclude-newer = "1 week"
+
 [tool.mypy]
 python_version = "3.12"
 check_untyped_defs = false
