@@ -17,6 +17,14 @@ test-unit *args:
 test-cov *args:
     uv run pytest --cov=strat_app --cov-report=term-missing {{ args }}
 
+# run the app
+run:
+    uv run python -m strat_app
+
+# build the window, pump the event loop and exit - the packaged build smoke test
+self-test:
+    uv run python -m strat_app --self-test
+
 # run the linter and the type checker
 check:
     uv run ruff format --check .
@@ -24,6 +32,7 @@ check:
     uv run mypy .
 
 # fix the lint problems that can be fixed automatically
+# the `-` lets the formatter still run when some lint errors need a human
 fix:
-    uv run ruff check --fix .
+    -uv run ruff check --fix .
     uv run ruff format .
