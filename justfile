@@ -25,5 +25,5 @@ check:
 
 # fix the lint problems that can be fixed automatically
 fix:
-    uv run ruff format .
     uv run ruff check --fix .
+    uv run ruff format .

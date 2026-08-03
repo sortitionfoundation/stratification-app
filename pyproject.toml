@@ -37,6 +37,11 @@ exclude-newer = "1 week"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers"
+# eel emits these from pyparsing as it is imported - they go when eel does
+filterwarnings = [
+  "ignore:'nestedExpr' deprecated:",
+  "ignore:'excludeChars' argument is deprecated:",
+]
 
 [tool.mypy]
 python_version = "3.12"
