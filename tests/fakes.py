@@ -1,12 +1,14 @@
 # ABOUTME: Test doubles used across the suite - a recorder for view calls and a fake spreadsheet.
 # ABOUTME: The fake data source is backed by CSV fixtures so gsheet tests need no credentials.
 
-from collections.abc import Generator, Iterable
+from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
 from typing import Any
 
 from sortition_algorithms import adapters
 from sortition_algorithms.utils import RunReport
+
+from strat_app.sessions.view import LogEntry, LogSection
 
 # what a data source yields to the library: the column headers and the rows
 TabData = Generator[tuple[Iterable[str], Iterable[dict[str, str]]], None, None]
@@ -47,6 +49,29 @@ class CallRecorder:
 
     def reset(self) -> None:
         self.calls = []
+
+
+class RecordingLogView:
+    """
+    A LogView that keeps the entries instead of displaying them.
+
+    Tests mostly want to know "does this message appear in that output area", so it
+    renders reports to plain text on request rather than storing them rendered.
+    """
+
+    def __init__(self) -> None:
+        self.sections: dict[LogSection, list[LogEntry]] = {section: [] for section in LogSection}
+
+    def show_log(self, section: LogSection, entries: Sequence[LogEntry]) -> None:
+        self.sections[section] = list(entries)
+
+    def text(self, section: LogSection) -> str:
+        """Everything currently shown in a section, as plain text."""
+        parts = [entry if isinstance(entry, str) else entry.as_text() for entry in self.sections[section]]
+        return "\n".join(part for part in parts if part.strip())
+
+    def entries(self, section: LogSection) -> list[LogEntry]:
+        return self.sections[section]
 
 
 class TabNotFoundError(Exception):
