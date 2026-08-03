@@ -11,7 +11,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-  "Eel==0.18.2",
   "oauth2client<5",
   "pyinstaller<7",
   "pyside6-essentials>=6.11.1",
@@ -37,11 +36,6 @@ exclude-newer = "1 week"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers"
-# eel emits these from pyparsing as it is imported - they go when eel does
-filterwarnings = [
-  "ignore:'nestedExpr' deprecated:",
-  "ignore:'excludeChars' argument is deprecated:",
-]
 
 [tool.mypy]
 python_version = "3.12"
@@ -51,18 +45,6 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
-
-# eel does not have type hints/stubs
-[[tool.mypy.overrides]]
-module = "eel.*"
-ignore_missing_imports = true
-ignore_errors = true
-
-# eel exposes the JS functions as dynamic attributes of the eel module, so every
-# call to one is an attr-defined error. Goes away with script.py itself.
-[[tool.mypy.overrides]]
-module = "script"
-ignore_errors = true
 
 [tool.ruff]
 target-version = "py312"
