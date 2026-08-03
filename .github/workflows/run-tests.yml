@@ -1,0 +1,63 @@
+name: Run Tests
+
+permissions:
+  contents: read
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: "pytest on python ${{ matrix.python-version }} / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-24.04", "macos-latest", "windows-latest"]
+        python-version: ["3.11", "3.12"]
+    env:
+      # the tests never open a window - see tests/conftest.py
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v6
+      # PySide6 needs these even for the offscreen platform plugin
+      - name: "Install Qt system libraries"
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libdbus-1-3 libxkbcommon0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          python-version: "${{ matrix.python-version }}"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: "Install dependencies"
+        run: |
+          uv run python -VV
+          uv sync --locked
+      - name: "Run the tests"
+        run: uv run pytest -v
+
+  check:
+    name: "lint and type check"
+    runs-on: "ubuntu-24.04"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: "Install dependencies"
+        run: uv sync --locked
+      - name: "Check formatting and lint"
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+      - name: "Type check"
+        run: uv run mypy .

@@ -1,0 +1,6 @@
+nationbuilder_id,first_name,last_name,mobile_number,email,primary_address1,primary_address2,primary_city,zip_royal_mail,tag_list,age,gender,age_bracket,edu_level,geo_bucket
+nb-0001,Iona,Docherty,07700 900000,iona.docherty1@example.org,1 Holyrood Way,,Edinburgh,EH1 00ZZ,,28,Female,16-29,Level 4 and above,West Scotland
+nb-0002,Dara,Paterson,07700 900001,dara.paterson2@example.org,2 Acacia Avenue,,Edinburgh,EH1 01ZZ,,44,Male,30-44,Level 4 and above,South Scotland
+nb-0003,Wendy,Ogilvie,07700 900002,wendy.ogilvie3@example.org,3 Elm Grove,,Edinburgh,EH1 02ZZ,,27,Male,16-29,Level 1,Glasgow
+nb-0004,Alice,Anderson,07700 900003,alice.anderson4@example.org,4 Acacia Avenue,,Edinburgh,EH1 03ZZ,,22,Male,16-29,Level 1,South Scotland
+nb-0005,Yusuf,Ogilvie,07700 900004,yusuf.ogilvie5@example.org,5 Holyrood Way,,Edinburgh,EH1 04ZZ,,38,Male,30-44,Level 1,North East Scotland
