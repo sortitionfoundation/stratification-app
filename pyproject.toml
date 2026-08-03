@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "pytest-cov>=6.0.0", "ruff>=0.9.7"]
+dev = ["pytest>=8.3.4", "pytest-cov>=6.0.0", "ruff>=0.15.12"]
 
 [tool.uv]
 # this provides a "cooldown" to avoid supply chain issues - requires uv>=0.9.17
