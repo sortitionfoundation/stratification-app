@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -29,6 +30,7 @@ class CsvTab(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._session: CsvSession | None = None
+        self._run_enabled_before_busy = False
         self._selected_contents = ""
         self._selected_filename = "selected.csv"
         self._remaining_contents = ""
@@ -88,6 +90,12 @@ class CsvTab(QWidget):
         self.run_test_button = QPushButton("(Produce a Test Panel)")
         self.set_run_enabled(enabled=False)
         layout.addLayout(_row(self.run_button, self.run_test_button))
+        self.busy_bar = QProgressBar()
+        # no phases or percentages from the library at this version, so all we can
+        # honestly show is that something is happening
+        self.busy_bar.setRange(0, 0)
+        self.busy_bar.setVisible(False)
+        layout.addWidget(self.busy_bar)
         return box
 
     def _build_output(self) -> QGroupBox:
@@ -173,6 +181,15 @@ class CsvTab(QWidget):
     ##########################
     # the CsvView protocol
     ##########################
+
+    def set_busy(self, busy: bool) -> None:
+        """Show that work is in flight, and refuse to start a second lot of it."""
+        self.busy_bar.setVisible(busy)
+        if busy:
+            self._run_enabled_before_busy = self.run_button.isEnabled()
+            self.set_run_enabled(enabled=False)
+        else:
+            self.set_run_enabled(enabled=self._run_enabled_before_busy)
 
     def set_people_input_enabled(self, enabled: bool) -> None:
         self.people_button.setEnabled(enabled)

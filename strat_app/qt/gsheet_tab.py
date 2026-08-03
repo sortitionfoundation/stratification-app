@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QProgressBar,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -30,6 +31,8 @@ class GSheetTab(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._session: GSheetSession | None = None
+        self._run_enabled_before_busy = False
+        self._load_enabled_before_busy = False
 
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("<h2>Option B: Google Sheet input and output</h2>"))
@@ -121,6 +124,12 @@ class GSheetTab(QWidget):
         self.run_test_button = QPushButton("(Produce a Test Panel)")
         self.set_run_enabled(enabled=False)
         layout.addLayout(_row(self.run_button, self.run_test_button))
+        self.busy_bar = QProgressBar()
+        # no phases or percentages from the library at this version, so all we can
+        # honestly show is that something is happening
+        self.busy_bar.setRange(0, 0)
+        self.busy_bar.setVisible(False)
+        layout.addWidget(self.busy_bar)
         return box
 
     def _connect_signals(self) -> None:
@@ -178,6 +187,18 @@ class GSheetTab(QWidget):
     ###########################
     # the GSheetView protocol
     ###########################
+
+    def set_busy(self, busy: bool) -> None:
+        """Show that work is in flight, and refuse to start a second lot of it."""
+        self.busy_bar.setVisible(busy)
+        if busy:
+            self._run_enabled_before_busy = self.run_button.isEnabled()
+            self._load_enabled_before_busy = self.load_button.isEnabled()
+            self.set_run_enabled(enabled=False)
+            self.set_load_enabled(enabled=False)
+        else:
+            self.set_run_enabled(enabled=self._run_enabled_before_busy)
+            self.set_load_enabled(enabled=self._load_enabled_before_busy)
 
     def set_load_enabled(self, enabled: bool) -> None:
         self.load_button.setEnabled(enabled)

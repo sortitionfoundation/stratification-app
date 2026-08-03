@@ -2,12 +2,14 @@
 # ABOUTME: Knows nothing about widgets; everything it wants to show goes through GSheetView.
 
 from pathlib import Path
+from typing import Any, NamedTuple
 
 import gspread
 from sortition_algorithms import adapters, core, features, people
 from sortition_algorithms.utils import ReportLevel, RunReport
 
 from strat_app.sessions.log import GuiLog
+from strat_app.sessions.tasks import SynchronousRunner, TaskRunner
 from strat_app.sessions.view import GSheetView, LogSection
 from strat_app.settings_holder import SettingsHolder
 
@@ -15,7 +17,22 @@ DEFAULT_AUTH_JSON_PATH = Path.home() / "secret_do_not_commit.json"
 
 
 class KnownFailureError(Exception):
-    """Raised when the failure has already been reported, so nobody reports it twice."""
+    """
+    Raised when the failure has already been reported, so nobody reports it twice.
+
+    Carries the section it was reported in only so the caller does not have to guess.
+    """
+
+    def __init__(self, section: LogSection = LogSection.GSHEET_FEATURES) -> None:
+        super().__init__("already reported")
+        self.section = section
+
+
+class LoadedSheet(NamedTuple):
+    """What reading a spreadsheet gives us, ready to be applied to the session."""
+
+    features: features.FeatureCollection
+    people: people.People
 
 
 class GSheetSession:
@@ -27,10 +44,15 @@ class GSheetSession:
         gui_log: GuiLog,
         settings_holder: SettingsHolder,
         data_source: adapters.GSheetDataSource | None = None,
+        runner: TaskRunner | None = None,
     ) -> None:
         self.view = view
         self.gui_log = gui_log
         self.settings_holder = settings_holder
+        self.runner = runner or SynchronousRunner()
+        # the library grows a progress_reporter argument in 0.12; until then this stays
+        # None and the busy indicator is all the feedback we can give during a run
+        self.progress_reporter: Any = None
         # injectable so tests can drive the whole flow against a fake spreadsheet
         self.data_source = data_source or adapters.GSheetDataSource(
             feature_tab_name="",
@@ -122,6 +144,12 @@ class GSheetSession:
 
     # do features and people at same time...
     def load_g_sheet(self) -> None:
+        """
+        Start reading the spreadsheet.
+
+        Talking to Google is slow enough to be worth keeping off the GUI thread, so
+        the reading goes to the runner and the results are applied in the callbacks.
+        """
         # forget about any previously loaded spreadsheet, and disable the run button
         self._reset_spreadsheet()
         # this can happen if they enter something and then delete it...
@@ -132,33 +160,30 @@ class GSheetSession:
         self.settings_holder.init_settings_log(self.gui_log, LogSection.GSHEET_FEATURES)
         if not self.settings_holder.loaded():
             return
-        try:
-            if self.number_selections > 1:
-                self.gui_log.add(LogSection.GSHEET_SELECTION, self._multiple_selections_warning())
-            self.data_source.set_g_sheet_name(self.g_sheet_name)
-            self.add_feature_content(self.features_tab_name)
-            self.gui_log.add(
-                LogSection.GSHEET_SELECTION,
-                f"Requesting people data from spreadsheet tab {self.people_tab_name} ...",
-            )
-            self.add_people_content(self.people_tab_name)
-            self.gui_log.add(LogSection.GSHEET_SELECTION, "Successfully loaded features and people.")
-            self.update_run_button()
-            self.view.set_load_enabled(enabled=True)
-        except KnownFailureError:
-            # this is for when the function called has already logged the error, so we don't need
-            # to report it again.
-            self.gui_log.add_all(
-                LogSection.GSHEET_FEATURES,
-                ["Loading spreadsheet failed, see above messages.", "Fix the problems and try loading again."],
-            )
-        except Exception as error:
-            self.gui_log.add(LogSection.GSHEET_FEATURES, f"Loading spreadsheet failed: {error}")
+        if self.number_selections > 1:
+            self.gui_log.add(LogSection.GSHEET_SELECTION, self._multiple_selections_warning())
+        self.view.set_busy(busy=True)
+        self.runner.run(self._read_sheet, self._sheet_loaded, self._sheet_failed)
 
-    def add_feature_content(self, features_tab_name: str) -> None:
+    def _read_sheet(self) -> LoadedSheet:
+        """
+        Runs wherever the runner puts it - so no view calls, only the log.
+
+        The log is safe to write to from anywhere, and these messages are the only
+        sign of life while the spreadsheet is being read.
+        """
+        self.data_source.set_g_sheet_name(self.g_sheet_name)
+        loaded_features = self._read_features()
+        self.gui_log.add(
+            LogSection.GSHEET_SELECTION,
+            f"Requesting people data from spreadsheet tab {self.people_tab_name} ...",
+        )
+        return LoadedSheet(loaded_features, self._read_people(loaded_features))
+
+    def _read_features(self) -> features.FeatureCollection:
         try:
-            self.data_source.feature_tab_name = features_tab_name
-            self.features, report = self.select_data.load_features()
+            self.data_source.feature_tab_name = self.features_tab_name
+            loaded_features, report = self.select_data.load_features()
             self.gui_log.add(LogSection.GSHEET_FEATURES, report)
         except gspread.exceptions.APIError as error:
             self.gui_log.add(
@@ -171,9 +196,28 @@ class GSheetSession:
         except Exception as error:
             self.gui_log.add(LogSection.GSHEET_FEATURES, f"Failed to load features: {error}")
             raise KnownFailureError from error
-        if not self.features:
+        if not loaded_features:
             self.gui_log.add(LogSection.GSHEET_FEATURES, "Failed to load features")
             raise KnownFailureError
+        return loaded_features
+
+    def _read_people(self, loaded_features: features.FeatureCollection) -> people.People:
+        try:
+            self.data_source.people_tab_name = self.people_tab_name
+            loaded_people, report = self.select_data.load_people(self.settings_holder.settings, loaded_features)
+            self.gui_log.add(LogSection.GSHEET_SELECTION, report)
+        except Exception as error:
+            self.gui_log.add(LogSection.GSHEET_SELECTION, f"Failed to load people: {error}")
+            raise KnownFailureError(LogSection.GSHEET_SELECTION) from error
+        if not loaded_people:
+            self.gui_log.add(LogSection.GSHEET_SELECTION, "Failed to load people")
+            raise KnownFailureError(LogSection.GSHEET_SELECTION)
+        return loaded_people
+
+    def _sheet_loaded(self, loaded: LoadedSheet) -> None:
+        self.view.set_busy(busy=False)
+        self.features = loaded.features
+        self.people = loaded.people
         min_size = features.minimum_selection(self.features)
         max_size = features.maximum_selection(self.features)
         self.view.set_panel_size_range(min_size, max_size)
@@ -181,67 +225,98 @@ class GSheetSession:
         if min_size == max_size and min_size > 0:
             self.panel_size = min_size
             self.view.set_panel_size(min_size)
+        self.gui_log.add(LogSection.GSHEET_SELECTION, "Successfully loaded features and people.")
+        self.update_run_button()
+        self.view.set_load_enabled(enabled=True)
 
-    def add_people_content(self, people_tab_name: str) -> None:
-        assert self.features is not None
-        try:
-            self.data_source.people_tab_name = people_tab_name
-            self.people, report = self.select_data.load_people(self.settings_holder.settings, self.features)
-            self.gui_log.add(LogSection.GSHEET_SELECTION, report)
-        except Exception as error:
-            self.gui_log.add(LogSection.GSHEET_SELECTION, f"Failed to load people: {error}")
-            raise KnownFailureError from error
-        if not self.people:
-            self.gui_log.add(LogSection.GSHEET_SELECTION, "Failed to load people")
-            raise KnownFailureError
+    def _sheet_failed(self, error: Exception) -> None:
+        self.view.set_busy(busy=False)
+        if isinstance(error, KnownFailureError):
+            # whatever raised this has already said what went wrong, so don't repeat it
+            self.gui_log.add_all(
+                LogSection.GSHEET_FEATURES,
+                ["Loading spreadsheet failed, see above messages.", "Fix the problems and try loading again."],
+            )
+            return
+        self.gui_log.add(LogSection.GSHEET_FEATURES, f"Loading spreadsheet failed: {error}")
 
     def run_selection(self, test_selection: bool) -> None:
         assert self.features is not None and self.people is not None
         self.gui_log.reset(LogSection.DETAILED_LOG, "Selecting... please wait...")
-        try:
-            success, people_selected, report = core.run_stratification(
-                features=self.features,
-                people=self.people,
-                number_people_wanted=self.panel_size,
-                settings=self.settings_holder.settings,
-                test_selection=test_selection,
-                number_selections=self.number_selections,
-            )
-        except Exception as err:
-            self.gui_log.add_all(
-                LogSection.DETAILED_LOG,
-                [f"Unexpected error during selection: {err}", "Selection failed, process ended."],
-            )
-            return
+        self.view.set_busy(busy=True)
+        self.runner.run(
+            lambda: self._stratify(test_selection=test_selection),
+            self._selection_finished,
+            self._selection_failed,
+        )
+
+    def _stratify(self, *, test_selection: bool) -> tuple[bool, list[frozenset[str]], RunReport]:
+        """Runs wherever the runner puts it - so it touches no view and no widget."""
+        assert self.features is not None and self.people is not None
+        extra = {"progress_reporter": self.progress_reporter} if self.progress_reporter else {}
+        return core.run_stratification(
+            features=self.features,
+            people=self.people,
+            number_people_wanted=self.panel_size,
+            settings=self.settings_holder.settings,
+            test_selection=test_selection,
+            number_selections=self.number_selections,
+            **extra,
+        )
+
+    def _selection_failed(self, error: Exception) -> None:
+        self.view.set_busy(busy=False)
+        self.gui_log.add_all(
+            LogSection.DETAILED_LOG,
+            [f"Unexpected error during selection: {error}", "Selection failed, process ended."],
+        )
+
+    def _selection_finished(self, result: tuple[bool, list[frozenset[str]], RunReport]) -> None:
+        success, people_selected, report = result
         self.gui_log.add(LogSection.DETAILED_LOG, report)
         if not success:
+            self.view.set_busy(busy=False)
             self.gui_log.add(LogSection.DETAILED_LOG, "No panels written to spreadsheet, process ended.")
             return
 
         self.gui_log.add(LogSection.DETAILED_LOG, "About to write to spreadsheet.")
-        try:
-            selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-                full_people=self.people,
-                people_selected=people_selected[0],
-                features=self.features,
-                settings=self.settings_holder.settings,
-            )
-            self.select_data.gen_rem_tab = self._safe_gen_rem_tab()
-            dupes, report = self.select_data.output_selected_remaining(
-                selected_rows,
-                remaining_rows,
-                self.settings_holder.settings,
-            )
-            self.gui_log.add(LogSection.DETAILED_LOG, report)
-            self.gui_log.add(
-                LogSection.DETAILED_LOG,
-                f"In the remaining tab there are {len(dupes)} people who share the same address as "
-                f"someone else in the tab. They are highlighted in orange.",
-            )
-            self.gui_log.add(LogSection.DETAILED_LOG, "All spreadsheet writing has finished.")
-            self.gui_log.add(LogSection.DETAILED_LOG, "Selection process finished.")
-        except Exception as err:
-            self.gui_log.add_all(
-                LogSection.DETAILED_LOG,
-                [f"Unexpected error during writing selection: {err}", "Writing failed, process ended."],
-            )
+        # writing goes back to the runner - it is several round trips to Google
+        self.runner.run(
+            lambda: self._write_output(people_selected[0]),
+            self._writing_finished,
+            self._writing_failed,
+        )
+
+    def _write_output(self, people_selected: frozenset[str]) -> tuple[list[int], RunReport]:
+        assert self.features is not None and self.people is not None
+        selected_rows, remaining_rows, _ = core.selected_remaining_tables(
+            full_people=self.people,
+            people_selected=people_selected,
+            features=self.features,
+            settings=self.settings_holder.settings,
+        )
+        self.select_data.gen_rem_tab = self._safe_gen_rem_tab()
+        return self.select_data.output_selected_remaining(
+            selected_rows,
+            remaining_rows,
+            self.settings_holder.settings,
+        )
+
+    def _writing_finished(self, result: tuple[list[int], RunReport]) -> None:
+        dupes, report = result
+        self.view.set_busy(busy=False)
+        self.gui_log.add(LogSection.DETAILED_LOG, report)
+        self.gui_log.add(
+            LogSection.DETAILED_LOG,
+            f"In the remaining tab there are {len(dupes)} people who share the same address as "
+            f"someone else in the tab. They are highlighted in orange.",
+        )
+        self.gui_log.add(LogSection.DETAILED_LOG, "All spreadsheet writing has finished.")
+        self.gui_log.add(LogSection.DETAILED_LOG, "Selection process finished.")
+
+    def _writing_failed(self, error: Exception) -> None:
+        self.view.set_busy(busy=False)
+        self.gui_log.add_all(
+            LogSection.DETAILED_LOG,
+            [f"Unexpected error during writing selection: {error}", "Writing failed, process ended."],
+        )

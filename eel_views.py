@@ -39,6 +39,9 @@ class EelLogView:
 
 
 class EelCsvView:
+    def set_busy(self, busy: bool) -> None:
+        """The old page has nowhere to show this, and nothing runs off-thread in it."""
+
     def set_people_input_enabled(self, enabled: bool) -> None:
         if enabled:
             call_js("enable_csv_selection_content")
@@ -61,6 +64,9 @@ class EelCsvView:
 
 
 class EelGSheetView:
+    def set_busy(self, busy: bool) -> None:
+        """The old page has nowhere to show this, and nothing runs off-thread in it."""
+
     def set_load_enabled(self, enabled: bool) -> None:
         if enabled:
             call_js("enable_load_g_sheet_btn")

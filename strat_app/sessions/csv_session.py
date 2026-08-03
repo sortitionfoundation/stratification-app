@@ -2,10 +2,13 @@
 # ABOUTME: Knows nothing about widgets; everything it wants to show goes through CsvView.
 
 from io import StringIO
+from typing import Any
 
 from sortition_algorithms import adapters, core, features, people
+from sortition_algorithms.utils import RunReport
 
 from strat_app.sessions.log import GuiLog
+from strat_app.sessions.tasks import SynchronousRunner, TaskRunner
 from strat_app.sessions.view import CsvView, LogSection
 from strat_app.settings_holder import SettingsHolder
 
@@ -14,10 +17,20 @@ REMAINING_FILENAME = "remaining.csv"
 
 
 class CsvSession:
-    def __init__(self, view: CsvView, gui_log: GuiLog, settings_holder: SettingsHolder) -> None:
+    def __init__(
+        self,
+        view: CsvView,
+        gui_log: GuiLog,
+        settings_holder: SettingsHolder,
+        runner: TaskRunner | None = None,
+    ) -> None:
         self.view = view
         self.gui_log = gui_log
         self.settings_holder = settings_holder
+        self.runner = runner or SynchronousRunner()
+        # the library grows a progress_reporter argument in 0.12; until then this stays
+        # None and the busy indicator is all the feedback we can give during a run
+        self.progress_reporter: Any = None
         self.data_source = adapters.CSVStringDataSource("", "")
         self.select_data = adapters.SelectionData(self.data_source)
         self.features: features.FeatureCollection | None = None
@@ -87,40 +100,70 @@ class CsvSession:
         self.data_source.remaining_file = StringIO()
 
     def run_selection(self, test_selection: bool) -> None:
+        """
+        Start a selection.
+
+        The selection itself can take minutes, so it goes to the runner. Everything
+        after it - reporting and writing the output - happens in the callbacks, back
+        wherever the session lives.
+        """
         assert self.people is not None and self.features is not None
         # they may have hit this button again, so clear the output area so it's more obvious
         self.gui_log.reset(LogSection.DETAILED_LOG, "Selecting... please wait...")
-        try:
-            success, people_selected, report = core.run_stratification(
-                features=self.features,
-                people=self.people,
-                number_people_wanted=self.panel_size,
-                settings=self.settings_holder.settings,
-                test_selection=test_selection,
-            )
-        except Exception as err:
-            self.gui_log.add_all(
-                LogSection.DETAILED_LOG,
-                [f"Unexpected error during selection: {err}", "Selection failed, process ended."],
-            )
-            return
+        self.view.set_busy(busy=True)
+        self.runner.run(
+            lambda: self._stratify(test_selection=test_selection),
+            self._selection_finished,
+            self._selection_failed,
+        )
+
+    def _stratify(self, *, test_selection: bool) -> tuple[bool, list[frozenset[str]], RunReport]:
+        """Runs wherever the runner puts it - so it touches no view and no widget."""
+        assert self.people is not None and self.features is not None
+        extra = {"progress_reporter": self.progress_reporter} if self.progress_reporter else {}
+        return core.run_stratification(
+            features=self.features,
+            people=self.people,
+            number_people_wanted=self.panel_size,
+            settings=self.settings_holder.settings,
+            test_selection=test_selection,
+            **extra,
+        )
+
+    def _selection_failed(self, error: Exception) -> None:
+        self.view.set_busy(busy=False)
+        self.gui_log.add_all(
+            LogSection.DETAILED_LOG,
+            [f"Unexpected error during selection: {error}", "Selection failed, process ended."],
+        )
+
+    def _selection_finished(self, result: tuple[bool, list[frozenset[str]], RunReport]) -> None:
+        success, people_selected, report = result
         self.gui_log.add(LogSection.DETAILED_LOG, report)
         if not success:
+            self.view.set_busy(busy=False)
             self.gui_log.add(LogSection.DETAILED_LOG, "No panels written to CSV, process ended.")
             return
         try:
-            selected_rows, remaining_rows, _ = core.selected_remaining_tables(
-                full_people=self.people,
-                people_selected=people_selected[0],
-                features=self.features,
-                settings=self.settings_holder.settings,
-            )
-            self._fresh_output_buffers()
-            self.select_data.output_selected_remaining(selected_rows, remaining_rows, self.settings_holder.settings)
-            self.view.offer_selected(self.data_source.selected_file.getvalue(), SELECTED_FILENAME)
-            self.view.offer_remaining(self.data_source.remaining_file.getvalue(), REMAINING_FILENAME)
+            self._write_output(people_selected[0])
         except Exception as err:
             self.gui_log.add_all(
                 LogSection.DETAILED_LOG,
                 [f"Unexpected error during writing selection: {err}", "Writing failed, process ended."],
             )
+        finally:
+            self.view.set_busy(busy=False)
+
+    def _write_output(self, people_selected: frozenset[str]) -> None:
+        """Writing a CSV to memory is quick, so this stays alongside the view."""
+        assert self.people is not None and self.features is not None
+        selected_rows, remaining_rows, _ = core.selected_remaining_tables(
+            full_people=self.people,
+            people_selected=people_selected,
+            features=self.features,
+            settings=self.settings_holder.settings,
+        )
+        self._fresh_output_buffers()
+        self.select_data.output_selected_remaining(selected_rows, remaining_rows, self.settings_holder.settings)
+        self.view.offer_selected(self.data_source.selected_file.getvalue(), SELECTED_FILENAME)
+        self.view.offer_remaining(self.data_source.remaining_file.getvalue(), REMAINING_FILENAME)

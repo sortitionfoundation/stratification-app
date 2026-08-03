@@ -177,3 +177,51 @@ def test_the_tab_satisfies_the_view_protocol(tab: CsvTab) -> None:
     view: CsvView = tab
 
     assert view is tab
+
+
+###################
+# the busy indicator
+###################
+
+
+def test_the_busy_indicator_starts_hidden(tab: CsvTab) -> None:
+    assert not tab.busy_bar.isVisibleTo(tab)
+
+
+def test_the_busy_indicator_shows_while_work_is_in_flight(tab: CsvTab) -> None:
+    tab.set_busy(busy=True)
+
+    assert tab.busy_bar.isVisibleTo(tab)
+
+
+def test_the_busy_indicator_is_indeterminate(tab: CsvTab) -> None:
+    """0.11.5 of the library reports no phases, so there is no percentage to show."""
+    assert tab.busy_bar.minimum() == 0
+    assert tab.busy_bar.maximum() == 0
+
+
+def test_running_is_refused_while_already_running(tab: CsvTab) -> None:
+    tab.set_run_enabled(enabled=True)
+
+    tab.set_busy(busy=True)
+
+    assert not tab.run_button.isEnabled()
+    assert not tab.run_test_button.isEnabled()
+
+
+def test_the_run_buttons_come_back_when_the_work_finishes(tab: CsvTab) -> None:
+    tab.set_run_enabled(enabled=True)
+    tab.set_busy(busy=True)
+
+    tab.set_busy(busy=False)
+
+    assert tab.run_button.isEnabled()
+
+
+def test_the_run_buttons_stay_disabled_if_they_were_before(tab: CsvTab) -> None:
+    tab.set_run_enabled(enabled=False)
+    tab.set_busy(busy=True)
+
+    tab.set_busy(busy=False)
+
+    assert not tab.run_button.isEnabled()

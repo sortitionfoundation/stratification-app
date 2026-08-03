@@ -4,6 +4,7 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
 from strat_app.qt.csv_tab import CsvTab
 from strat_app.qt.gsheet_tab import GSheetTab
 from strat_app.qt.log_panel import LogDisplay, LogPanel
+from strat_app.qt.workers import QtTaskRunner, QueuedLogView
 from strat_app.sessions.csv_session import CsvSession
 from strat_app.sessions.gsheet_session import GSheetSession
 from strat_app.sessions.log import GuiLog
@@ -87,10 +89,21 @@ class MainWindow(QMainWindow):
         layout.addWidget(body)
         self.setCentralWidget(central)
 
-        self.gui_log = GuiLog(self._build_log_display())
+        # the log is written to from worker threads, so it goes through a queued view
+        self.gui_log = GuiLog(QueuedLogView(self._build_log_display()))
+        self.task_runner = QtTaskRunner()
         settings_holder = SettingsHolder(settings_path)
-        self.csv_tab.session = CsvSession(self.csv_tab, self.gui_log, settings_holder)
-        self.gsheet_tab.session = GSheetSession(self.gsheet_tab, self.gui_log, settings_holder)
+        self.csv_tab.session = CsvSession(self.csv_tab, self.gui_log, settings_holder, runner=self.task_runner)
+        self.gsheet_tab.session = GSheetSession(self.gsheet_tab, self.gui_log, settings_holder, runner=self.task_runner)
+
+    def append_detailed_log(self, line: str) -> None:
+        """Where the library's live log lines land while a selection is running."""
+        self.gui_log.add(LogSection.DETAILED_LOG, line)
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        """Let any work in flight finish rather than killing its thread."""
+        self.task_runner.wait()
+        super().closeEvent(event)
 
     def _build_header(self) -> QHBoxLayout:
         header = QHBoxLayout()

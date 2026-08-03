@@ -13,6 +13,9 @@ class GuiLog:
     Each section accumulates entries until something resets it - typically the start
     of a new load or a new selection run. Every change pushes the whole section to
     the view, which is cheap and means the view holds no state of its own.
+
+    Slow work adds to the log as it goes, from whatever thread it is running on, so
+    the view supplied here has to be safe to call from anywhere.
     """
 
     def __init__(self, view: LogView) -> None:

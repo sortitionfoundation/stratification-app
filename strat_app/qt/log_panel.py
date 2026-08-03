@@ -18,7 +18,8 @@ class LogPanel(QGroupBox):
         super().__init__(DETAILED_LOG_TITLE)
         self.setCheckable(True)
         self.setChecked(True)
-        self.browser = ReportBrowser()
+        # the live log from the library already shows these lines as they happen
+        self.browser = ReportBrowser(include_logged=False)
         layout = QVBoxLayout(self)
         layout.addWidget(self.browser)
         self.toggled.connect(self.browser.setVisible)

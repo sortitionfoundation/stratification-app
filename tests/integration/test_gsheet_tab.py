@@ -168,3 +168,38 @@ def test_the_tab_satisfies_the_view_protocol(tab: GSheetTab) -> None:
     view: GSheetView = tab
 
     assert view is tab
+
+
+###################
+# the busy indicator
+###################
+
+
+def test_the_busy_indicator_starts_hidden(tab: GSheetTab) -> None:
+    assert not tab.busy_bar.isVisibleTo(tab)
+
+
+def test_the_busy_indicator_shows_while_work_is_in_flight(tab: GSheetTab) -> None:
+    tab.set_busy(busy=True)
+
+    assert tab.busy_bar.isVisibleTo(tab)
+
+
+def test_loading_is_refused_while_already_loading(tab: GSheetTab) -> None:
+    tab.set_load_enabled(enabled=True)
+
+    tab.set_busy(busy=True)
+
+    assert not tab.load_button.isEnabled()
+    assert not tab.run_button.isEnabled()
+
+
+def test_the_buttons_come_back_when_the_work_finishes(tab: GSheetTab) -> None:
+    tab.set_load_enabled(enabled=True)
+    tab.set_run_enabled(enabled=True)
+    tab.set_busy(busy=True)
+
+    tab.set_busy(busy=False)
+
+    assert tab.load_button.isEnabled()
+    assert tab.run_button.isEnabled()

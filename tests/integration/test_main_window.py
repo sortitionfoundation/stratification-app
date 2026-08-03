@@ -64,7 +64,9 @@ def test_both_tabs_share_one_settings_holder(window: MainWindow) -> None:
         (LogSection.DETAILED_LOG, "detailed_log"),
     ],
 )
-def test_each_log_section_reaches_its_own_output_area(window: MainWindow, section: LogSection, attribute: str) -> None:
+def test_each_log_section_reaches_its_own_output_area(
+    qtbot, window: MainWindow, section: LogSection, attribute: str
+) -> None:
     areas = {
         "csv_features": window.csv_tab.features_output,
         "csv_selection": window.csv_tab.people_output,
@@ -75,7 +77,8 @@ def test_each_log_section_reaches_its_own_output_area(window: MainWindow, sectio
 
     window.gui_log.reset(section, "a message for this section")
 
-    assert "a message for this section" in areas[attribute].toPlainText()
+    # delivery is queued, since worker threads write to the log too
+    qtbot.waitUntil(lambda: "a message for this section" in areas[attribute].toPlainText(), timeout=5000)
     for name, area in areas.items():
         if name != attribute:
             assert "a message for this section" not in area.toPlainText()
