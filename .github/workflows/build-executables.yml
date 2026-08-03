@@ -13,7 +13,7 @@ jobs:
   # 1. Build Windows Executable
   #
   build-windows-exe:
-    name: "script.exe creation using python 3.11 on Windows"
+    name: "strat-select.exe creation using python 3.11 on Windows"
     runs-on: "windows-latest"
     steps:
       - uses: actions/checkout@v6
@@ -31,9 +31,13 @@ jobs:
           uv sync
       - name: "Build windows package"
         run: |
-          uv run python -m eel script.py web -n strat-select-win.exe --additional-hooks-dir=./pyinstallerhooks/ --onefile
+          uv run pyinstaller strat-select.spec
           mkdir -p target/release
           mv dist/strat-select-win.exe target/release
+      # a packaged build fails in ways a development one never does - most often by
+      # not finding the Qt platform plugin. So run the thing we just built.
+      - name: "Smoke test the executable"
+        run: ./target/release/strat-select-win.exe --self-test
       # copy script exe to build artifacts so we can test it
       - name: Upload executable to artifacts
         uses: actions/upload-artifact@v7
@@ -45,11 +49,12 @@ jobs:
 
   # 2. Build MacOS Executable
   #
-  # Note that this produces an ARM based build, so won't work on older
-  # intel based Macs.
+  # Note that this produces an x86_64 build, so won't work on newer ARM based Macs
+  # without Rosetta.
   build-macos-executable:
-    name: "script.app creation using python 3.11 on MacOS"
+    name: "strat-select.app creation using python 3.11 on MacOS"
     # we use 13 to build x86_64 apps
+    # TODO: GitHub has been retiring macOS 13 runners - check this is still available
     runs-on: "macos-13"
     steps:
       - uses: actions/checkout@v6
@@ -66,17 +71,20 @@ jobs:
           uv run python -m site
           uv sync
       # notes:
-      # --onedir rather than --onefile is required for app bundle
-      # --target-arch=x86_64 is required for python-mip 1.15.0 - revisit once 1.16.0 is properly released
-      #                      See https://groups.google.com/g/python-mip/c/0R2NC_URD6M
+      # the spec builds onedir on macOS, which an app bundle requires, and sets
+      # target_arch=x86_64, which python-mip 1.15.0 requires - revisit once 1.16.0
+      # is properly released.
+      # See https://groups.google.com/g/python-mip/c/0R2NC_URD6M
       - name: "Build MacOS package"
         run: |
-          uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onedir --windowed --target-arch=x86_64
+          uv run pyinstaller strat-select.spec
           mkdir -p target/release
           ls -l dist/strat-select-macos.app
           mv dist/strat-select-macos target/release
-          cd dist  && zip -r ../target/release/strat-select-macos.app.zip strat-select-macos.app
+          cd dist && zip -r ../target/release/strat-select-macos.app.zip strat-select-macos.app
           ls -l ../target/release/
+      - name: "Smoke test the executable"
+        run: ./target/release/strat-select-macos/strat-select-macos --self-test
       # copy script app to build artifacts so we can test it
       - name: Upload executable to artifacts
         uses: actions/upload-artifact@v7
@@ -93,6 +101,12 @@ jobs:
     runs-on: "ubuntu-24.04"
     steps:
       - uses: actions/checkout@v6
+      - name: "Install Qt system libraries"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libegl1 libgl1 libdbus-1-3 \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-keysyms1 libxcb-shape0
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -107,9 +121,13 @@ jobs:
           uv sync
       - name: "Build Linux package"
         run: |
-          uv run python -m eel script.py web -n strat-select-linux --additional-hooks-dir=./pyinstallerhooks/ --onefile
+          uv run pyinstaller strat-select.spec
           mkdir -p target/release
           mv dist/strat-select-linux target/release
+      # under xvfb rather than the offscreen platform, so this exercises the xcb
+      # plugin - the one that actually goes missing from a packaged build
+      - name: "Smoke test the executable"
+        run: xvfb-run --auto-servernum ./target/release/strat-select-linux --self-test
       # copy script app to build artifacts so we can test it
       - name: Upload executable to artifacts
         uses: actions/upload-artifact@v7
@@ -118,79 +136,3 @@ jobs:
           path: target/release/strat-select-linux
           # default retention is 90
           retention-days: 15
-
-  # 4. Release Windows Executable (tag pushes only)
-  #
-  release-windows-exe:
-    name: "script.exe release for Windows"
-    needs: build-windows-exe
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: "windows-latest"
-    permissions:
-      contents: write
-    steps:
-      - name: Download a single artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: strat-select-win.exe
-      # copy nicks-script.exe to the release
-      # https://github.com/marketplace/actions/upload-files-to-a-github-release
-      - name: upload executable to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: strat-select-win.exe
-          tag: ${{ github.ref }}
-          overwrite: true
-          body: "script release text"
-
-  # 5. Release MacOS Executable (tag pushes only)
-  #
-  release-macos-executable:
-    name: "script.app release for MacOS"
-    needs: build-macos-executable
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: "macos-latest"
-    permissions:
-      contents: write
-    steps:
-      - name: Download a single artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: strat-select-macos
-      # copy script.app to the release
-      # https://github.com/marketplace/actions/upload-files-to-a-github-release
-      - name: upload executable to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: strat-select-macos
-          tag: ${{ github.ref }}
-          overwrite: true
-          body: "script release text"
-
-  # 6. Release Linux Executable (tag pushes only)
-  #
-  release-linux-executable:
-    name: "executable release for Linux"
-    needs: build-linux-executable
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: "ubuntu-24.04"
-    permissions:
-      contents: write
-    steps:
-      - name: Download a single artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: strat-select-linux
-      # copy script.app to the release
-      #
-      # https://github.com/marketplace/actions/upload-files-to-a-github-release
-      - name: upload executable to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: strat-select-linux
-          tag: ${{ github.ref }}
-          overwrite: true
-          body: "script release text"

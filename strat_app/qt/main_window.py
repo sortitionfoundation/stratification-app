@@ -1,6 +1,7 @@
 # ABOUTME: The application window - the two tabs, the shared detailed log, and the wiring.
 # ABOUTME: This is where sessions meet the widgets that display them.
 
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -32,9 +33,24 @@ CSV_TAB_INDEX = 0
 GSHEET_TAB_INDEX = 1
 CSV_TAB_TITLE = "CSV file input & output"
 GSHEET_TAB_TITLE = "Google Sheet input & output"
-LOGO_PATH = Path(__file__).parent.parent / "resources" / "logo_sortition-foundation_alt.svg"
 LOGO_HEIGHT = 50
 DEFAULT_SIZE = (800, 800)
+
+
+def resources_dir() -> Path:
+    """
+    Where the app's bundled files live.
+
+    PyInstaller unpacks them into a temporary directory it points sys._MEIPASS at,
+    rather than next to the module they were checked in beside.
+    """
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    if bundle_dir:
+        return Path(bundle_dir) / "strat_app" / "resources"
+    return Path(__file__).parent.parent / "resources"
+
+
+LOGO_NAME = "logo_sortition-foundation_alt.svg"
 
 
 def _scrollable(widget: QWidget) -> QScrollArea:
@@ -109,8 +125,9 @@ class MainWindow(QMainWindow):
         header = QHBoxLayout()
         header.addWidget(QLabel(f"<h1>{WINDOW_TITLE}</h1>"))
         header.addStretch()
-        if LOGO_PATH.is_file():
-            logo = QSvgWidget(str(LOGO_PATH))
+        logo_path = resources_dir() / LOGO_NAME
+        if logo_path.is_file():
+            logo = QSvgWidget(str(logo_path))
             size = logo.sizeHint()
             logo.setFixedSize(LOGO_HEIGHT * size.width() // size.height(), LOGO_HEIGHT)
             header.addWidget(logo)

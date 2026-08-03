@@ -4,7 +4,7 @@
 import pytest
 
 from strat_app.qt.log_panel import LogDisplay, LogPanel
-from strat_app.qt.main_window import GSHEET_TAB_INDEX, MainWindow, tab_title
+from strat_app.qt.main_window import GSHEET_TAB_INDEX, LOGO_NAME, MainWindow, resources_dir, tab_title
 from strat_app.sessions.view import LogSection
 
 CSV_TAB_TITLE = "CSV file input & output"
@@ -91,3 +91,8 @@ def test_the_log_display_complains_about_an_unrouted_section(qtbot) -> None:
 
     with pytest.raises(KeyError):
         display.show_log(LogSection.CSV_FEATURES, ["nowhere to put this"])
+
+
+def test_the_logo_is_where_the_window_looks_for_it() -> None:
+    """A missing logo is survivable, but it should not be missing in the repo."""
+    assert (resources_dir() / LOGO_NAME).is_file()
