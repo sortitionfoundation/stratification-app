@@ -2,6 +2,7 @@
 # ABOUTME: The library calls the reporter from a worker thread, so the crossing has to be safe.
 
 import threading
+from collections.abc import Generator
 
 import pytest
 from sortition_algorithms.progress import ProgressReporter
@@ -15,6 +16,19 @@ TIMEOUT_MS = 10_000
 @pytest.fixture
 def reporter(qtbot) -> QtProgressReporter:
     return QtProgressReporter()
+
+
+@pytest.fixture
+def runner(qtbot) -> Generator[QtTaskRunner, None, None]:
+    """
+    A runner that is waited on before the test ends.
+
+    Letting one go out of scope with a QThread still winding down aborts the whole
+    process, which shows up as an occasional SIGABRT somewhere else entirely.
+    """
+    made = QtTaskRunner()
+    yield made
+    made.wait()
 
 
 def test_it_satisfies_the_library_protocol(reporter: QtProgressReporter) -> None:
@@ -80,7 +94,7 @@ def test_ending_a_phase_reports_where_it_actually_finished(qtbot, reporter: QtPr
     assert emitted[-1] == 200
 
 
-def test_the_events_arrive_on_the_gui_thread(qtbot, reporter: QtProgressReporter) -> None:
+def test_the_events_arrive_on_the_gui_thread(qtbot, reporter: QtProgressReporter, runner: QtTaskRunner) -> None:
     """
     The library drives the reporter from the worker thread; widgets only tolerate one.
 
@@ -89,7 +103,6 @@ def test_the_events_arrive_on_the_gui_thread(qtbot, reporter: QtProgressReporter
     """
     seen: list[threading.Thread] = []
     reporter.phase_started.connect(lambda name, total, message: seen.append(threading.current_thread()))
-    runner = QtTaskRunner()
 
     with qtbot.waitSignal(runner.finished, timeout=TIMEOUT_MS):
         runner.run(

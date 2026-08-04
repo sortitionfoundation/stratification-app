@@ -712,6 +712,32 @@ in.
 
 `README.md` and `docs/index.md` name no library version, so nothing to update there.
 
+### One loose end: a single unexplained SIGABRT
+
+**Worth knowing about before CI surprises anyone.** One full-suite run aborted with exit
+code 134 (SIGABRT) part-way through. Every run before and after it passed. It has not
+recurred in the four full-suite runs since.
+
+A `QThread` destroyed while still running aborts the process, which fits the symptom. The
+likely culprit was mine: `test_the_events_arrive_on_the_gui_thread` built a `QtTaskRunner`
+as a local variable, so it became garbage the instant the test returned — possibly while its
+thread was still winding down. That is now a fixture that calls `runner.wait()` on teardown,
+matching what `test_workers.py` does and what `MainWindow.closeEvent` does in the app.
+
+**Being straight about it: the fix is a real hazard removed, but not a proven cause.** The
+abort was never reproduced on demand, so "four clean runs since" is evidence, not proof. If
+it shows up again in CI, the place to look is `QtTaskRunner._reap`:
+
+```python
+self._threads = [pair for pair in self._threads if pair[0].isRunning()]
+```
+
+That drops the last Python reference to a `QThread` the moment `isRunning()` goes false,
+and there is a narrow window where the underlying thread has not fully terminated. It is
+pre-existing, unrelated to the bump, and the app itself is protected by `closeEvent` calling
+`wait()` — so it was left alone rather than fixed inside a version bump. But it is the first
+thing to suspect.
+
 ---
 
 ## 6. Test coverage: what this PR adds and what it can't
