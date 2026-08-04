@@ -106,7 +106,16 @@ class GSheetSession:
         self.update_run_button()
 
     def update_run_button(self) -> None:
-        self.view.set_run_enabled(bool(self.features and self.people and self.panel_size > 0))
+        """
+        A test panel is only possible for a single selection, so refuse it otherwise.
+
+        The library raises rather than reports if it is asked for a test selection of
+        several panels, so the warning's promise that the button is refused has to be
+        kept here rather than left to the user to honour.
+        """
+        ready = bool(self.features and self.people and self.panel_size > 0)
+        self.view.set_run_enabled(ready)
+        self.view.set_test_run_enabled(ready and self.number_selections == 1)
 
     def update_people_tab_name(self, people_tab_name: str) -> None:
         self._clear_messages()
@@ -131,6 +140,7 @@ class GSheetSession:
     def set_number_selections(self, number_selections: int) -> None:
         self._clear_messages()
         self.number_selections = number_selections
+        self.update_run_button()
 
     def _multiple_selections_warning(self) -> RunReport:
         report = RunReport()

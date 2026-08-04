@@ -449,7 +449,7 @@ about new app code.
 - The spec's `target_arch="x86_64"` comment blamed python-mip, which is no longer true.
   Rewritten to say the pin is now caution rather than necessity, per §4.6.
 
-### Step 4 — refuse the settings this build cannot honour
+### Step 4 — refuse the settings this build cannot honour — **DONE**
 
 Per §4.5, and red-first: `tests/unit/test_settings_holder.py` gets cases for a settings file
 naming a mip backend and one naming `diversimax`, asserting the returned message says which
@@ -461,6 +461,50 @@ where this belongs. Whether an unsupported value should also block the run butto
 warn loudly, is worth thinking about while writing the test: my read is **block**, because a
 warning that is followed by a ten-minute wait and then a `RuntimeError` is worse than no
 warning at all.
+
+**How it went.** 13 new tests, red first, then green. Settled on **block**, and it needed no
+new plumbing: refusing means not storing the settings, so `loaded()` stays `False`, and both
+sessions already bail out early on `if not self.settings_holder.loaded()`. An unsupported
+value therefore behaves exactly like a broken settings file — reported in the log section
+next to whatever the user just did, with the load abandoned.
+
+`SUPPORTED_SOLVER_BACKENDS` and `SUPPORTED_SELECTION_ALGORITHMS` are module constants in
+`settings_holder.py`, so what the build supports is stated in one place rather than inferred
+from the spec file.
+
+Two tests worth keeping beyond this PR:
+
+- `test_the_settings_file_written_for_a_new_user_is_supported` — the library writes its own
+  defaults on a fresh machine. If a future release changes `DEFAULT_BACKEND` to something we
+  exclude, every new user would be locked out on first run. This test fails first instead.
+- the `legacy`/`maximin`/`nash`/`leximin` parametrised case, which pins the positive side so
+  the refusal can't quietly widen.
+
+Note `init_settings()` does not return `""` on success — a valid file still reports the
+address-checking warning — so the acceptance tests assert on the absence of the refusal
+text rather than an empty string. First draft got that wrong and the red run caught it.
+
+### Step 4b — keep the test-panel button's promise — **DONE**
+
+Not a numbered step in the original plan, but §2.4's decision and it belongs here, next to
+the other settings-shaped refusal.
+
+`set_run_enabled` used to drive both run buttons, so there was no way to refuse only the
+test panel. Split into `set_run_enabled` / `set_test_run_enabled` on `GSheetView`, with
+`update_run_button` enabling the test button only when `number_selections == 1`, and
+`set_number_selections` now calling `update_run_button` so the button tracks the spinner.
+
+Three things the tests pinned down that were easy to get wrong:
+
+- `set_busy` has to remember and restore **both** buttons independently — otherwise
+  finishing a run hands back a test button that was deliberately disabled.
+  `test_a_test_panel_refused_before_a_run_stays_refused_after_it` is that test.
+- `set_number_selections` calls `_clear_messages`, which resets the panel size to 0 — so the
+  realistic order is "choose the number of selections, then the panel size". The first draft
+  of the test asserted the wrong sequence and went red.
+- two existing tests encoded the old "one switch drives both buttons" assumption and needed
+  updating. That is the assumption we were deliberately changing, so they were right to
+  fail.
 
 ### Step 5 — the gsheet path, by hand
 

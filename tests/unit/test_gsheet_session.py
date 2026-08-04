@@ -190,6 +190,40 @@ def test_turning_off_the_remaining_tab_is_respected(session: GSheetSession) -> N
     assert session._safe_gen_rem_tab() is False  # noqa: SLF001
 
 
+def test_the_test_panel_button_is_refused_for_several_selections(
+    loaded_session: GSheetSession, view: CallRecorder
+) -> None:
+    """
+    The warning already promises the button is refused, so the button had better be.
+
+    The library raises for a test selection of more than one panel, and since 0.12 that
+    is a ConfigurationError, which run_stratification lets through instead of turning
+    into a report. So the tidy message the user used to get is gone, and the honest fix
+    is not to let them ask.
+    """
+    loaded_session.set_number_selections(2)
+    loaded_session.set_panel_size(PANEL_MIN)
+
+    assert view.last_args("set_run_enabled") == (True,)
+    assert view.last_args("set_test_run_enabled") == (False,)
+
+
+def test_the_test_panel_button_comes_back_for_one_selection(loaded_session: GSheetSession, view: CallRecorder) -> None:
+    loaded_session.set_number_selections(2)
+    loaded_session.set_panel_size(PANEL_MIN)
+
+    loaded_session.set_number_selections(1)
+    loaded_session.set_panel_size(PANEL_MIN)
+
+    assert view.last_args("set_test_run_enabled") == (True,)
+
+
+def test_the_test_panel_button_stays_off_until_a_sheet_is_loaded(session: GSheetSession, view: CallRecorder) -> None:
+    session.set_number_selections(1)
+
+    assert view.last_args("set_test_run_enabled") == (False,)
+
+
 ###########################
 # running a selection
 ###########################

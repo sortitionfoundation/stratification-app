@@ -41,6 +41,42 @@ def test_starts_with_loading_and_running_disabled(tab: GSheetTab) -> None:
     assert not tab.run_test_button.isEnabled()
 
 
+def test_the_two_run_buttons_are_controlled_separately(tab: GSheetTab) -> None:
+    """A test panel is refused for several selections, so it needs its own switch."""
+    tab.set_run_enabled(enabled=True)
+    tab.set_test_run_enabled(enabled=False)
+
+    assert tab.run_button.isEnabled()
+    assert not tab.run_test_button.isEnabled()
+
+
+def test_going_busy_disables_both_run_buttons_and_restores_them(tab: GSheetTab) -> None:
+    tab.set_run_enabled(enabled=True)
+    tab.set_test_run_enabled(enabled=True)
+
+    tab.set_busy(busy=True)
+
+    assert not tab.run_button.isEnabled()
+    assert not tab.run_test_button.isEnabled()
+
+    tab.set_busy(busy=False)
+
+    assert tab.run_button.isEnabled()
+    assert tab.run_test_button.isEnabled()
+
+
+def test_a_test_panel_refused_before_a_run_stays_refused_after_it(tab: GSheetTab) -> None:
+    """Going busy must not hand back a button that was deliberately disabled."""
+    tab.set_run_enabled(enabled=True)
+    tab.set_test_run_enabled(enabled=False)
+
+    tab.set_busy(busy=True)
+    tab.set_busy(busy=False)
+
+    assert tab.run_button.isEnabled()
+    assert not tab.run_test_button.isEnabled()
+
+
 def test_the_advanced_settings_start_hidden_with_the_current_defaults(tab: GSheetTab) -> None:
     assert not tab.advanced_settings.isChecked()
     assert tab.features_tab_edit.text() == "Categories"
@@ -88,10 +124,12 @@ def test_clearing_the_range_puts_the_label_back(tab: GSheetTab) -> None:
 
 def test_enabling_and_disabling_the_run_buttons(tab: GSheetTab) -> None:
     tab.set_run_enabled(enabled=True)
+    tab.set_test_run_enabled(enabled=True)
     assert tab.run_button.isEnabled()
     assert tab.run_test_button.isEnabled()
 
     tab.set_run_enabled(enabled=False)
+    tab.set_test_run_enabled(enabled=False)
     assert not tab.run_button.isEnabled()
     assert not tab.run_test_button.isEnabled()
 
@@ -156,7 +194,7 @@ def test_clicking_run_starts_a_real_selection(qtbot, tab: GSheetTab, session: Ca
 
 
 def test_clicking_the_test_panel_button_asks_for_a_test_selection(qtbot, tab: GSheetTab, session: CallRecorder) -> None:
-    tab.set_run_enabled(enabled=True)
+    tab.set_test_run_enabled(enabled=True)
 
     qtbot.mouseClick(tab.run_test_button, Qt.MouseButton.LeftButton)
 

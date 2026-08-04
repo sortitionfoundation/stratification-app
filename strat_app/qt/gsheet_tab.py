@@ -32,6 +32,7 @@ class GSheetTab(QWidget):
         super().__init__()
         self._session: GSheetSession | None = None
         self._run_enabled_before_busy = False
+        self._test_run_enabled_before_busy = False
         self._load_enabled_before_busy = False
 
         layout = QVBoxLayout(self)
@@ -123,6 +124,7 @@ class GSheetTab(QWidget):
         self.run_button = QPushButton("Run the Random Selection")
         self.run_test_button = QPushButton("(Produce a Test Panel)")
         self.set_run_enabled(enabled=False)
+        self.set_test_run_enabled(enabled=False)
         layout.addLayout(_row(self.run_button, self.run_test_button))
         self.busy_bar = QProgressBar()
         # no phases or percentages from the library at this version, so all we can
@@ -193,11 +195,14 @@ class GSheetTab(QWidget):
         self.busy_bar.setVisible(busy)
         if busy:
             self._run_enabled_before_busy = self.run_button.isEnabled()
+            self._test_run_enabled_before_busy = self.run_test_button.isEnabled()
             self._load_enabled_before_busy = self.load_button.isEnabled()
             self.set_run_enabled(enabled=False)
+            self.set_test_run_enabled(enabled=False)
             self.set_load_enabled(enabled=False)
         else:
             self.set_run_enabled(enabled=self._run_enabled_before_busy)
+            self.set_test_run_enabled(enabled=self._test_run_enabled_before_busy)
             self.set_load_enabled(enabled=self._load_enabled_before_busy)
 
     def set_load_enabled(self, enabled: bool) -> None:
@@ -212,6 +217,8 @@ class GSheetTab(QWidget):
 
     def set_run_enabled(self, enabled: bool) -> None:
         self.run_button.setEnabled(enabled)
+
+    def set_test_run_enabled(self, enabled: bool) -> None:
         self.run_test_button.setEnabled(enabled)
 
 
