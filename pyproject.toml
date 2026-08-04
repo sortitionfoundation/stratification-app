@@ -15,7 +15,7 @@ dependencies = [
   "pyinstaller<7",
   "pyside6-essentials>=6.11.1",
   "setuptools<82",
-  "sortition-algorithms==0.11.5",
+  "sortition-algorithms==0.12.10",
   "toml",
 ]
 
@@ -39,7 +39,7 @@ addopts = "--strict-markers"
 
 [tool.mypy]
 python_version = "3.12"
-exclude = ["^build/", "^dist/"]
+exclude = ["^build/", "^dist/", "^ignore/"]
 check_untyped_defs = false
 ignore_missing_imports = true
 warn_unused_ignores = true

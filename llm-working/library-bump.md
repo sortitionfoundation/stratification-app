@@ -352,7 +352,7 @@ forward so it doesn't get lost:
 
 Ordered so the risky parts happen under test, and so each step's failure mode is legible.
 
-### Step 1 — bump the pin, run the suite, change nothing else
+### Step 1 — bump the pin, run the suite, change nothing else — **DONE**
 
 ```
 uv add "sortition-algorithms==0.12.10"
@@ -365,6 +365,28 @@ anything in this step; record what broke.
 
 Also run `just check` — `mypy` may have opinions about the newly-lazy imports or the
 `progress_reporter: Any` annotation.
+
+**What actually happened.** Baseline before the bump: 148 passed. After: **3 failed, 145
+passed** — and the three are exactly the predicted ones, no others:
+
+- `tests/e2e/test_csv_flow.py::test_the_detailed_log_fills_in_as_the_run_goes`
+- `tests/integration/test_threaded_selection.py::test_the_library_log_arrives_while_the_selection_runs`
+- `tests/integration/test_threaded_selection.py::test_the_report_does_not_repeat_the_lines_already_logged`
+
+The captured log on each confirms the replacement line predicted in §2.3 is there:
+`Using maximin algorithm.`, then `All agents are contained in some feasible committee.`
+
+`uv sync` pruned `pandas`, `scikit-learn`, `python-dateutil` and `threadpoolctl` from the
+venv, and added `cbcbox` 2.929 — §4.1's resolution confirmed against the real lock file.
+
+`just check`: ruff clean, and **mypy had no opinions about the lazy imports or the
+`progress_reporter: Any` annotation.** It did fail, but for an unrelated pre-existing reason
+— the research checkout in `ignore/` gives mypy a second module called `tests`. ruff honours
+`.gitignore` and skips it; mypy does not. Fixed by adding `^ignore/` to mypy's `exclude` in
+`pyproject.toml`. Confirmed pre-existing by stashing the bump and re-running.
+
+One practical note for later steps: the three failures each burn a 120s `waitUntil` timeout,
+so a red run of the full suite takes ~7 minutes against ~30s green.
 
 ### Step 2 — fix the tests that the retry-loop move broke
 
