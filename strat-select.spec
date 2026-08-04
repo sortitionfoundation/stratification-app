@@ -58,6 +58,14 @@ EXCLUDES = [
     "IPython",
     "tkinter",
     "pytest",
+    # The library's default solver backend is highspy. python-mip is still one of its
+    # hard dependencies, but we never ask for it - and since 1.17 it keeps CBC in a
+    # separate cbcbox wheel that unpacks to 275MB, which is bigger than the rest of the
+    # bundle put together. Leaving both out means find_spec("mip") comes back empty and
+    # sortition_algorithms sets MIP_AVAILABLE to False, which is what we want.
+    # If you ever need a mip backend, these two come out and the bundle grows a lot.
+    "mip",
+    "cbcbox",
 ]
 
 analysis = Analysis(
@@ -66,8 +74,7 @@ analysis = Analysis(
     binaries=[],
     datas=[("strat_app/resources/*.svg", "strat_app/resources")],
     hiddenimports=[],
-    # hook-mip.py, for https://github.com/coin-or/python-mip/issues/198
-    hookspath=["pyinstallerhooks"],
+    hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=EXCLUDES,
@@ -93,7 +100,11 @@ if MACOS:
         strip=False,
         upx=False,
         console=False,
-        target_arch="x86_64",  # python-mip has no arm64 macOS wheel
+        # This was pinned because python-mip had no arm64 macOS wheel. We no longer
+        # bundle mip at all, and highspy ships arm64 wheels, so nothing here needs
+        # x86_64 any more - an arm64 build is a change to the runner and this line,
+        # and wants testing on a real ARM Mac rather than being done blind.
+        target_arch="x86_64",
         codesign_identity=None,
         entitlements_file=None,
     )

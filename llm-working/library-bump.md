@@ -413,7 +413,7 @@ end-of-run report. So "the line is in the browser" really does mean "the live pa
 and `count(ALGORITHM_LINE) == 1` really does mean "the report didn't duplicate it". Dropping
 the separate `any("algorithm" in line for line in lines)` assertion cost nothing.
 
-### Step 3 — packaging
+### Step 3 — packaging — **DONE**
 
 - `EXCLUDES += ["mip", "cbcbox"]` in `strat-select.spec`.
 - Delete `pyinstallerhooks/hook-mip.py`; remove `hookspath` if the directory ends up empty
@@ -425,6 +425,29 @@ the separate `any("algorithm" in line for line in lines)` assertion cost nothing
 
 Doing this _before_ the progress bar means a red self-test can only be about the bump, not
 about new app code.
+
+**How it went.**
+
+- **cbcbox is worse than §4.1 said**: 181 MB as a wheel, **275 MB unpacked** into the venv.
+  Excluding it was not optional.
+- **Linux bundle: 156.4 MiB → 141.9 MiB**, a 14.5 MiB (9%) reduction. §4.2 guessed "well
+  under 120 MB" and **that was too optimistic** — pandas, sklearn and the old vendored mip
+  compress well inside the archive, so removing 68 MB of installed weight bought about a
+  fifth of that on disk. PySide6 and scipy dominate what is left, and neither is going
+  anywhere. The win is real but modest; the real win is not *adding* 275 MB.
+- **highspy needed no hook.** It is collected correctly on its own (9 entries in the PKG
+  TOC), so `pyinstallerhooks/` ended up empty, the directory is deleted and `hookspath` is
+  now `[]`. Worth doing rather than leaving an empty directory: git cannot track one, so a
+  fresh clone would have had `hookspath` pointing at nothing.
+- **§4.3's worry is settled.** The build log says
+  `excluded module named mip - imported by sortition_algorithms.committee_generation.solver (delayed)`
+  — PyInstaller does follow function-level imports, and `(delayed)` is it saying so. No
+  `ModuleNotFoundError` from the lazy-import refactor.
+- **`--self-test` passes on the packaged Linux binary**, running a real selection end to end
+  through highspy: `Using maximin algorithm.` → `self test: ok - selected 4 of 10`.
+  (It needs a display — `QT_QPA_PLATFORM=offscreen` locally, `xvfb-run` in CI.)
+- The spec's `target_arch="x86_64"` comment blamed python-mip, which is no longer true.
+  Rewritten to say the pin is now caution rather than necessity, per §4.6.
 
 ### Step 4 — refuse the settings this build cannot honour
 
