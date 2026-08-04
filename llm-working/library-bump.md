@@ -1,8 +1,25 @@
 # Bumping `sortition-algorithms` 0.11.5 → 0.12.10
 
-Status: **researched and planned, not started.** Deliberately deferred out of the Eel→Qt
+Status: **implemented.** Every step below is marked **DONE** and has a note on how it
+actually went, including where the plan was wrong. Deliberately deferred out of the Eel→Qt
 port (see `llm-working/eel-to-qt.md`, decision D5) so that port stayed a like-for-like
-comparison. This is its own PR, to be done afterwards.
+comparison.
+
+**One thing is outstanding and it blocks merging: the manual Google Sheets checklist in
+§5 step 5.** It needs a service account and a human driving the GUI, neither of which was
+available here. Everything else is done and under test — 210 tests passing, `just check`
+clean, and the packaged Linux binary smoke-tested.
+
+Summary of what landed:
+
+| | |
+| --- | --- |
+| Library | 0.11.5 → 0.12.10 |
+| Tests | 148 → 210 passing |
+| Linux bundle | 156.4 MiB → 141.9 MiB |
+| New capability | a real progress bar, determinate where the library knows a total |
+| New refusals | unsupported solver/algorithm at load time; test panel for multiple selections |
+| Bugs found upstream | 2 new ones, in `llm-working/upstream.md` (6 issues total) |
 
 Everything below was checked against the sibling checkout at
 `ignore/repos/sortition-algorithms` (tags `0.11.5` and `0.12.10`, ~100 commits apart) and
@@ -671,11 +688,29 @@ pins this down end to end. It records the bar's maximum as each phase starts rat
 checking at the end, because the bar deliberately returns to indeterminate afterwards —
 checking at the end would always see 0 and pass for the wrong reason.
 
-### Step 8 — re-measure, re-smoke, and write it up
+### Step 8 — re-measure, re-smoke, and write it up — **DONE**
 
 - Record the before/after bundle size for all three platforms in the PR description.
 - Re-run the packaged `--self-test` everywhere (CI does this already).
 - Update `README.md` if it names the library version anywhere.
+
+**Final numbers, Linux:**
+
+| | bytes | |
+| --- | ---: | --- |
+| before (0.11.5) | 163,986,784 | 156.4 MiB |
+| after (0.12.10) | 148,781,960 | 141.9 MiB |
+| **saved** | **15,204,824** | **14.5 MiB (9.3%)** |
+
+Rebuilt with all of the progress-bar work in and `--self-test` passes on the packaged
+binary, running a real selection: `self test: ok - selected 4 of 10`.
+
+Windows and macOS are **not measured here** — CI builds and smoke-tests them on every push,
+and this machine can only build Linux. Their numbers should go in the PR description once CI
+has run. Expect a similar shape: the same three packages come out, and `cbcbox` never goes
+in.
+
+`README.md` and `docs/index.md` name no library version, so nothing to update there.
 
 ---
 
