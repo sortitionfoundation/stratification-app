@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import pytest
+from sortition_algorithms.progress import NullProgressReporter
+from sortition_algorithms.utils import RunReport
 
 from strat_app.sessions.csv_session import CsvSession
 from strat_app.sessions.log import GuiLog
@@ -288,6 +290,46 @@ def test_an_impossible_selection_offers_no_output(
 
     assert "No panels written to CSV, process ended." in log.text(LogSection.DETAILED_LOG)
     assert not view.called("offer_selected")
+
+
+def test_the_progress_reporter_is_handed_to_the_library(
+    loaded_session: CsvSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without this the library reports progress into the void and the bar never moves."""
+    captured: dict[str, object] = {}
+    reporter = NullProgressReporter()
+
+    def capture(**kwargs: object) -> tuple[bool, list[frozenset[str]], RunReport]:
+        captured.update(kwargs)
+        return True, [frozenset()], RunReport()
+
+    monkeypatch.setattr("strat_app.sessions.csv_session.core.run_stratification", capture)
+    loaded_session.progress_reporter = reporter
+    loaded_session.set_panel_size(PANEL_MIN)
+
+    loaded_session.run_selection(test_selection=False)
+
+    assert captured["progress_reporter"] is reporter
+
+
+def test_no_progress_reporter_is_still_a_valid_call(
+    loaded_session: CsvSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0.12 takes progress_reporter=None happily, so there is no need to omit the argument."""
+    captured: dict[str, object] = {}
+
+    def capture(**kwargs: object) -> tuple[bool, list[frozenset[str]], RunReport]:
+        captured.update(kwargs)
+        return True, [frozenset()], RunReport()
+
+    monkeypatch.setattr("strat_app.sessions.csv_session.core.run_stratification", capture)
+    loaded_session.set_panel_size(PANEL_MIN)
+
+    loaded_session.run_selection(test_selection=False)
+
+    assert captured["progress_reporter"] is None
 
 
 def test_an_error_during_selection_is_reported_and_leaves_the_app_usable(

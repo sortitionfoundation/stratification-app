@@ -561,7 +561,7 @@ red and should be flipped into the positive assertion its sibling already makes.
 Item 7 (`NotNativeGoogleSheetError`) genuinely needs Drive — you cannot fake a non-native
 mimetype through `CSVStringDataSource` — so it stays on the manual list.
 
-### Step 6 — `QtProgressReporter`, red-first
+### Step 6 — `QtProgressReporter`, red-first — **DONE**
 
 New module `strat_app/qt/progress.py`:
 
@@ -594,7 +594,36 @@ The view protocols in `strat_app/sessions/view.py` gain a method — something l
 `set_progress(current: int, total: int | None, message: str)` alongside `set_busy` — so the
 sessions stay Qt-free and `CallRecorder` keeps working unchanged.
 
-### Step 7 — the `QProgressBar` itself
+**How it went.** Split into two pieces rather than one, which was worth it:
+
+- `strat_app/sessions/progress.py` — `ProgressThrottle`, pure and Qt-free, tested against a
+  `FakeClock` in `tests/unit/`. All the deciding lives here.
+- `strat_app/qt/progress.py` — `QtProgressReporter`, which is only signal plumbing.
+
+That split means the interesting logic is tested with no event loop and no timing
+flakiness: the hammer test drives 1000 updates through a clock it controls and asserts
+exactly 10 get through, which a wall-clock test could never do reliably.
+
+`isinstance(reporter, ProgressReporter)` is asserted directly — the library's protocol is
+`@runtime_checkable` and `coerce_reporter` has to accept us, so a missing method should fail
+in our suite rather than mid-run.
+
+One test had to be rewritten after going red for the wrong reason. The first version
+connected a raising slot directly and asserted the run survived — but a direct connection is
+not how this is ever wired, and Qt propagated the exception straight back. Replaced with
+`test_connecting_through_the_helper_defers_the_slot`, which asserts the slot has *not* run
+when `start_phase` returns. That is the property that matters and it covers both concerns at
+once: the worker thread never touches a widget, and nothing a slot does can reach back into
+the library's call stack.
+
+The `**extra` dance in both sessions is gone — `progress_reporter=self.progress_reporter` is
+passed unconditionally, since 0.12 takes `None` happily. Both `Any` annotations became real
+types, deferred behind `TYPE_CHECKING` to satisfy ruff.
+
+`MainWindow` builds **one reporter per tab**, so a run on one tab cannot drive the other's
+bar.
+
+### Step 7 — the `QProgressBar` itself — **DONE**
 
 `csv_tab.py:93-97` and `gsheet_tab.py:127-131` both have a `busy_bar` with
 `setRange(0, 0)` and the comment _"no phases or percentages from the library at this
@@ -611,6 +640,36 @@ finally go.
 `set_panel_size`, `set_run_enabled` and `_row`, so the progress panel is one more symptom of
 a duplication that predates this work — and the right time to fix that is in a refactor
 aimed at it, not inside a version bump. Noted in §7 as its own piece of work.
+
+**How it went.** `tests/integration/test_progress_bar.py` is parametrised over both tabs, so
+the two copies are held to the same behaviour by the same eight tests. That is the thing
+that makes the duplication safe to live with until the refactor happens — if the copies
+drift, the suite says so.
+
+The comment about "no phases or percentages from the library at this version" is gone from
+both tabs, which was the point.
+
+**Proof it works against the real library**, taken from a scripted run over the 200-person
+fixture:
+
+```
+PHASES:
+    ('multiplicative_weights', 200, bar max 200, 'Searching for diverse committees (200 rounds)')
+    ('maximin_optimization',  None, bar max   0, 'Optimizing maximin distribution')
+UPDATES: 55 delivered
+   first: (1, 200, 'Round 1/200: 1 committees found')
+   last:  (1, None, 'Maximin iteration 1: 200 committees, gap 0.00%')
+```
+
+Exactly the shape §3 predicted: determinate for the 200-round search, busy for the
+convergence loop that follows, and the throttle cutting the stream to 55 events. On this
+fixture the run is quick; on a real pool the second phase is where the minutes go, and it is
+correctly indeterminate rather than pretending to a percentage.
+
+`tests/e2e/test_csv_flow.py::test_the_progress_bar_becomes_determinate_during_a_real_run`
+pins this down end to end. It records the bar's maximum as each phase starts rather than
+checking at the end, because the bar deliberately returns to indeterminate afterwards —
+checking at the end would always see 0 and pass for the wrong reason.
 
 ### Step 8 — re-measure, re-smoke, and write it up
 

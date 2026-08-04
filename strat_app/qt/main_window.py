@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from strat_app.qt.csv_tab import CsvTab
 from strat_app.qt.gsheet_tab import GSheetTab
 from strat_app.qt.log_panel import LogDisplay, LogPanel
+from strat_app.qt.progress import QtProgressReporter
 from strat_app.qt.workers import QtTaskRunner, QueuedLogView
 from strat_app.sessions.csv_session import CsvSession
 from strat_app.sessions.gsheet_session import GSheetSession
@@ -111,6 +112,22 @@ class MainWindow(QMainWindow):
         settings_holder = SettingsHolder(settings_path)
         self.csv_tab.session = CsvSession(self.csv_tab, self.gui_log, settings_holder, runner=self.task_runner)
         self.gsheet_tab.session = GSheetSession(self.gsheet_tab, self.gui_log, settings_holder, runner=self.task_runner)
+        # a reporter each, so a run on one tab cannot drive the other tab's bar
+        self.csv_progress = self._build_progress_reporter(self.csv_tab)
+        self.gsheet_progress = self._build_progress_reporter(self.gsheet_tab)
+
+    def _build_progress_reporter(self, tab: CsvTab | GSheetTab) -> QtProgressReporter:
+        """
+        Point a reporter at a tab's progress bar and hand it to that tab's session.
+
+        The library calls the reporter from the worker thread, so the connections are
+        queued and the tab is only ever touched on the GUI thread.
+        """
+        reporter = QtProgressReporter()
+        reporter.connect_phase_started(tab.start_progress_phase)
+        reporter.connect_progressed(tab.set_progress)
+        tab.session.progress_reporter = reporter
+        return reporter
 
     def append_detailed_log(self, line: str) -> None:
         """Where the library's live log lines land while a selection is running."""

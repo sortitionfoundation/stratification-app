@@ -2,7 +2,7 @@
 # ABOUTME: Knows nothing about widgets; everything it wants to show goes through CsvView.
 
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING
 
 from sortition_algorithms import adapters, core, features, people
 from sortition_algorithms.utils import RunReport
@@ -11,6 +11,9 @@ from strat_app.sessions.log import GuiLog
 from strat_app.sessions.tasks import SynchronousRunner, TaskRunner
 from strat_app.sessions.view import CsvView, LogSection
 from strat_app.settings_holder import SettingsHolder
+
+if TYPE_CHECKING:
+    from sortition_algorithms.progress import ProgressReporter
 
 SELECTED_FILENAME = "selected.csv"
 REMAINING_FILENAME = "remaining.csv"
@@ -28,9 +31,9 @@ class CsvSession:
         self.gui_log = gui_log
         self.settings_holder = settings_holder
         self.runner = runner or SynchronousRunner()
-        # the library grows a progress_reporter argument in 0.12; until then this stays
-        # None and the busy indicator is all the feedback we can give during a run
-        self.progress_reporter: Any = None
+        # whoever builds the session supplies one that reaches the UI; None is fine and
+        # means the library reports its progress to nobody
+        self.progress_reporter: ProgressReporter | None = None
         self.data_source = adapters.CSVStringDataSource("", "")
         self.select_data = adapters.SelectionData(self.data_source)
         self.features: features.FeatureCollection | None = None
@@ -120,14 +123,13 @@ class CsvSession:
     def _stratify(self, *, test_selection: bool) -> tuple[bool, list[frozenset[str]], RunReport]:
         """Runs wherever the runner puts it - so it touches no view and no widget."""
         assert self.people is not None and self.features is not None
-        extra = {"progress_reporter": self.progress_reporter} if self.progress_reporter else {}
         return core.run_stratification(
             features=self.features,
             people=self.people,
             number_people_wanted=self.panel_size,
             settings=self.settings_holder.settings,
             test_selection=test_selection,
-            **extra,
+            progress_reporter=self.progress_reporter,
         )
 
     def _selection_failed(self, error: Exception) -> None:

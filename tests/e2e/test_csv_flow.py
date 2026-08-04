@@ -94,6 +94,29 @@ def test_the_detailed_log_fills_in_as_the_run_goes(qtbot, window: MainWindow) ->
     assert "Selecting... please wait..." in window.log_panel.browser.toPlainText()
 
 
+def test_the_progress_bar_becomes_determinate_during_a_real_run(qtbot, window: MainWindow) -> None:
+    """
+    A real maximin run starts with multiplicative_weights, which reports a total.
+
+    This is the whole point of the bump: the bar can say how far through it is rather
+    than only that something is happening. Recording the maxima as they arrive rather
+    than checking at the end, because the bar goes back to indeterminate for the
+    convergence loop that follows.
+    """
+    tab = window.csv_tab
+    tab.load_features_file(CATEGORIES_CSV)
+    tab.load_people_file(PEOPLE_CSV)
+    tab.panel_size_spin.setValue(PANEL_MIN)
+    maxima: list[int] = []
+    window.csv_progress.connect_phase_started(lambda name, total, message: maxima.append(tab.busy_bar.maximum()))
+
+    with qtbot.waitSignal(window.task_runner.finished, timeout=TIMEOUT_MS):
+        tab.run_selection()
+    qtbot.waitUntil(lambda: bool(maxima), timeout=TIMEOUT_MS)
+
+    assert max(maxima) > 0
+
+
 def test_running_twice_leaves_only_the_second_panel(qtbot, window: MainWindow, tmp_path) -> None:
     """The old app appended one run's output to the last one's."""
     tab = window.csv_tab

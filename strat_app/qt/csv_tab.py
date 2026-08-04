@@ -91,11 +91,12 @@ class CsvTab(QWidget):
         self.set_run_enabled(enabled=False)
         layout.addLayout(_row(self.run_button, self.run_test_button))
         self.busy_bar = QProgressBar()
-        # no phases or percentages from the library at this version, so all we can
-        # honestly show is that something is happening
         self.busy_bar.setRange(0, 0)
         self.busy_bar.setVisible(False)
         layout.addWidget(self.busy_bar)
+        self.progress_label = QLabel()
+        self.progress_label.setVisible(False)
+        layout.addWidget(self.progress_label)
         return box
 
     def _build_output(self) -> QGroupBox:
@@ -185,11 +186,39 @@ class CsvTab(QWidget):
     def set_busy(self, busy: bool) -> None:
         """Show that work is in flight, and refuse to start a second lot of it."""
         self.busy_bar.setVisible(busy)
+        self.progress_label.setVisible(busy)
         if busy:
+            self._reset_progress()
             self._run_enabled_before_busy = self.run_button.isEnabled()
             self.set_run_enabled(enabled=False)
         else:
             self.set_run_enabled(enabled=self._run_enabled_before_busy)
+
+    def _reset_progress(self) -> None:
+        """
+        Back to "something is happening", knowing nothing about what.
+
+        Without this a second run starts out showing where the first one finished.
+        """
+        self.busy_bar.setRange(0, 0)
+        self.progress_label.setText("")
+
+    def start_progress_phase(self, name: str, total: int | None, message: str) -> None:
+        """
+        A new phase of the library's work. A total of None means it has no fixed end.
+
+        `name` is the library's stable identifier for the phase. Nothing uses it yet -
+        the human-readable message is what goes on screen - but it is what a future
+        per-phase icon or ordering would key off, so it stays in the signature.
+        """
+        self.busy_bar.setRange(0, total or 0)
+        self.busy_bar.setValue(0)
+        self.progress_label.setText(message)
+
+    def set_progress(self, current: int, total: int | None, message: str) -> None:
+        if total is not None:
+            self.busy_bar.setValue(current)
+        self.progress_label.setText(message)
 
     def set_people_input_enabled(self, enabled: bool) -> None:
         self.people_button.setEnabled(enabled)

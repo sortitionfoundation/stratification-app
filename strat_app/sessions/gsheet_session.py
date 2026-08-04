@@ -2,7 +2,7 @@
 # ABOUTME: Knows nothing about widgets; everything it wants to show goes through GSheetView.
 
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import gspread
 from sortition_algorithms import adapters, core, features, people
@@ -12,6 +12,9 @@ from strat_app.sessions.log import GuiLog
 from strat_app.sessions.tasks import SynchronousRunner, TaskRunner
 from strat_app.sessions.view import GSheetView, LogSection
 from strat_app.settings_holder import SettingsHolder
+
+if TYPE_CHECKING:
+    from sortition_algorithms.progress import ProgressReporter
 
 DEFAULT_AUTH_JSON_PATH = Path.home() / "secret_do_not_commit.json"
 
@@ -50,9 +53,9 @@ class GSheetSession:
         self.gui_log = gui_log
         self.settings_holder = settings_holder
         self.runner = runner or SynchronousRunner()
-        # the library grows a progress_reporter argument in 0.12; until then this stays
-        # None and the busy indicator is all the feedback we can give during a run
-        self.progress_reporter: Any = None
+        # whoever builds the session supplies one that reaches the UI; None is fine and
+        # means the library reports its progress to nobody
+        self.progress_reporter: ProgressReporter | None = None
         # injectable so tests can drive the whole flow against a fake spreadsheet
         self.data_source = data_source or adapters.GSheetDataSource(
             feature_tab_name="",
@@ -263,7 +266,6 @@ class GSheetSession:
     def _stratify(self, *, test_selection: bool) -> tuple[bool, list[frozenset[str]], RunReport]:
         """Runs wherever the runner puts it - so it touches no view and no widget."""
         assert self.features is not None and self.people is not None
-        extra = {"progress_reporter": self.progress_reporter} if self.progress_reporter else {}
         return core.run_stratification(
             features=self.features,
             people=self.people,
@@ -271,7 +273,7 @@ class GSheetSession:
             settings=self.settings_holder.settings,
             test_selection=test_selection,
             number_selections=self.number_selections,
-            **extra,
+            progress_reporter=self.progress_reporter,
         )
 
     def _selection_failed(self, error: Exception) -> None:
