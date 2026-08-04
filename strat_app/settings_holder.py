@@ -10,6 +10,38 @@ from strat_app.sessions.view import LogSection
 
 DEFAULT_SETTINGS_PATH = Path.home() / "sf_stratification_settings.toml"
 
+# The library accepts more than this app ships. python-mip is left out of the packaged
+# build because it brings 275MB of CBC with it, and diversimax needs pandas and
+# scikit-learn, which we do not install. Both are settings a user can write down and
+# neither fails until a run is well under way, so we refuse them at load time instead.
+SUPPORTED_SOLVER_BACKENDS = ("highspy",)
+SUPPORTED_SELECTION_ALGORITHMS = ("legacy", "maximin", "nash", "leximin")
+
+
+def unsupported_message(settings: Settings) -> str:
+    """
+    Say what in these settings this build cannot honour, or nothing if it can honour it all.
+
+    Deliberately a refusal rather than a quiet substitution. Swapping the user's solver
+    or algorithm for a working one would have two machines with the same settings file
+    selecting panels by different methods without saying so.
+    """
+    problems = [
+        _unsupported("solver_backend", settings.solver_backend, SUPPORTED_SOLVER_BACKENDS),
+        _unsupported("selection_algorithm", settings.selection_algorithm, SUPPORTED_SELECTION_ALGORITHMS),
+    ]
+    return "\n".join(problem for problem in problems if problem)
+
+
+def _unsupported(name: str, value: str, supported: tuple[str, ...]) -> str:
+    if value in supported:
+        return ""
+    return (
+        f"The {name} '{value}' is not available in this build. "
+        f"Edit {name} in your settings file to one of: {', '.join(supported)} - "
+        f"then restart this app."
+    )
+
 
 class SettingsHolder:
     def __init__(self, settings_path: Path = DEFAULT_SETTINGS_PATH) -> None:
@@ -31,10 +63,14 @@ class SettingsHolder:
         """
         if self._settings is None:
             try:
-                self._settings, report = Settings.load_from_file(settings_file_path=self.settings_path)
-                return report.as_text()
+                settings, report = Settings.load_from_file(settings_file_path=self.settings_path)
             except Exception as error:
                 return f"Error reading in settings file: {error}"
+            unsupported = unsupported_message(settings)
+            if unsupported:
+                return unsupported
+            self._settings = settings
+            return report.as_text()
         return ""
 
     def init_settings_log(self, gui_log: GuiLog, section: LogSection) -> None:
