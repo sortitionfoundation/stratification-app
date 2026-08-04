@@ -124,9 +124,10 @@ class UserLogHandler(logging.Handler):
     """
     A logging handler that hands each record to Qt.
 
-    The library logs to `sortition_algorithms_user` as a run progresses - which trial
-    it is on, which algorithm it picked. Sending those through a signal is what makes
-    the detailed log fill in during a run rather than all at once at the end.
+    The library logs to `sortition_algorithms_user` as a run progresses - which algorithm
+    it picked, whether every candidate can appear in some panel. Sending those through a
+    signal is what makes the detailed log fill in during a run rather than all at once at
+    the end.
     """
 
     def __init__(self) -> None:

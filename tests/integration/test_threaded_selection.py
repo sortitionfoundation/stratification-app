@@ -12,6 +12,7 @@ from strat_app.sessions.csv_session import CsvSession
 from strat_app.sessions.log import GuiLog
 from strat_app.sessions.view import LogSection
 from strat_app.settings_holder import SettingsHolder
+from tests.conftest import ALGORITHM_LINE
 
 PANEL_MIN = 22
 TIMEOUT_MS = 120_000
@@ -79,21 +80,18 @@ def test_the_output_is_written_where_asked(
 def test_the_library_log_arrives_while_the_selection_runs(
     qtbot, tab: CsvTab, runner: QtTaskRunner, log_panel: LogPanel, categories_contents: str, people_contents: str
 ) -> None:
-    """The trial and algorithm lines the library logs are the only sign of life on a long run."""
+    """The lines the library logs as it goes are the only sign of life on a long run."""
     tab.session.add_feature_content(categories_contents)
     tab.session.add_people_content(people_contents)
     tab.panel_size_spin.setValue(PANEL_MIN)
-    lines: list[str] = []
 
     def receive(line: str) -> None:
-        lines.append(line)
         tab.session.gui_log.add(LogSection.DETAILED_LOG, line)
 
     with user_log_handler(receive), qtbot.waitSignal(runner.finished, timeout=TIMEOUT_MS):
         tab.run_selection()
 
-    qtbot.waitUntil(lambda: "Trial number: 1" in log_panel.browser.toPlainText(), timeout=TIMEOUT_MS)
-    assert any("algorithm" in line for line in lines)
+    qtbot.waitUntil(lambda: ALGORITHM_LINE in log_panel.browser.toPlainText(), timeout=TIMEOUT_MS)
 
 
 def test_the_report_does_not_repeat_the_lines_already_logged(
@@ -109,8 +107,8 @@ def test_the_report_does_not_repeat_the_lines_already_logged(
     with user_log_handler(receive), qtbot.waitSignal(runner.finished, timeout=TIMEOUT_MS):
         tab.run_selection()
 
-    qtbot.waitUntil(lambda: "Trial number: 1" in log_panel.browser.toPlainText(), timeout=TIMEOUT_MS)
-    assert log_panel.browser.toPlainText().count("Trial number: 1") == 1
+    qtbot.waitUntil(lambda: ALGORITHM_LINE in log_panel.browser.toPlainText(), timeout=TIMEOUT_MS)
+    assert log_panel.browser.toPlainText().count(ALGORITHM_LINE) == 1
 
 
 def test_the_work_itself_leaves_the_gui_thread(

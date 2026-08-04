@@ -7,7 +7,7 @@ import pytest
 
 from strat_app.qt.main_window import CSV_TAB_INDEX, MainWindow
 from strat_app.qt.workers import user_log_handler
-from tests.conftest import CATEGORIES_CSV, PEOPLE_CSV, PEOPLE_TOO_FEW_CSV
+from tests.conftest import ALGORITHM_LINE, CATEGORIES_CSV, PEOPLE_CSV, PEOPLE_TOO_FEW_CSV
 
 PANEL_MIN = 22
 PANEL_MAX = 24
@@ -90,7 +90,7 @@ def test_the_detailed_log_fills_in_as_the_run_goes(qtbot, window: MainWindow) ->
     ):
         tab.run_selection()
 
-    qtbot.waitUntil(lambda: "Trial number: 1" in window.log_panel.browser.toPlainText(), timeout=TIMEOUT_MS)
+    qtbot.waitUntil(lambda: ALGORITHM_LINE in window.log_panel.browser.toPlainText(), timeout=TIMEOUT_MS)
     assert "Selecting... please wait..." in window.log_panel.browser.toPlainText()
 
 

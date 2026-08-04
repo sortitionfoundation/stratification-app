@@ -388,7 +388,7 @@ venv, and added `cbcbox` 2.929 — §4.1's resolution confirmed against the real
 One practical note for later steps: the three failures each burn a 120s `waitUntil` timeout,
 so a red run of the full suite takes ~7 minutes against ~30s green.
 
-### Step 2 — fix the tests that the retry-loop move broke
+### Step 2 — fix the tests that the retry-loop move broke — **DONE**
 
 - `tests/integration/test_threaded_selection.py`: swap `"Trial number: 1"` for
   `"Using maximin algorithm"` in both tests; in `test_the_library_log_arrives_while_the_selection_runs`
@@ -400,6 +400,18 @@ so a red run of the full suite takes ~7 minutes against ~30s green.
   algorithm it picked") for the same reason.
 
 Green here means the bump is behaviourally clean for the CSV path.
+
+**How it went.** All three green. The string went into `tests/conftest.py` as
+`ALGORITHM_LINE` rather than being repeated in two files, with a comment noting it tracks
+`selection_algorithm` — change the algorithm in settings and the line changes with it, which
+is the kind of coupling worth writing down.
+
+Worth recording because it nearly got lost: **both tests still prove what they were written
+to prove.** `LogPanel` builds its browser with `include_logged=False`, so a line the library
+logs can only reach that widget through the live `user_log_handler` — never through the
+end-of-run report. So "the line is in the browser" really does mean "the live path works",
+and `count(ALGORITHM_LINE) == 1` really does mean "the report didn't duplicate it". Dropping
+the separate `any("algorithm" in line for line in lines)` assertion cost nothing.
 
 ### Step 3 — packaging
 

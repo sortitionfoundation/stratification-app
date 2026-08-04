@@ -15,6 +15,11 @@ CATEGORIES_CSV = FIXTURE_DIR / "categories_no_flex.csv"
 PEOPLE_CSV = FIXTURE_DIR / "people.csv"
 PEOPLE_TOO_FEW_CSV = FIXTURE_DIR / "people_too_few.csv"
 
+# The first thing the library logs once a selection is properly under way, and so the
+# first sign of life the detailed log can show. The default algorithm is maximin; pick
+# a different one in the settings and this line changes with it.
+ALGORITHM_LINE = "Using maximin algorithm."
+
 
 @pytest.fixture
 def categories_contents() -> str:
