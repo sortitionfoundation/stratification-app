@@ -530,6 +530,37 @@ Item 6 remains the one to be most careful about — it exercises `find_unused_ta
 which is unchanged, but "unchanged code, changed surroundings" is exactly how this kind of
 thing bites.
 
+**Status: NOT DONE — blocked, and it is the one gap in this PR.**
+
+This machine has no `~/secret_do_not_commit.json` and no scratch spreadsheet, so items 1–7
+cannot be run. They need a Google service account and a human driving the GUI. **Chewie, or
+whoever merges this, has to work that checklist before it ships** — it is the only coverage
+the gsheet write path has, and the bump changes how that path opens a spreadsheet (the new
+mimetype pre-check, §2.6) and how long it waits (the new 60s timeout, §2.6).
+
+What was done instead, to shrink the hole rather than just note it: **items 8 and 9 turned
+out not to need Google at all** and are now automated against the fixture-backed data source
+in `tests/unit/test_gsheet_session.py`. Padding every header name with spaces and loading
+through the whole session flow tests exactly what the manual item was going to test.
+
+**That found a real bug, which is why it was worth doing.** 0.12's whitespace fix went into
+`SelectionData.load_people` and `load_already_selected` but **not** `load_features`. So:
+
+- a **respondents** tab with `"  nationbuilder_id  "` now loads — the fix works
+- a **categories** tab with `"  category  "` still fails, with
+  `Did not find required column name 'category' in the input` — naming a column the user can
+  see spelled correctly in front of them, which is precisely the confusion the fix existed
+  to remove
+
+Not worked around in the app — that would be reimplementing library behaviour in the wrong
+place. Instead it is `upstream.md` issue 5, and
+`test_padded_category_headers_are_not_tolerated_yet` documents the current behaviour so the
+asymmetry is written down rather than rediscovered. When upstream fixes it, that test goes
+red and should be flipped into the positive assertion its sibling already makes.
+
+Item 7 (`NotNativeGoogleSheetError`) genuinely needs Drive — you cannot fake a non-native
+mimetype through `CSVStringDataSource` — so it stays on the manual list.
+
 ### Step 6 — `QtProgressReporter`, red-first
 
 New module `strat_app/qt/progress.py`:

@@ -202,7 +202,70 @@ output tabs, delete some" — worth a clearer message if it's cheap.
 
 ---
 
-## 5. Nit: the default settings comment contradicts `DEFAULT_BACKEND`
+## 5. `load_features` does not strip its header names, but `load_people` does
+
+**Labels:** bug
+
+### What happens
+
+0.12 fixed the "stray space in a spreadsheet header" problem by normalising header names,
+via the new `normalise_iter`. It went into two of the three loaders on `SelectionData`
+(`adapters.py`):
+
+```python
+def load_features(self, number_to_select: int = 0):
+    ...
+    headers = list(headers_iter)             # <- not normalised
+
+def load_people(self, settings, features):
+    ...
+    headers = normalise_iter(headers_iter)   # <- normalised
+
+def load_already_selected(self, settings):
+    ...
+    headers = normalise_iter(headers_iter)   # <- normalised
+```
+
+So a respondents tab with `"  nationbuilder_id  "` in its header row now loads, and a
+categories tab with `"  category  "` still fails.
+
+### Why it matters
+
+The failure is the confusing one the fix was meant to eliminate. With a categories tab whose
+header cells have leading or trailing spaces:
+
+```
+ConfigurationError: Did not find required column name 'category' in the input
+Did not find required column name 'name' in the input
+Did not find required column name 'min' in the input
+Did not find required column name 'max' in the input
+```
+
+The user is looking at a spreadsheet with `category`, `name`, `min` and `max` in the header
+row, spelled exactly as the error says they should be. There is nothing on screen to
+suggest the problem is whitespace.
+
+It is also now inconsistent in a way that is hard to explain: pad the respondents tab and
+it works, pad the categories tab and it doesn't.
+
+### Reproduction
+
+```python
+from sortition_algorithms import adapters
+
+cats = "  category  ,  name  ,  min  ,  max  \ngender,Female,1,2\n"
+adapters.SelectionData(adapters.CSVStringDataSource(cats, "")).load_features()
+# ConfigurationError: Did not find required column name 'category' in the input
+```
+
+### Suggested fix
+
+`headers = normalise_iter(headers_iter)` in `load_features`, matching its two siblings.
+Worth a test over all three loaders together so the next one added doesn't miss it.
+
+---
+
+## 6. Nit: the default settings comment contradicts `DEFAULT_BACKEND`
 
 **Labels:** documentation, good first issue
 

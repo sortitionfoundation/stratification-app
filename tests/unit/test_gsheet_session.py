@@ -160,6 +160,76 @@ def test_resetting_clears_the_range_before_the_size(loaded_session: GSheetSessio
     assert view.last_args("set_panel_size") == (0,)
 
 
+#########################################
+# messy header rows, which 0.12 tolerates
+#########################################
+
+
+def pad_header(contents: str) -> str:
+    """Put spaces around every name in the header row, as a hand-edited sheet often has."""
+    header, _, body = contents.partition("\n")
+    padded = ",".join(f"  {name}  " for name in header.split(","))
+    return f"{padded}\n{body}"
+
+
+def test_padded_respondent_headers_are_tolerated(
+    view: CallRecorder,
+    log: RecordingLogView,
+    settings_path: Path,
+    categories_contents: str,
+    people_contents: str,
+) -> None:
+    """
+    0.12 strips whitespace from header names, so a hand-edited tab stops being an error.
+
+    This is the fix that matters most to us of everything in the bump - a stray space in
+    a spreadsheet header used to produce a parse error that named a column the user could
+    see was spelled correctly.
+    """
+    data_source = FakeGSheetDataSource(
+        tabs={"Categories": categories_contents, "Respondents": pad_header(people_contents)},
+        sheet_names=[SHEET_NAME],
+    )
+    session = make_session(view, log, settings_path, data_source)
+    session.update_g_sheet_name(SHEET_NAME)
+
+    session.load_g_sheet()
+
+    assert session.people is not None
+    assert "Successfully loaded features and people." in log.text(LogSection.GSHEET_SELECTION)
+
+
+def test_padded_category_headers_are_not_tolerated_yet(
+    view: CallRecorder,
+    log: RecordingLogView,
+    settings_path: Path,
+    categories_contents: str,
+) -> None:
+    """
+    The same padding on the categories tab still fails, which is an upstream gap.
+
+    0.12 put normalise_iter() into SelectionData.load_people and
+    load_already_selected but not load_features, so only two of the three loaders
+    strip their header names. The error names columns the user can see spelled
+    correctly in front of them, which is the confusion the fix was meant to remove.
+
+    Written down rather than worked around: this belongs upstream, and is issue 5 in
+    llm-working/upstream.md. When that lands this test goes red and should become the
+    positive assertion its sibling above already makes.
+    """
+    data_source = FakeGSheetDataSource(
+        tabs={"Categories": pad_header(categories_contents), "Respondents": ""},
+        sheet_names=[SHEET_NAME],
+    )
+    session = make_session(view, log, settings_path, data_source)
+    session.update_g_sheet_name(SHEET_NAME)
+
+    session.load_g_sheet()
+
+    assert session.features is None
+    assert "Did not find required column name 'category'" in log.text(LogSection.GSHEET_FEATURES)
+
+
 ###############################
 # more than one selection
 ###############################
