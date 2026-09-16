@@ -49,13 +49,13 @@ jobs:
 
   # 2. Build MacOS Executable
   #
-  # Note that this produces an x86_64 build, so won't work on newer ARM based Macs
-  # without Rosetta.
+  # Note that this produces an x86_64 build, so it needs Rosetta on ARM based Macs.
   build-macos-executable:
     name: "strat-select.app creation using python 3.11 on MacOS"
-    # we use 13 to build x86_64 apps
-    # TODO: GitHub has been retiring macOS 13 runners - check this is still available
-    runs-on: "macos-13"
+    # The `-intel` images are the x86_64 runners. macos-26-intel is the other
+    # option - we stay on 15 so the bundle links against the older SDK and keeps
+    # working on the older macOS versions that Intel Macs tend to be stuck on.
+    runs-on: "macos-15-intel"
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -72,9 +72,8 @@ jobs:
           uv sync
       # notes:
       # the spec builds onedir on macOS, which an app bundle requires, and sets
-      # target_arch=x86_64, which python-mip 1.15.0 requires - revisit once 1.16.0
-      # is properly released.
-      # See https://groups.google.com/g/python-mip/c/0R2NC_URD6M
+      # target_arch=x86_64 to match this runner. See strat-select.spec for what
+      # moving to an arm64 build would take.
       - name: "Build MacOS package"
         run: |
           uv run pyinstaller strat-select.spec
