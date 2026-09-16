@@ -3,43 +3,48 @@ name = "stratification-app"
 version = "0.1.0"
 description = "Application to select people from a spreadsheet according to given categories"
 authors = [
-  "Nick Gill <nick@sortitionfoundation.org>",
-  "Brett Hennig <brett@sortitionfoundation.org>",
-  "Paul Goelz <mail@paulgoelz.de>",
-  "Hamish Downer <hamish@sortitionfoundation.org>",
+  { name = "Nick Gill", email = "nick@sortitionfoundation.org" },
+  { name = "Brett Hennig", email = "brett@sortitionfoundation.org" },
+  { name = "Paul Goelz", email = "mail@paulgoelz.de" },
+  { name = "Hamish Downer", email = "hamish@sortitionfoundation.org" },
 ]
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-  "Eel==0.18.2",
   "oauth2client<5",
   "pyinstaller<7",
+  "pyside6-essentials>=6.11.1",
   "setuptools<82",
-  "sortition-algorithms==0.11.5",
+  "sortition-algorithms==0.12.10",
   "toml",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.3.4", "pytest-cov>=6.0.0", "ruff>=0.9.7"]
+dev = [
+    "mypy>=2.3.0",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "pytest-qt>=4.5.0",
+    "ruff>=0.9.7",
+]
 
 [tool.uv]
 # this provides a "cooldown" to avoid supply chain issues - requires uv>=0.9.17
 # background: https://blog.yossarian.net/2025/11/21/We-should-all-be-using-dependency-cooldowns
 exclude-newer = "1 week"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+
 [tool.mypy]
 python_version = "3.12"
+exclude = ["^build/", "^dist/", "^ignore/"]
 check_untyped_defs = false
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
-
-# eel does not have type hints/stubs
-[[tool.mypy.overrides]]
-module = "eel.*"
-ignore_missing_imports = true
-ignore_errors = true
 
 [tool.ruff]
 target-version = "py312"
@@ -107,6 +112,7 @@ ignore = [
   "B017",    # assertRaises(Exception)
   "BLE001",  # don't catch Exception
   "C901",    # too complex
+  "COM812",  # missing trailing comma - conflicts with the formatter, which ruff warns about
   "FBT001",  # positional boolean arg in function defn
   "PLR0912", # too many branches
   "PLR0913", # too many args in function defn

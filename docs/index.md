@@ -83,7 +83,9 @@ The app will let you search for the Spreadsheet by name - it should have a uniqu
 
 You can select what the names of the input tabs are - the defaults are "Categories" and "Respondents".
 
-It will create new tabs, with the default names (if they don't already exist) of "X" and "Y".  **TODO:** fix this line.
+It will create new tabs for the output, named "Original Selected - output - N" and
+"Remaining - output - N". `N` is the lowest number for which neither tab already exists, so
+running a selection twice does not overwrite the first run's output.
 
 ## Config Files
 

@@ -21,8 +21,10 @@ repos:
       - id: detect-private-key
 
   # Run the Ruff linter.
+  # keep this in step with the ruff dev dependency, or `just check` and this hook
+  # disagree about the same file
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.1
+    rev: v0.15.12
     hooks:
       # Linter
       - id: ruff

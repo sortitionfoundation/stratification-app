@@ -1,3 +1,6 @@
+# Stuff I want to look at but not commit
+ignore/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -30,8 +33,10 @@ MANIFEST
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
+#  Ours is checked in, since it is the build recipe.
 *.manifest
 *.spec
+!strat-select.spec
 
 # Installer logs
 pip-log.txt
