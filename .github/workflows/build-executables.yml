@@ -45,12 +45,13 @@ jobs:
 
   # 2. Build MacOS Executable
   #
-  # Note that this produces an ARM based build, so won't work on older
-  # intel based Macs.
+  # Note that this produces an x86_64 build, so it needs Rosetta on ARM based Macs.
   build-macos-executable:
     name: "script.app creation using python 3.11 on MacOS"
-    # we use 13 to build x86_64 apps
-    runs-on: "macos-13"
+    # The `-intel` images are the x86_64 runners. macos-26-intel is the other
+    # option - we stay on 15 so the bundle links against the older SDK and keeps
+    # working on the older macOS versions that Intel Macs tend to be stuck on.
+    runs-on: "macos-15-intel"
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -67,8 +68,8 @@ jobs:
           uv sync
       # notes:
       # --onedir rather than --onefile is required for app bundle
-      # --target-arch=x86_64 is required for python-mip 1.15.0 - revisit once 1.16.0 is properly released
-      #                      See https://groups.google.com/g/python-mip/c/0R2NC_URD6M
+      # --target-arch=x86_64 builds for Intel Macs, which also run on ARM Macs
+      #                      under Rosetta
       - name: "Build MacOS package"
         run: |
           uv run python -m eel script.py web -n strat-select-macos --additional-hooks-dir=./pyinstallerhooks/ --onedir --windowed --target-arch=x86_64
@@ -125,7 +126,8 @@ jobs:
     name: "script.exe release for Windows"
     needs: build-windows-exe
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: "windows-latest"
+    # this job only moves a file, so it runs on the cheapest runner
+    runs-on: "ubuntu-24.04"
     permissions:
       contents: write
     steps:
@@ -150,7 +152,8 @@ jobs:
     name: "script.app release for MacOS"
     needs: build-macos-executable
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: "macos-latest"
+    # this job only moves a file, so it runs on the cheapest runner
+    runs-on: "ubuntu-24.04"
     permissions:
       contents: write
     steps:
@@ -164,7 +167,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: strat-select-macos
+          file: strat-select-macos.app.zip
           tag: ${{ github.ref }}
           overwrite: true
           body: "script release text"
