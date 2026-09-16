@@ -73,7 +73,14 @@ analysis = Analysis(
     pathex=[],
     binaries=[],
     datas=[("strat_app/resources/*.svg", "strat_app/resources")],
-    hiddenimports=[],
+    # osqp picks its algebra backend at runtime with importlib, so PyInstaller never
+    # sees osqp.ext_builtin. cvxpy probes every solver it knows about when it builds
+    # the installed list, and without the backend that probe logs
+    # "RuntimeError: No algebra backend available!" where users can see it.
+    # We solve with SCS, so this is noise rather than a failure - but it is alarming
+    # noise, and a few hundred KB buys its way out of it.
+    # https://github.com/orgs/osqp/discussions/657
+    hiddenimports=["osqp.ext_builtin"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
